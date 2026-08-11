@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Legacy Walk",
+    "slug": "legacy-walk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "legacywalk",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.legacywalk",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Legacy Walk uses location to track walking journeys and route progress.",
+        "NSMotionUsageDescription": "Legacy Walk uses motion activity to count steps and track wellness progress.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.yourcompany.legacywalk",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACTIVITY_RECOGNITION"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "90ab6971-beb3-493e-90fc-b4fa5d093077"
+      }
+    }
+  }
+}

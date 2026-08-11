@@ -1,0 +1,31 @@
+export const avatarImages = {
+  "LW-AVT-000-01": require("../assets/avatars/LW-AVT-000-01.png"),
+  "LW-AVT-000-02": require("../assets/avatars/LW-AVT-000-02.png"),
+  "LW-AVT-000-03": require("../assets/avatars/LW-AVT-000-03.png"),
+  "LW-AVT-000-04": require("../assets/avatars/LW-AVT-000-04.png"),
+  "LW-AVT-000-05": require("../assets/avatars/LW-AVT-000-05.png"),
+  "LW-AVT-000-06": require("../assets/avatars/LW-AVT-000-06.png"),
+  "LW-AVT-000-07": require("../assets/avatars/LW-AVT-000-07.png"),
+  "LW-AVT-000-08": require("../assets/avatars/LW-AVT-000-08.png"),
+  "LW-AVT-000-09": require("../assets/avatars/LW-AVT-000-09.png"),
+  "LW-AVT-000-10": require("../assets/avatars/LW-AVT-000-10.png"),
+  "LW-AVT-000-11": require("../assets/avatars/LW-AVT-000-11.png"),
+  "LW-AVT-000-12": require("../assets/avatars/LW-AVT-000-12.png"),
+  "LW-AVT-000-13": require("../assets/avatars/LW-AVT-000-13.png"),
+  "LW-AVT-000-14": require("../assets/avatars/LW-AVT-000-14.png"),
+  "LW-AVT-000-15": require("../assets/avatars/LW-AVT-000-15.png"),
+  "LW-AVT-000-16": require("../assets/avatars/LW-AVT-000-16.png"),
+  "LW-AVT-000-17": require("../assets/avatars/LW-AVT-000-17.png"),
+  "LW-AVT-000-18": require("../assets/avatars/LW-AVT-000-18.png"),
+  "LW-AVT-000-19": require("../assets/avatars/LW-AVT-000-19.png"),
+  "LW-AVT-000-20": require("../assets/avatars/LW-AVT-000-20.png"),
+  "LW-AVT-000-21": require("../assets/avatars/LW-AVT-000-21.png"),
+  "LW-AVT-000-22": require("../assets/avatars/LW-AVT-000-22.png"),
+  "LW-AVT-000-23": require("../assets/avatars/LW-AVT-000-23.png"),
+  "LW-AVT-000-24": require("../assets/avatars/LW-AVT-000-24.png"),
+};
+
+export const avatarList = Object.keys(avatarImages).map((id) => ({
+  id,
+  image: avatarImages[id],
+}));
