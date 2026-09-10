@@ -113,4 +113,9 @@ export const avatarOptions = [
     id: "seniorAsianFemale",
     image: require("../assets/avatars/Asian/female/seniorasianfemale.png"),
   },
+{
+  id: "middleAsianFemale",
+  image: require("../assets/avatars/Asian/female/middleasianfemale.png"),
+},
+
 ];

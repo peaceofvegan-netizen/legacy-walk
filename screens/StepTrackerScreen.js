@@ -12,7 +12,7 @@ import {
   addSteps,
   calculateLevelFromMiles,
   calculateWCoinsFromSteps,
-} from "../utils/stepTrackingEngine";
+} from "../utils/Ste";
 
 export default function StepTrackerScreen() {
   const [steps, setSteps] = useState({

@@ -3,9 +3,8 @@ import Purchases from "react-native-purchases";
 
 export const ENTITLEMENTS = {
   PREMIUM: "premium",
-  LEGENDARY: "legendary",
+  ELITE: "elite",
 };
-
 const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
 const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY;
 
@@ -32,8 +31,8 @@ export async function configureRevenueCat(userId) {
 export async function getRevenueCatPlan() {
   const customerInfo = await Purchases.getCustomerInfo();
 
-  if (customerInfo.entitlements.active[ENTITLEMENTS.LEGENDARY]) {
-    return "legendary";
+  if (customerInfo.entitlements.active[ENTITLEMENTS.ELITE]) {
+    return "elite";
   }
 
   if (customerInfo.entitlements.active[ENTITLEMENTS.PREMIUM]) {
@@ -51,8 +50,8 @@ export async function loadOfferings() {
 export async function buyPackage(packageToBuy) {
   const { customerInfo } = await Purchases.purchasePackage(packageToBuy);
 
-  if (customerInfo.entitlements.active[ENTITLEMENTS.LEGENDARY]) {
-    return "legendary";
+  if (customerInfo.entitlements.active[ENTITLEMENTS.ELITE]) {
+    return "elite";
   }
 
   if (customerInfo.entitlements.active[ENTITLEMENTS.PREMIUM]) {
@@ -65,8 +64,8 @@ export async function buyPackage(packageToBuy) {
 export async function restoreRevenueCatPurchases() {
   const customerInfo = await Purchases.restorePurchases();
 
-  if (customerInfo.entitlements.active[ENTITLEMENTS.LEGENDARY]) {
-    return "legendary";
+  if (customerInfo.entitlements.active[ENTITLEMENTS.ELITE]) {
+    return "elite";
   }
 
   if (customerInfo.entitlements.active[ENTITLEMENTS.PREMIUM]) {

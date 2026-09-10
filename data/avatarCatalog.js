@@ -47,6 +47,7 @@ export const AVATARS = {
     female: {
       young: require("../assets/avatars/Asian/female/youngasianfemale.png"),
       senior: require("../assets/avatars/Asian/female/seniorasianfemale.png"),
+      middle: require("../assets/avatars/Asian/female/middleasianfemale.png"),
     },
   },
 };

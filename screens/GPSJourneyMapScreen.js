@@ -1,5 +1,7 @@
 import React from "react";
-
+import { awardPointsOnce } from "../utils/rewardPointsSystem";
+import { addLegacyPoints } from "../utils/legacyPointsManager";
+import { addPoints } from "../utils/legacyPointsManager";
 import {
   View,
   Text,
@@ -11,7 +13,7 @@ import {
   Alert,
   Share,
 } from "react-native";
-
+import { addRegularJourneySteps } from "../utils/stepTrackingEngine";
 import * as Location from "expo-location";
 import { Pedometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -66,11 +68,14 @@ export default function GPSJourneyMapScreen({
   const [secondsActive, setSecondsActive] = React.useState(0);
   const [isTracking, setIsTracking] = React.useState(true);
   const [hasCompleted, setHasCompleted] = React.useState(false);
+  
   const [lastSavedAt, setLastSavedAt] = React.useState(null);
   const [lastRewardedCheckpoint, setLastRewardedCheckpoint] = React.useState(1);
   const [sessionId] = React.useState(`${Date.now()}`);
   const [passportStamps, setPassportStamps] = React.useState([]);
   const lastStepEventRef = React.useRef(0);
+  const journeyStepBaseRef = React.useRef(null);
+ 
   const [ shownStoryCheckpoints,setShownStoryCheckpoints,] = React.useState([]);
   const shareWalkProgress = async () => {
   await Share.share({
@@ -80,7 +85,7 @@ Steps: ${steps?.toLocaleString() || 0}
 Distance: ${distanceMiles || "0.0"} miles
 Checkpoints completed: ${completedCheckpoints?.length || 0}/5
 
-Join me on Legacy Walk.`,
+Join me on Legathon Walk.`,
   });
 };
   const rawJourney =
@@ -120,13 +125,179 @@ const normalizedJourneyId = String(journeyId)
 
 const journeyReward =
   JOURNEY_REWARDS[normalizedJourneyId] || null;
+  // ======================================================
+// REAL PHONE PEDOMETER TRACKING
+// ======================================================
+// Reset pedometer baseline when switching journeys
+React.useEffect(() => {
+  journeyStepBaseRef.current = null;
+  lastStepEventRef.current = 0;
+}, [currentJourney?.id]);
+React.useEffect(() => {
+  console.log("🔥🔥 GPS EFFECT IS RUNNING 🔥🔥");
+
+  let subscription = null;
+  let mounted = true;
+
+  async function startPedometer() {
+  
+    try {
+      const available = await Pedometer.isAvailableAsync();
+
+      console.log("PEDOMETER AVAILABLE:", available);
+
+      if (!available || !mounted) {
+        console.log("Pedometer is not available on this device.");
+        return;
+      }
+
+      // Start from whatever progress is already saved.
+      // This is important because your DEV test placed the
+      // journey near completion.
+      
+      lastStepEventRef.current = 0;
+console.log("🔥 ABOUT TO START PEDOMETER WATCHER");
+  subscription = Pedometer.watchStepCount(async (result) => {
+  console.log("🚶 PEDOMETER EVENT:", result?.steps);
+
+  if (!mounted || !isTracking) return;
+
+        const sensorSteps = Number(result?.steps || 0);
+
+        // watchStepCount gives total steps since this listener started.
+        // Add those steps ON TOP of the already-saved journey progress.
+  const stepDelta = Math.max(
+  sensorSteps - lastStepEventRef.current,
+  0
+);
+
+lastStepEventRef.current = sensorSteps;
+
+if (stepDelta <= 0) return;
+
+let newJourneySteps = 0;
+
+setSteps((previousSteps) => {
+  if (journeyStepBaseRef.current == null) {
+    journeyStepBaseRef.current = previousSteps;
+  }
+
+  newJourneySteps = Math.min(
+    totalSteps,
+    previousSteps + stepDelta
+  );
+
+  return newJourneySteps;
+});
+
+await addRegularJourneySteps(stepDelta);
+if (newJourneySteps >= totalSteps) {
+  setIsTracking(false);
+
+  if (subscription) {
+    subscription.remove();
+    subscription = null;
+  }
+
+  console.log("🏁 JOURNEY STEP GOAL REACHED:", totalSteps);
+  return;
+}
+        try {
+
+          // -------------------------------
+          // LIFETIME STEPS
+          // -------------------------------
+         const savedLifetime = Number(
+        (await AsyncStorage.getItem("lifetimeSteps")) || 0
+);
+
+await AsyncStorage.setItem(
+  "lifetimeSteps",
+  String(savedLifetime + stepDelta)
+);
+          // -------------------------------
+          // TODAY STEPS
+          // -------------------------------
+        
+
+          // -------------------------------
+          // CURRENT JOURNEY
+          // -------------------------------
+         
+
+          console.log("REAL STEP DETECTED:", {
+            sensorSteps,
+            stepDelta,
+            newJourneySteps,
+          });
+        } catch (saveError) {
+          console.log(
+            "Pedometer step save error:",
+            saveError
+          );
+        }
+      });
+    } catch (error) {
+      console.log("Pedometer start error:", error);
+    }
+  }
+
+ startPedometer();
+
+  return () => {
+    mounted = false;
+
+    if (subscription) {
+      subscription.remove();
+    }
+  };
+ }, [currentJourney?.id, isTracking]);
 
 console.log("GPS CURRENT JOURNEY:", currentJourney);
 console.log("GPS JOURNEY ID:", normalizedJourneyId);
 console.log("GPS JOURNEY REWARD:", journeyReward);
 
-  const routeTitle = currentJourney?.title || "Legacy Journey";
-  const storyTriggerStorageKey = React.useMemo(() => {
+
+// ======================================================
+// 🧪 DEVELOPMENT JOURNEY TEST
+// Only exists while running the app in development mode.
+// Moves the journey close to the finish for testing.
+// ======================================================
+
+const runJourneyTest = async () => {
+  if (!__DEV__) return;
+  if (!currentJourney?.id) return;
+
+  try {
+    const testSteps = Math.max(totalSteps - 100, 0);
+
+    setSteps(testSteps);
+
+    await AsyncStorage.setItem(
+      `journeyStats_${currentJourney.id}`,
+      JSON.stringify({
+        steps: testSteps,
+        secondsActive,
+      })
+    );
+
+    console.log(
+      "🧪 DEV TEST: Journey moved near finish:",
+      currentJourney.id,
+      testSteps
+    );
+  } catch (error) {
+    console.log("Journey test error:", error);
+  }
+};
+
+
+// KEEP YOUR EXISTING CODE BELOW THIS
+
+const routeTitle =
+  currentJourney?.title || "Legacy Journey";
+
+const storyTriggerStorageKey = React.useMemo(() => {
   const journeyId =
     currentJourney?.id ||
     currentJourney?.journeyId ||
@@ -139,7 +310,6 @@ console.log("GPS JOURNEY REWARD:", journeyReward);
   currentJourney?.journeyId,
   currentJourney?.slug,
 ]);
-
 
 
 React.useEffect(() => {
@@ -197,11 +367,10 @@ React.useEffect(() => {
 
   const liveMiles = Number((steps / 2200).toFixed(2));
   const liveCalories = Math.round(steps * 0.04);
-const progress = Math.min(
-  Number(((steps / totalSteps) * 100).toFixed(2)),
-  100
-);
-
+const progress =
+  steps >= totalSteps
+    ? 100
+    : Math.floor((steps / totalSteps) * 10000) / 100;
   const remainingSteps = Math.max(totalSteps - steps, 0);
 
   const timeActive = `${String(Math.floor(secondsActive / 3600)).padStart(
@@ -403,7 +572,44 @@ React.useEffect(() => {
   shownStoryCheckpoints,
   openCheckpointStory,
 ]);
+React.useEffect(() => {
+  async function handleAutomaticJourneyCompletion() {
+    if (!currentJourney?.id) return;
 
+    // Do nothing until checkpoint 5 / 100%
+    if (completedCheckpoints !== 5 || progress < 100) return;
+
+    // Prevent it from firing over and over
+    if (hasCompleted) return;
+
+    try {
+      console.log(
+        "AUTO COMPLETION TRIGGERED:",
+        currentJourney.id
+      );
+
+      await completeJourney();
+
+      console.log(
+        "Journey automatically completed:",
+        currentJourney.id
+      );
+    } catch (error) {
+      console.log(
+        "Automatic journey completion error:",
+        error
+      );
+    }
+  }
+
+  handleAutomaticJourneyCompletion();
+}, [
+  currentJourney?.id,
+  completedCheckpoints,
+  progress,
+  hasCompleted,
+]);
+ 
   React.useEffect(() => {
     const timer = setInterval(() => {
       if (isTracking) {
@@ -652,25 +858,30 @@ React.useEffect(() => {
 
       const checkpointReward = 50;
 
-      await AsyncStorage.multiSet([
-        [
-          checkpointKey,
-          "true",
-        ],
-        [
-          `lastRewardedCheckpoint_${currentJourney.id}`,
-          String(checkpointNumber),
-        ],
-      ]);
+   await AsyncStorage.multiSet([
+  [
+    checkpointKey,
+    "true",
+  ],
+  [
+    `lastRewardedCheckpoint_${currentJourney.id}`,
+    String(checkpointNumber),
+  ],
+]);
 
-      if (cancelled) return;
+await awardPointsOnce(
+  `${currentJourney.id}_checkpoint_${checkpointNumber}`,
+  checkpointReward
+);
 
-      setLastRewardedCheckpoint(checkpointNumber);
+if (cancelled) return;
 
-      Alert.alert(
-        "Checkpoint Reached!",
-        `You reached checkpoint ${checkpointNumber} and earned ${checkpointReward} points.`
-      );
+setLastRewardedCheckpoint(checkpointNumber);
+
+Alert.alert(
+  "Checkpoint Reached!",
+  `You reached checkpoint ${checkpointNumber} and earned ${checkpointReward} points.`
+);
     } catch (error) {
       console.warn(
         "Checkpoint reward error:",
@@ -761,7 +972,7 @@ async function completeJourney() {
      * The journey is not marked completed unless this succeeds.
      */
     const rewardResult = await completeJourneyReward(journeyId);
-
+  
     console.log(
       "JOURNEY REWARD RESULT:",
       rewardResult
@@ -774,7 +985,21 @@ async function completeJourney() {
       );
       return;
     }
+  const journeyPoints = Number(currentJourney?.rewardPoints || 0);
 
+const pointResult = await addPoints({
+  id: `journey_${journeyId}_complete`,
+  title: currentJourney?.title || "Legathon Journey",
+  category: "Journey",
+  points: journeyPoints,
+  source: "Journey Complete",
+  metadata: {
+    journeyId,
+  },
+});
+
+console.log("LEGATHON JOURNEY POINT RESULT:", pointResult);
+     
     const completedJourney = {
       ...currentJourney,
       id: journeyId,
@@ -836,8 +1061,20 @@ const earnedCoins = Number(
 );
 
 Alert.alert(
-  "Journey Complete!",
-  `You earned ${earnedCoins.toLocaleString()} WCoins.`
+  "🏆 Journey Complete!",
+  `Congratulations!
+
+🪙 W Coins Earned: ${Number(earnedCoins || 0).toLocaleString()}
+
+⭐ Legathon Points Earned: ${Number(
+    pointResult?.pointsAwarded || 0
+  ).toLocaleString()}
+
+🏅 Total Legathon Points: ${Number(
+    pointResult?.totalPoints || 0
+  ).toLocaleString()}
+
+Keep walking and build your Legathon journey!`
 );
 } catch (error) {
   console.error(
@@ -1333,30 +1570,17 @@ React.useEffect(() => {
           </View>
         ))}
       </View>
-
-      <TouchableOpacity
-        style={styles.pauseButton}
-        onPress={async () => {
-          setSteps((prev) => prev + 500);
-
-          const savedLifetime = Number(
-            (await AsyncStorage.getItem("lifetimeSteps")) || 0
-          );
-
-          const newLifetime = savedLifetime + 500;
-
-          await AsyncStorage.setItem(
-            "lifetimeSteps",
-            String(newLifetime)
-          );
-
-          console.log("Saved Lifetime Steps:", newLifetime);
-        }}
-      >
-        <Text style={styles.pauseButtonText}>
-          Test +500 Steps
-        </Text>
-      </TouchableOpacity>
+{__DEV__ && (
+  <TouchableOpacity
+    style={styles.testButton}
+    onPress={runJourneyTest}
+  >
+    <Text style={styles.testButtonText}>
+      🧪 DEV: Jump Near Finish
+    </Text>
+  </TouchableOpacity>
+)}
+     
 
       {/* SHARE BUTTON */}
       <TouchableOpacity
@@ -1368,61 +1592,8 @@ React.useEffect(() => {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.pauseButton}
-        onPress={() => setIsTracking((prev) => !prev)}
-      >
-        <Text style={styles.pauseButtonText}>
-          {isTracking ? "Pause Journey" : "Resume Journey"}
-        </Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.resetButton}
-        onPress={resetJourney}
-      >
-        <Text style={styles.resetButtonText}>
-          Reset Journey
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.saveExitButton}
-        onPress={saveAndExit}
-      >
-        <Text style={styles.saveExitButtonText}>
-          Save & Exit
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.completeButton}
-        onPress={completeJourney}
-      >
-        <Text style={styles.completeButtonText}>
-          Complete Journey
-        </Text>
-      </TouchableOpacity>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={goToWallet}
-        >
-          <Text style={styles.secondaryText}>
-            Wallet
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          onPress={goToCertificate}
-        >
-          <Text style={styles.secondaryText}>
-            Certificate
-          </Text>
-        </TouchableOpacity>
-      </View>
+     
 
     </ScrollView>
   );
@@ -1519,7 +1690,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 8,
   },
+testButton: {
+  backgroundColor: "#24344d",
+  paddingVertical: 18,
+  borderRadius: 18,
+  alignItems: "center",
+  marginBottom: 18,
+},
 
+testButtonText: {
+  color: "#ffffff",
+  fontSize: 18,
+  fontWeight: "800",
+},
   statsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",

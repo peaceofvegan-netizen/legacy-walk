@@ -1,4 +1,11 @@
-import React, { useEffect, useState } from "react";
+// screens/ProfileScreen.js
+
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
   View,
   Text,
@@ -8,837 +15,3547 @@ import {
   Image,
   ImageBackground,
   StyleSheet,
+  AppState,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getEquippedAvatar } from "../utils/avatarInventoryStorage";
-import { translate } from "../i18n/i18n";
 
-const COLLAGE_BG = require("../assets/collage-background.png");
+import {
+  avatarOptions,
+} from "../data/avatarOptions";
 
-const formatNumber = (value) => Number(value || 0).toLocaleString();
+import {
+  getCurrentAvatarVisual,
+} from "../utils/avatarVisualResolver";
+
+import {
+  getCurrentAvatarSuit,
+} from "../utils/avatarWardrobeStorage";
+
+import {
+  translate,
+} from "../i18n/i18n";
+
+import useLegathonPoints from "../hooks/useLegathonPoints";
+
+
+// ============================================================
+// ASSETS
+// ============================================================
+
+const COLLAGE_BG =
+  require("../assets/collage-background.png");
+
+const LOCKED_PASSPORT =
+  require("../assets/locked/legacy-lock.png");
+
+const PASSPORT_IMAGES = {
+  rome:
+    require("../assets/passports/rome.png"),
+
+  wall:
+    require("../assets/passports/greatwall.png"),
+
+  tubman:
+    require("../assets/passports/tubman.png"),
+
+  mecca:
+    require("../assets/passports/mecca.png"),
+
+  tokyo:
+    require("../assets/passports/tokyo.png"),
+};
+
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const STEPS_PER_MILE = 2000;
+
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function safeNumber(
+  value,
+  fallback = 0
+) {
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isFinite(parsed)
+  ) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+
+function formatNumber(
+  value
+) {
+  return safeNumber(
+    value
+  ).toLocaleString();
+}
+
+
+function safeParse(
+  value,
+  fallback
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(
+      value
+    );
+  } catch (error) {
+    return fallback;
+  }
+}
+
+
+function normalizeSuitName(
+  suitId
+) {
+  switch (
+    String(
+      suitId ||
+      "default"
+    ).toLowerCase()
+  ) {
+    case "blue":
+      return "Blue Tracksuit";
+
+    case "green":
+      return "Green Tracksuit";
+
+    case "red":
+      return "Red Tracksuit";
+
+    case "yellow":
+      return "Yellow Tracksuit";
+
+    case "elite":
+      return "Black & Gold Elite";
+
+    default:
+      return "Default Outfit";
+  }
+}
+
+
+function getFirstUnlockedPassport(
+  stamps
+) {
+  if (
+    !Array.isArray(stamps)
+  ) {
+    return "None Yet";
+  }
+
+  const order = [
+    ["tokyo", "Tokyo"],
+    ["rome", "Rome"],
+    ["wall", "Great Wall"],
+    ["tubman", "Tubman"],
+    ["mecca", "Mecca"],
+  ];
+
+  for (
+    const [
+      id,
+      title,
+    ] of order
+  ) {
+    if (
+      stamps.includes(
+        id
+      )
+    ) {
+      return title;
+    }
+  }
+
+  return "None Yet";
+}
+
+
+// ============================================================
+// MAIN SCREEN
+// ============================================================
 
 export default function ProfileScreen({
   language = "en",
   openPassport,
+  goToAvatarCenter,
+  goBack,
 }) {
-  
-  const [currentAvatar, setCurrentAvatar] = useState(null);
-  const [lifetimeSteps, setLifetimeSteps] = useState(0);
-  const [totalMiles, setTotalMiles] = useState(0);
-  const [completedJourneys, setCompletedJourneys] = useState([]);
-  const [passportStamps, setPassportStamps] = useState([]);
-  const [rewardsEarned, setRewardsEarned] = useState([]);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  // ==========================================================
+  // PROFILE / AVATAR
+  // ==========================================================
 
-  async function loadProfile() {
-    try {
-      try {
-        const avatar = await getEquippedAvatar();
-        setCurrentAvatar(avatar);
-      } catch (e) {
-        console.log("Avatar load failed:", e);
-      }
+  const [
+    avatarName,
+    setAvatarName,
+  ] =
+    useState(
+      "Legathon Walker"
+    );
 
-const savedSteps = await AsyncStorage.getItem("lifetimeSteps");
-const journeys = await AsyncStorage.getItem("completedJourneys");
-const stamps = await AsyncStorage.getItem("passportStamps");
-const rewards = await AsyncStorage.getItem("rewardsEarned");
+  const [
+    selectedAvatarId,
+    setSelectedAvatarId,
+  ] =
+    useState(
+      avatarOptions?.[0]?.id ||
+      null
+    );
 
-const steps = Number(savedSteps || 0);
+  const [
+    avatarImage,
+    setAvatarImage,
+  ] =
+    useState(
+      avatarOptions?.[0]?.image ||
+      null
+    );
 
-const parsedJourneys = JSON.parse(journeys || "[]");
+  const [
+    equippedSuit,
+    setEquippedSuit,
+  ] =
+    useState(
+      "default"
+    );
 
-setLifetimeSteps(steps);
-setTotalMiles(Math.round((steps * 2.5) / 5280));
 
-setCompletedJourneys(
-  Array.isArray(parsedJourneys)
-    ? parsedJourneys
-    : []
-);
+  // ==========================================================
+  // PROFILE DATA
+  // ==========================================================
 
-setPassportStamps(JSON.parse(stamps || "[]"));
-setRewardsEarned(JSON.parse(rewards || "[]"));
-    } catch (error) {
-      console.log("Profile load error:", error);
-    }
-  }
+  const [
+    lifetimeSteps,
+    setLifetimeSteps,
+  ] =
+    useState(0);
 
-  const journeyCount = completedJourneys?.length || 0;
-  const stampCount = passportStamps?.length || 0;
-  const rewardCount = rewardsEarned?.length || 0;
-const favoriteJourney =
-  completedJourneys.find(j => !j.completed) ||
-  completedJourneys[0] || {
-    id: "rome",
-    icon: "🏛️",
-    title: "Roman Empire",
-    progress: 92,
-  };
-  return (
-    <ImageBackground
-      source={COLLAGE_BG}
-      style={styles.background}
-      imageStyle={styles.backgroundImage}
-    >
-      <View style={styles.overlay}>
-        <SafeAreaView style={styles.safe}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
-          >
-            <Text style={styles.title}>
-              {translate(language, "Profile Title") || "Explorer Identity"}
-            </Text>
+  const [
+    totalMiles,
+    setTotalMiles,
+  ] =
+    useState(0);
 
-            <View style={styles.heroCard}>
-              <View style={styles.avatarRing}>
-                {currentAvatar?.image ? (
-                  <Image
-                    source={currentAvatar.image}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Text style={styles.avatarIcon}>👤</Text>
-                )}
-              </View>
+  const [
+    completedJourneys,
+    setCompletedJourneys,
+  ] =
+    useState([]);
 
-              <Text style={styles.name}>Phillip Morris</Text>
-              <Text style={styles.rank}>Master Explorer</Text>
+  const [
+    journeyCount,
+    setJourneyCount,
+  ] =
+    useState(0);
 
-              {currentAvatar && (
-                <>
-                  <Text style={styles.avatarName}>{currentAvatar.name}</Text>
-                  <Text style={styles.avatarMeta}>
-                    {currentAvatar.group} • {currentAvatar.gender}
-                  </Text>
-                </>
-              )}
+  const [
+    passportStamps,
+    setPassportStamps,
+  ] =
+    useState([]);
 
-              <Text style={styles.legathonScore}>
-                {formatNumber(lifetimeSteps)} Legacy Score
-              </Text>
+  const [
+    rewardsEarned,
+    setRewardsEarned,
+  ] =
+    useState([]);
 
-              <View style={styles.levelBar}>
-                <View style={styles.levelFill} />
-              </View>
+  const [
+    walkingStreak,
+    setWalkingStreak,
+  ] =
+    useState(0);
 
-              <Text style={styles.levelText}>
-                Level 12 • 74% to Legathon Walker
-              </Text>
-            </View>
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
 
-            <View style={styles.statsGrid}>
-              <Stat number={formatNumber(lifetimeSteps)} label="Steps" />
-              <Stat number={formatNumber(totalMiles)} label="Miles" />
-              <Stat number={formatNumber(journeyCount)} label="Journeys" />
-              <Stat number={formatNumber(journeyCount)} label="Completed" />
-              <Stat number={formatNumber(stampCount)} label="Stamps" />
-              <Stat number={formatNumber(rewardCount)} label="Rewards" />
-            </View>
 
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Favorite Journey</Text>
+  // ==========================================================
+  // LEGATHON POINTS / RANK
+  // ==========================================================
 
-            <TouchableOpacity
-  style={styles.favoriteCard}
-  onPress={() => openPassport && openPassport(favoriteJourney.id || "rome")}
->
-  <Text style={styles.favoriteIcon}>{favoriteJourney.icon || "🏛️"}</Text>
+  const {
+    points:
+      legathonPoints,
 
-  <View style={{ flex: 1 }}>
-    <Text style={styles.favoriteTitle}>{favoriteJourney.title}</Text>
-    <Text style={styles.favoriteSub}>
-      Legacy Journey • {favoriteJourney.progress || 0}% Complete
-    </Text>
-  </View>
-</TouchableOpacity>
+    rank:
+      legathonRank,
+  } =
+    useLegathonPoints();
 
-            
-            
-</View>
-            
-           <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Passport Collection</Text>
 
-          <View style={styles.collectionRow}>
- <Collection
-  image={passportStamps.includes("rome")
-    ? require("../assets/passports/rome.png")
-    : require("../assets/locked/legacy-lock.png")
-  }
-  title="Rome"
-  unlocked={passportStamps.includes("rome")}
-  openPassport={() => openPassport("rome")}
-/>
+  // ==========================================================
+  // LOAD PROFILE
+  // ==========================================================
 
-<Collection
-  image={
-    passportStamps.includes("wall")
-      ? require("../assets/passports/greatwall.png")
-      : require("../assets/locked/legacy-lock.png")
-  }
-  title="Great Wall"
-  unlocked={passportStamps.includes("wall")}
-  openPassport={() => openPassport("wall")}
-/>
+  const loadProfile =
+    useCallback(
+      async () => {
 
-<Collection
-  image={
-    passportStamps.includes("tubman")
-      ? require("../assets/passports/tubman.png")
-      : require("../assets/locked/legacy-lock.png")
-  }
-  title="Tubman"
-  unlocked={passportStamps.includes("tubman")}
-  openPassport={() => openPassport("tubman")}
-/>
+        try {
 
-<Collection
-  image={
-    passportStamps.includes("mecca")
-      ? require("../assets/passports/mecca.png")
-      : require("../assets/locked/legacy-lock.png")
-  }
-  title="Mecca"
-  unlocked={passportStamps.includes("mecca")}
-  openPassport={() => openPassport("mecca")}
-/>
+          setLoading(
+            true
+          );
 
-<Collection
-  image={
-    passportStamps.includes("tokyo")
-      ? require("../assets/passports/tokyo.png")
-      : require("../assets/locked/legacy-lock.png")
-  }
-  title="Tokyo"
-  unlocked={passportStamps.includes("tokyo")}
-  openPassport={() => openPassport("tokyo")}
-/>
-</View>
-        </View>    
 
-            <View style={styles.goldCard}>
-              <Text style={styles.goldLabel}>ACHIEVEMENT WALL</Text>
-              <Text style={styles.sectionTitle}>Badges Earned</Text>
+          // --------------------------------------------------
+          // READ SAVED DATA
+          // --------------------------------------------------
 
-              <View style={styles.badgeGrid}>
+          const [
+            savedSteps,
+            journeysRaw,
+            stampsRaw,
+            rewardsRaw,
+            profileRaw,
+            streakRaw,
+            currentSuit,
+          ] =
+            await Promise.all([
 
-  <Badge
-    icon="🥇"
-    title="First Route"
-    unlocked={completedJourneys.length >= 1}
-  />
+              AsyncStorage.getItem(
+                "lifetimeSteps"
+              ),
 
-  <Badge
-    icon="🛡️"
-    title="First Passport"
-    unlocked={passportStamps.length >= 1}
-  />
+              AsyncStorage.getItem(
+                "journeyProgressData"
+              ),
 
-  <Badge
-    icon="🔥"
-    title="Streak Master"
-    unlocked={lifetimeSteps >= 100000}
-  />
+              AsyncStorage.getItem(
+                "passportStamps"
+              ),
 
-  <Badge
-    icon="🌎"
-    title="World Explorer"
-    unlocked={completedJourneys.length >= 10}
-  />
+              AsyncStorage.getItem(
+                "rewardsEarned"
+              ),
 
-</View>
-            </View>
+              AsyncStorage.getItem(
+                "avatarProfile"
+              ),
 
-            <View style={styles.sectionCard}>
-  <Text style={styles.sectionTitle}>Journey Timeline</Text>
+              AsyncStorage.getItem(
+                "walkingStreak"
+              ),
 
-  {completedJourneys.length === 0 ? (
-    <Text style={styles.emptyText}>No completed journeys yet</Text>
-  ) : (
-    completedJourneys.map((journey, index) => (
-      <Timeline
-        key={journey.id || index}
-        title={journey.title}
-        date={journey.completed ? "Completed" : `${journey.progress || 0}% Complete`}
-      />
-    ))
-  )}
-</View>
+              getCurrentAvatarSuit(),
 
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Legathon Rank</Text>
+            ]);
 
-              {[
-                "Traveler",
-                "Wayfinder",
-                "Explorer",
-                "Master Explorer",
-                "Legacy Walker",
-                "Historian",
-                "Legend",
-              ].map((rank) => {
-                const active = rank === "Master Explorer";
+
+          // --------------------------------------------------
+          // STEPS
+          // --------------------------------------------------
+
+          const steps =
+            Math.max(
+              0,
+              safeNumber(
+                savedSteps
+              )
+            );
+
+
+          setLifetimeSteps(
+            steps
+          );
+
+
+          setTotalMiles(
+            Number(
+              (
+                steps /
+                STEPS_PER_MILE
+              ).toFixed(2)
+            )
+          );
+
+
+          // --------------------------------------------------
+          // JOURNEYS
+          // --------------------------------------------------
+
+          const parsedJourneys =
+            safeParse(
+              journeysRaw,
+              []
+            );
+
+
+          const journeys =
+            Array.isArray(
+              parsedJourneys
+            )
+              ? parsedJourneys
+              : [];
+
+
+          setJourneyCount(
+            journeys.length
+          );
+
+
+          const completed =
+            journeys.filter(
+              (journey) => {
+
+                if (
+                  journey?.completed ===
+                  true
+                ) {
+                  return true;
+                }
+
 
                 return (
-                  <View
-                    key={rank}
-                    style={[styles.rankRow, active && styles.rankRowActive]}
-                  >
-                    <Text style={styles.rankDot}>{active ? "◆" : "◇"}</Text>
-                    <Text
-                      style={[styles.rankName, active && styles.rankNameActive]}
-                    >
-                      {rank}
-                    </Text>
-                  </View>
+                  safeNumber(
+                    journey?.progress
+                  ) >= 100
                 );
-              })}
+              }
+            );
+
+
+          setCompletedJourneys(
+            completed
+          );
+
+
+          // --------------------------------------------------
+          // PASSPORTS
+          // --------------------------------------------------
+
+          const parsedStamps =
+            safeParse(
+              stampsRaw,
+              []
+            );
+
+
+          setPassportStamps(
+            Array.isArray(
+              parsedStamps
+            )
+              ? parsedStamps
+              : []
+          );
+
+
+          // --------------------------------------------------
+          // REWARDS
+          // --------------------------------------------------
+
+          const parsedRewards =
+            safeParse(
+              rewardsRaw,
+              []
+            );
+
+
+          setRewardsEarned(
+            Array.isArray(
+              parsedRewards
+            )
+              ? parsedRewards
+              : []
+          );
+
+
+          // --------------------------------------------------
+          // STREAK
+          // --------------------------------------------------
+
+          setWalkingStreak(
+            Math.max(
+              0,
+              safeNumber(
+                streakRaw
+              )
+            )
+          );
+
+
+          // --------------------------------------------------
+          // EQUIPPED SUIT
+          // --------------------------------------------------
+
+          setEquippedSuit(
+            currentSuit ||
+            "default"
+          );
+
+
+          // --------------------------------------------------
+          // SELECTED AVATAR PROFILE
+          // --------------------------------------------------
+
+          const savedProfile =
+            safeParse(
+              profileRaw,
+              null
+            );
+
+
+          const avatarId =
+            savedProfile?.avatarId ||
+            avatarOptions?.[0]?.id ||
+            null;
+
+
+          const name =
+            savedProfile?.name ||
+            "Legathon Walker";
+
+
+          setAvatarName(
+            name
+          );
+
+
+          setSelectedAvatarId(
+            avatarId
+          );
+
+
+          // --------------------------------------------------
+          // FIND NORMAL AVATAR
+          // --------------------------------------------------
+
+          const normalAvatar =
+            avatarOptions.find(
+              (avatar) =>
+                avatar.id ===
+                avatarId
+            ) ||
+            avatarOptions?.[0] ||
+            null;
+
+
+          // --------------------------------------------------
+          // RESOLVE EQUIPPED TRACKSUIT AVATAR
+          // --------------------------------------------------
+
+          if (
+            avatarId
+          ) {
+
+            try {
+
+              const visual =
+                await getCurrentAvatarVisual(
+                  avatarId
+                );
+
+
+              setAvatarImage(
+                visual?.image ||
+                normalAvatar?.image ||
+                null
+              );
+
+            } catch (
+              avatarError
+            ) {
+
+              console.log(
+                "Profile avatar visual error:",
+                avatarError
+              );
+
+
+              setAvatarImage(
+                normalAvatar?.image ||
+                null
+              );
+            }
+
+          } else {
+
+            setAvatarImage(
+              normalAvatar?.image ||
+              null
+            );
+          }
+
+
+        } catch (error) {
+
+          console.log(
+            "Profile load error:",
+            error
+          );
+
+        } finally {
+
+          setLoading(
+            false
+          );
+        }
+      },
+      []
+    );
+
+
+  // ==========================================================
+  // INITIAL LOAD
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      loadProfile();
+
+    },
+    [
+      loadProfile
+    ]
+  );
+
+
+  // ==========================================================
+  // REFRESH WHEN APP RETURNS TO FOREGROUND
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      const subscription =
+        AppState.addEventListener(
+          "change",
+          (nextState) => {
+
+            if (
+              nextState ===
+              "active"
+            ) {
+              loadProfile();
+            }
+          }
+        );
+
+
+      return () => {
+
+        subscription?.remove?.();
+
+      };
+
+    },
+    [
+      loadProfile
+    ]
+  );
+
+
+  // ==========================================================
+  // DERIVED VALUES
+  // ==========================================================
+
+  const completedCount =
+    completedJourneys.length;
+
+
+  const stampCount =
+    passportStamps.length;
+
+
+  const rewardCount =
+    rewardsEarned.length;
+
+
+  const currentRank =
+    legathonRank?.currentRank ||
+    legathonRank?.rank ||
+    "New Walker";
+
+
+  const nextRank =
+    legathonRank?.nextRank ||
+    "MAX";
+
+
+  const rankProgress =
+    Math.min(
+      100,
+      Math.max(
+        0,
+        safeNumber(
+          legathonRank?.progress
+        )
+      )
+    );
+
+
+  const favoriteJourney =
+    completedJourneys?.[0] ||
+    {
+      id:
+        "rome",
+
+      icon:
+        "🏛️",
+
+      title:
+        "Roman Empire",
+
+      progress: 0,
+    };
+
+
+  const favoritePassport =
+    getFirstUnlockedPassport(
+      passportStamps
+    );
+
+
+  const favoriteBadge =
+    completedCount >= 10
+      ? "World Explorer"
+      : lifetimeSteps >=
+        100000
+      ? "Streak Master"
+      : stampCount >= 1
+      ? "First Passport"
+      : completedCount >= 1
+      ? "First Route"
+      : "No Badge Yet";
+
+
+  const displayJourneyTitle =
+    favoriteJourney?.title ||
+    "No Favorite Yet";
+
+
+  const rankOrder = [
+    "New Walker",
+    "Explorer",
+    "Pathfinder",
+    "Trailblazer",
+    "Adventurer",
+    "Champion",
+    "Master Walker",
+    "Legathon Hero",
+    "Legend",
+    "Hall of Fame",
+  ];
+
+
+  // ==========================================================
+  // UI
+  // ==========================================================
+
+  return (
+    <ImageBackground
+      source={
+        COLLAGE_BG
+      }
+      style={
+        styles.background
+      }
+      imageStyle={
+        styles.backgroundImage
+      }
+    >
+
+      <View
+        style={
+          styles.overlay
+        }
+      >
+
+        <SafeAreaView
+          style={
+            styles.safe
+          }
+        >
+
+          <ScrollView
+            showsVerticalScrollIndicator={
+              false
+            }
+            contentContainerStyle={
+              styles.content
+            }
+          >
+
+            {/* =================================================
+                HEADER
+            ================================================= */}
+
+            <View
+              style={
+                styles.headerRow
+              }
+            >
+
+              {goBack ? (
+
+                <TouchableOpacity
+                  style={
+                    styles.backButton
+                  }
+                  onPress={
+                    goBack
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.backText
+                    }
+                  >
+                    ‹
+                  </Text>
+
+                </TouchableOpacity>
+
+              ) : (
+
+                <View
+                  style={
+                    styles.backSpacer
+                  }
+                />
+
+              )}
+
+
+              <View
+                style={
+                  styles.headerTextWrap
+                }
+              >
+
+                <Text
+                  style={
+                    styles.eyebrow
+                  }
+                >
+                  LEGATHON WALK
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.title
+                  }
+                >
+                  {translate(
+                    language,
+                    "LegathonProfile"
+                  ) ||
+                    "Legathon Profile"}
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.headerSubtitle
+                  }
+                >
+                  Your walking Legathon in one place
+                </Text>
+
+              </View>
+
             </View>
 
-            <View style={styles.showcaseCard}>
-              <Text style={styles.showcaseLabel}>LEGATHON SHOWCASE</Text>
-              <Text style={styles.showcaseTitle}>Public Profile Highlights</Text>
 
-              <Showcase label="Favorite Passport" value="Tokyo Nights" />
-              <Showcase label="Favorite Badge" value="World Explorer" />
-              <Showcase label="Favorite Journey" value="Great Wall Trek" />
+            {/* =================================================
+                PREMIUM PROFILE HERO
+            ================================================= */}
+
+            <View
+              style={
+                styles.heroCard
+              }
+            >
+
+              <View
+                style={
+                  styles.heroGlow
+                }
+              />
+
+
+              <View
+                style={
+                  styles.avatarStage
+                }
+              >
+
+                {avatarImage ? (
+
+                  <Image
+                    source={
+                      avatarImage
+                    }
+                    style={
+                      styles.avatarImage
+                    }
+                    resizeMode="contain"
+                  />
+
+                ) : (
+
+                  <Text
+                    style={
+                      styles.avatarFallback
+                    }
+                  >
+                    👤
+                  </Text>
+
+                )}
+
+
+                <View
+                  style={
+                    styles.rankPill
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.rankPillText
+                    }
+                  >
+                    {currentRank}
+                  </Text>
+
+                </View>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.heroInfo
+                }
+              >
+
+                <Text
+                  style={
+                    styles.profileLabel
+                  }
+                >
+                  YOUR LEGATHON IDENTITY
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.name
+                  }
+                >
+                  {avatarName}
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.avatarIdentity
+                  }
+                >
+                  {selectedAvatarId ||
+                    "Legathon Avatar"}
+                </Text>
+
+
+                <View
+                  style={
+                    styles.outfitPill
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.outfitPillText
+                    }
+                  >
+                    ✓{" "}
+                    {normalizeSuitName(
+                      equippedSuit
+                    )}
+                  </Text>
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.legathonScore
+                  }
+                >
+                  ⭐{" "}
+                  {formatNumber(
+                    legathonPoints
+                  )}{" "}
+                  Legathon Points
+                </Text>
+
+
+                <View
+                  style={
+                    styles.levelBar
+                  }
+                >
+
+                  <View
+                    style={[
+                      styles.levelFill,
+                      {
+                        width:
+                          `${rankProgress}%`,
+                      },
+                    ]}
+                  />
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.levelText
+                  }
+                >
+                  {Math.round(
+                    rankProgress
+                  )}
+                  % to{" "}
+                  {nextRank}
+                </Text>
+
+
+                {goToAvatarCenter ? (
+
+                  <TouchableOpacity
+                    style={
+                      styles.avatarCenterButton
+                    }
+                    onPress={
+                      goToAvatarCenter
+                    }
+                    activeOpacity={
+                      0.85
+                    }
+                  >
+
+                    <Text
+                      style={
+                        styles.avatarCenterButtonText
+                      }
+                    >
+                      Open Avatar Center
+                    </Text>
+
+                  </TouchableOpacity>
+
+                ) : null}
+
+              </View>
+
             </View>
 
-            <View style={styles.bottomCard}>
-              <Text style={styles.bottomLabel}>MEMBER SINCE</Text>
-              <Text style={styles.bottomTitle}>June 2026</Text>
-              <Text style={styles.bottomText}>
-                Current streak: 24 days • Next reward: 450 points away
+
+            {/* =================================================
+                PERFORMANCE
+            ================================================= */}
+
+            <View
+              style={
+                styles.sectionHeadingRow
+              }
+            >
+
+              <View>
+
+                <Text
+                  style={
+                    styles.goldLabel
+                  }
+                >
+                  WALKING LEGATHON
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.sectionHeading
+                  }
+                >
+                  Performance
+                </Text>
+
+              </View>
+
+
+              <Text
+                style={
+                  styles.sectionIcon
+                }
+              >
+                ✦
               </Text>
+
             </View>
+
+
+            <View
+              style={
+                styles.statsGrid
+              }
+            >
+
+              <Stat
+                icon="👟"
+                number={
+                  formatNumber(
+                    lifetimeSteps
+                  )
+                }
+                label="Journey Steps"
+              />
+
+
+              <Stat
+                icon="🗺️"
+                number={
+                  totalMiles.toLocaleString(
+                    undefined,
+                    {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }
+                  )
+                }
+                label="Miles"
+              />
+
+
+              <Stat
+                icon="🌍"
+                number={
+                  formatNumber(
+                    journeyCount
+                  )
+                }
+                label="Journeys"
+              />
+
+
+              <Stat
+                icon="✅"
+                number={
+                  formatNumber(
+                    completedCount
+                  )
+                }
+                label="Completed"
+              />
+
+
+              <Stat
+                icon="🛂"
+                number={
+                  formatNumber(
+                    stampCount
+                  )
+                }
+                label="Stamps"
+              />
+
+
+              <Stat
+                icon="🔥"
+                number={
+                  formatNumber(
+                    walkingStreak
+                  )
+                }
+                label="Day Streak"
+              />
+
+            </View>
+
+
+            {/* =================================================
+                FAVORITE JOURNEY
+            ================================================= */}
+
+            <View
+              style={
+                styles.sectionCard
+              }
+            >
+
+              <View
+                style={
+                  styles.sectionTop
+                }
+              >
+
+                <View>
+
+                  <Text
+                    style={
+                      styles.goldLabel
+                    }
+                  >
+                    JOURNEY IDENTITY
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Favorite Journey
+                  </Text>
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.sectionIcon
+                  }
+                >
+                  🧭
+                </Text>
+
+              </View>
+
+
+              <TouchableOpacity
+                style={
+                  styles.favoriteCard
+                }
+                onPress={() => {
+
+                  if (
+                    openPassport
+                  ) {
+                    openPassport(
+                      favoriteJourney?.id ||
+                      "rome"
+                    );
+                  }
+
+                }}
+                activeOpacity={
+                  0.85
+                }
+              >
+
+                <View
+                  style={
+                    styles.favoriteIconBox
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.favoriteIcon
+                    }
+                  >
+                    {favoriteJourney?.icon ||
+                      "🏛️"}
+                  </Text>
+
+                </View>
+
+
+                <View
+                  style={
+                    styles.favoriteTextWrap
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.favoriteTitle
+                    }
+                  >
+                    {displayJourneyTitle}
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.favoriteSub
+                    }
+                  >
+                    Legathon Journey •{" "}
+                    {Math.round(
+                      safeNumber(
+                        favoriteJourney?.progress
+                      )
+                    )}
+                    % Complete
+                  </Text>
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.chevron
+                  }
+                >
+                  ›
+                </Text>
+
+              </TouchableOpacity>
+
+            </View>
+
+
+            {/* =================================================
+                PASSPORT COLLECTION
+            ================================================= */}
+
+            <View
+              style={
+                styles.sectionCard
+              }
+            >
+
+              <View
+                style={
+                  styles.sectionTop
+                }
+              >
+
+                <View>
+
+                  <Text
+                    style={
+                      styles.goldLabel
+                    }
+                  >
+                    WORLD COLLECTION
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Passport Collection
+                  </Text>
+
+                </View>
+
+
+                <View
+                  style={
+                    styles.countPill
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.countPillText
+                    }
+                  >
+                    {stampCount}
+                  </Text>
+
+                </View>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.collectionGrid
+                }
+              >
+
+                <Collection
+                  id="rome"
+                  title="Rome"
+                  unlocked={
+                    passportStamps.includes(
+                      "rome"
+                    )
+                  }
+                  image={
+                    PASSPORT_IMAGES.rome
+                  }
+                  openPassport={
+                    openPassport
+                  }
+                />
+
+
+                <Collection
+                  id="wall"
+                  title="Great Wall"
+                  unlocked={
+                    passportStamps.includes(
+                      "wall"
+                    )
+                  }
+                  image={
+                    PASSPORT_IMAGES.wall
+                  }
+                  openPassport={
+                    openPassport
+                  }
+                />
+
+
+                <Collection
+                  id="tubman"
+                  title="Tubman"
+                  unlocked={
+                    passportStamps.includes(
+                      "tubman"
+                    )
+                  }
+                  image={
+                    PASSPORT_IMAGES.tubman
+                  }
+                  openPassport={
+                    openPassport
+                  }
+                />
+
+
+                <Collection
+                  id="mecca"
+                  title="Mecca"
+                  unlocked={
+                    passportStamps.includes(
+                      "mecca"
+                    )
+                  }
+                  image={
+                    PASSPORT_IMAGES.mecca
+                  }
+                  openPassport={
+                    openPassport
+                  }
+                />
+
+
+                <Collection
+                  id="tokyo"
+                  title="Tokyo"
+                  unlocked={
+                    passportStamps.includes(
+                      "tokyo"
+                    )
+                  }
+                  image={
+                    PASSPORT_IMAGES.tokyo
+                  }
+                  openPassport={
+                    openPassport
+                  }
+                />
+
+              </View>
+
+            </View>
+
+
+            {/* =================================================
+                ACHIEVEMENT WALL
+            ================================================= */}
+
+            <View
+              style={
+                styles.goldCard
+              }
+            >
+
+              <Text
+                style={
+                  styles.goldLabel
+                }
+              >
+                ACHIEVEMENT WALL
+              </Text>
+
+
+              <Text
+                style={
+                  styles.sectionTitle
+                }
+              >
+                Badges Earned
+              </Text>
+
+
+              <Text
+                style={
+                  styles.mutedText
+                }
+              >
+                {rewardCount} saved rewards • milestone badges update automatically
+              </Text>
+
+
+              <View
+                style={
+                  styles.badgeGrid
+                }
+              >
+
+                <Badge
+                  icon="🥇"
+                  title="First Route"
+                  unlocked={
+                    completedCount >= 1
+                  }
+                />
+
+
+                <Badge
+                  icon="🛡️"
+                  title="First Passport"
+                  unlocked={
+                    stampCount >= 1
+                  }
+                />
+
+
+                <Badge
+                  icon="🔥"
+                  title="Streak Master"
+                  unlocked={
+                    lifetimeSteps >=
+                    100000
+                  }
+                />
+
+
+                <Badge
+                  icon="🌎"
+                  title="World Explorer"
+                  unlocked={
+                    completedCount >= 10
+                  }
+                />
+
+              </View>
+
+            </View>
+
+
+            {/* =================================================
+                JOURNEY TIMELINE
+            ================================================= */}
+
+            <View
+              style={
+                styles.sectionCard
+              }
+            >
+
+              <View
+                style={
+                  styles.sectionTop
+                }
+              >
+
+                <View>
+
+                  <Text
+                    style={
+                      styles.goldLabel
+                    }
+                  >
+                    LEGACY HISTORY
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Journey Timeline
+                  </Text>
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.sectionIcon
+                  }
+                >
+                  🏁
+                </Text>
+
+              </View>
+
+
+              {completedJourneys.length ===
+              0 ? (
+
+                <View
+                  style={
+                    styles.emptyState
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.emptyStateIcon
+                    }
+                  >
+                    🗺️
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.emptyText
+                    }
+                  >
+                    Complete your first journey to begin your legacy timeline.
+                  </Text>
+
+                </View>
+
+              ) : (
+
+                completedJourneys.map(
+                  (
+                    journey,
+                    index
+                  ) => (
+
+                    <Timeline
+                      key={
+                        journey?.id ||
+                        `${journey?.title}-${index}`
+                      }
+                      title={
+                        journey?.title ||
+                        "Legathon Journey"
+                      }
+                      date={
+                        journey?.completed
+                          ? "Completed"
+                          : `${Math.round(
+                              safeNumber(
+                                journey?.progress
+                              )
+                            )}% Complete`
+                      }
+                      last={
+                        index ===
+                        completedJourneys.length -
+                          1
+                      }
+                    />
+
+                  )
+                )
+
+              )}
+
+            </View>
+
+
+            {/* =================================================
+                LEGATHON RANK
+            ================================================= */}
+
+            <View
+              style={
+                styles.sectionCard
+              }
+            >
+
+              <View
+                style={
+                  styles.sectionTop
+                }
+              >
+
+                <View>
+
+                  <Text
+                    style={
+                      styles.goldLabel
+                    }
+                  >
+                    YOUR ASCENT
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Legathon Rank
+                  </Text>
+
+                </View>
+
+
+                <Text
+                  style={
+                    styles.sectionIcon
+                  }
+                >
+                  👑
+                </Text>
+
+              </View>
+
+
+              <View
+                style={
+                  styles.rankList
+                }
+              >
+
+                {rankOrder.map(
+                  (rank) => {
+
+                    const active =
+                      rank ===
+                      currentRank;
+
+
+                    return (
+
+                      <View
+                        key={
+                          rank
+                        }
+                        style={[
+                          styles.rankRow,
+
+                          active &&
+                            styles.rankRowActive,
+                        ]}
+                      >
+
+                        <Text
+                          style={[
+                            styles.rankDiamond,
+
+                            active &&
+                              styles.rankDiamondActive,
+                          ]}
+                        >
+                          {active
+                            ? "◆"
+                            : "◇"}
+                        </Text>
+
+
+                        <Text
+                          style={[
+                            styles.rankText,
+
+                            active &&
+                              styles.rankTextActive,
+                          ]}
+                        >
+                          {rank}
+                        </Text>
+
+
+                        {active ? (
+
+                          <View
+                            style={
+                              styles.currentPill
+                            }
+                          >
+
+                            <Text
+                              style={
+                                styles.currentPillText
+                              }
+                            >
+                              CURRENT
+                            </Text>
+
+                          </View>
+
+                        ) : null}
+
+                      </View>
+
+                    );
+                  }
+                )}
+
+              </View>
+
+            </View>
+
+
+            {/* =================================================
+                PUBLIC PROFILE
+            ================================================= */}
+
+            <View
+              style={
+                styles.showcaseCard
+              }
+            >
+
+              <Text
+                style={
+                  styles.goldLabel
+                }
+              >
+                LEGATHON SHOWCASE
+              </Text>
+
+
+              <Text
+                style={
+                  styles.showcaseTitle
+                }
+              >
+                Public Profile Highlights
+              </Text>
+
+
+              <Showcase
+                label="Avatar"
+                value={
+                  avatarName
+                }
+              />
+
+
+              <Showcase
+                label="Outfit"
+                value={
+                  normalizeSuitName(
+                    equippedSuit
+                  )
+                }
+              />
+
+
+              <Showcase
+                label="Favorite Passport"
+                value={
+                  favoritePassport
+                }
+              />
+
+
+              <Showcase
+                label="Favorite Badge"
+                value={
+                  favoriteBadge
+                }
+              />
+
+
+              <Showcase
+                label="Favorite Journey"
+                value={
+                  displayJourneyTitle
+                }
+              />
+
+            </View>
+
+
+            {/* =================================================
+                FOOTER
+            ================================================= */}
+
+            <View
+              style={
+                styles.bottomCard
+              }
+            >
+
+              <Text
+                style={
+                  styles.bottomLabel
+                }
+              >
+                LEGATHON WALKER
+              </Text>
+
+
+              <Text
+                style={
+                  styles.bottomTitle
+                }
+              >
+                Keep Building Your Legacy
+              </Text>
+
+
+              <Text
+                style={
+                  styles.bottomText
+                }
+              >
+                Every Journey Step, completed route, passport stamp, and achievement adds another chapter to your walking story.
+              </Text>
+
+            </View>
+
+
+            {loading ? (
+
+              <Text
+                style={
+                  styles.loadingText
+                }
+              >
+                Updating profile…
+              </Text>
+
+            ) : null}
+
           </ScrollView>
+
         </SafeAreaView>
+
       </View>
+
     </ImageBackground>
   );
 }
 
-function Stat({ number, label }) {
+
+// ============================================================
+// STAT
+// ============================================================
+
+function Stat({
+  icon,
+  number,
+  label,
+}) {
+
   return (
-    <View style={styles.statBox}>
-      <Text style={styles.statNumber} numberOfLines={1} adjustsFontSizeToFit>
+    <View
+      style={
+        styles.statBox
+      }
+    >
+
+      <Text
+        style={
+          styles.statIcon
+        }
+      >
+        {icon}
+      </Text>
+
+
+      <Text
+        style={
+          styles.statNumber
+        }
+        numberOfLines={
+          1
+        }
+        adjustsFontSizeToFit
+      >
         {number}
       </Text>
-      <Text style={styles.statLabel}>{label}</Text>
+
+
+      <Text
+        style={
+          styles.statLabel
+        }
+      >
+        {label}
+      </Text>
+
     </View>
   );
 }
 
 
-function Collection({ image, title, unlocked = false, openPassport }) {
+// ============================================================
+// COLLECTION
+// ============================================================
+
+function Collection({
+  id,
+  image,
+  title,
+  unlocked = false,
+  openPassport,
+}) {
+
   return (
     <TouchableOpacity
       style={[
         styles.passportCard,
-        unlocked && styles.unlockedPassport,
-      ]}
-      onPress={() => unlocked && openPassport()}
-      activeOpacity={unlocked ? 0.85 : 1}
-    >
-      <Image source={image} style={styles.passportImage} />
 
-      <Text style={styles.passportTitle}>{title}</Text>
+        unlocked &&
+          styles.unlockedPassport,
+      ]}
+      onPress={() => {
+
+        if (
+          unlocked &&
+          openPassport
+        ) {
+          openPassport(
+            id
+          );
+        }
+
+      }}
+      activeOpacity={
+        unlocked
+          ? 0.82
+          : 1
+      }
+    >
+
+      <View
+        style={
+          styles.passportImageWrap
+        }
+      >
+
+        <Image
+          source={
+            unlocked
+              ? image
+              : LOCKED_PASSPORT
+          }
+          style={
+            styles.passportImage
+          }
+          resizeMode="contain"
+        />
+
+      </View>
+
+
+      <Text
+        style={
+          styles.passportTitle
+        }
+      >
+        {title}
+      </Text>
+
+
+      <Text
+        style={
+          unlocked
+            ? styles.passportUnlockedText
+            : styles.passportLockedText
+        }
+      >
+        {unlocked
+          ? "UNLOCKED"
+          : "LOCKED"}
+      </Text>
+
     </TouchableOpacity>
   );
 }
-   
 
-function Badge({ icon, title, unlocked = false }) {
+
+// ============================================================
+// BADGE
+// ============================================================
+
+function Badge({
+  icon,
+  title,
+  unlocked = false,
+}) {
+
   return (
     <View
       style={[
         styles.badgeCard,
-        unlocked ? styles.badgeUnlocked : styles.badgeLocked,
+
+        unlocked
+          ? styles.badgeUnlocked
+          : styles.badgeLocked,
       ]}
     >
-      <Text style={styles.badgeIcon}>{icon}</Text>
-      <Text style={styles.badgeTitle}>{title}</Text>
+
+      <Text
+        style={[
+          styles.badgeIcon,
+
+          !unlocked &&
+            styles.lockedOpacity,
+        ]}
+      >
+        {icon}
+      </Text>
+
+
+      <Text
+        style={[
+          styles.badgeTitle,
+
+          !unlocked &&
+            styles.badgeTitleLocked,
+        ]}
+      >
+        {title}
+      </Text>
+
+
+      <Text
+        style={
+          unlocked
+            ? styles.badgeStateUnlocked
+            : styles.badgeStateLocked
+        }
+      >
+        {unlocked
+          ? "EARNED"
+          : "LOCKED"}
+      </Text>
+
     </View>
   );
 }
 
-     
-function Timeline({ title, date }) {
-  return (
-    <View style={styles.timelineRow}>
-      <Text style={styles.timelineDot}>●</Text>
 
-      <View>
-        <Text style={styles.timelineTitle}>{title}</Text>
-        <Text style={styles.timelineDate}>{date}</Text>
+// ============================================================
+// TIMELINE
+// ============================================================
+
+function Timeline({
+  title,
+  date,
+  last = false,
+}) {
+
+  return (
+    <View
+      style={
+        styles.timelineRow
+      }
+    >
+
+      <View
+        style={
+          styles.timelineMarkerWrap
+        }
+      >
+
+        <View
+          style={
+            styles.timelineDot
+          }
+        />
+
+
+        {!last ? (
+
+          <View
+            style={
+              styles.timelineLine
+            }
+          />
+
+        ) : null}
+
       </View>
+
+
+      <View
+        style={
+          styles.timelineTextWrap
+        }
+      >
+
+        <Text
+          style={
+            styles.timelineTitle
+          }
+        >
+          {title}
+        </Text>
+
+
+        <Text
+          style={
+            styles.timelineDate
+          }
+        >
+          {date}
+        </Text>
+
+      </View>
+
     </View>
   );
 }
 
-function Showcase({ label, value }) {
+
+// ============================================================
+// SHOWCASE
+// ============================================================
+
+function Showcase({
+  label,
+  value,
+}) {
+
   return (
-    <View style={styles.showcaseRow}>
-      <Text style={styles.showcaseItemLabel}>{label}</Text>
-      <Text style={styles.showcaseItemValue}>{value}</Text>
+    <View
+      style={
+        styles.showcaseRow
+      }
+    >
+
+      <Text
+        style={
+          styles.showcaseItemLabel
+        }
+      >
+        {label}
+      </Text>
+
+
+      <Text
+        style={
+          styles.showcaseItemValue
+        }
+        numberOfLines={
+          1
+        }
+      >
+        {value}
+      </Text>
+
     </View>
   );
 }
 
 
+// ============================================================
+// STYLES
+// ============================================================
+
+const styles =
+  StyleSheet.create({
+
+    background: {
+      flex: 1,
+      backgroundColor:
+        "#02060D",
+    },
 
 
-const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: "#020617",
-  },
-  backgroundImage: {
-    resizeMode: "cover",
-    opacity: 0.45,
-  },
+    backgroundImage: {
+      resizeMode:
+        "cover",
+      opacity: 0.34,
+    },
 
 
+    overlay: {
+      flex: 1,
+      backgroundColor:
+        "rgba(1,7,16,0.77)",
+    },
 
 
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2,4,10,0.78)",
-  },
-  safe: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 18,
-    paddingTop: 58,
-    paddingBottom: 160,
-  },
-
-collectionUnlocked: {
-  borderWidth: 2,
-  borderColor: "#D4AF37",
-
-  shadowColor: "#D4AF37",
-  shadowOpacity: 0.6,
-  shadowRadius: 10,
-
-  elevation: 8,
-},
-
-collectionLocked: {
-  opacity: 0.45,
-},
-
-  title: {
-    color: "#F8F2E7",
-    fontSize: 40,
-    fontWeight: "900",
-    lineHeight: 46,
-    marginBottom: 20,
-  },
-
-  heroCard: {
-    backgroundColor: "rgba(8,18,37,0.96)",
-    borderRadius: 34,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.35)",
-    marginBottom: 20,
-  },
-  avatarRing: {
-    width: 150,
-    height: 180,
-    borderRadius: 36,
-    backgroundColor: "#0B1220",
-    borderWidth: 3,
-    borderColor: "#D4AF37",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  avatarImage: {
-    width: 130,
-    height: 170,
-    resizeMode: "contain",
-  },
-  avatarIcon: {
-    fontSize: 54,
-  },
-  name: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  rank: {
-    color: "#D4AF37",
-    fontSize: 16,
-    fontWeight: "900",
-    marginTop: 6,
-  },
-
-  emptyText: {
-  color: "#AAB3C5",
-  fontSize: 18,
-  fontWeight: "800",
-  marginTop: 10,
-},
-  avatarName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 12,
+    safe: {
+      flex: 1,
+    },
 
 
-badgeCard: {
-  width: "48%",
-  borderRadius: 18,
-  padding: 14,
-  alignItems: "center",
-  marginBottom: 12,
-},
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 170,
+    },
 
-badgeLocked: {
-  backgroundColor: "#101826",
-  opacity: 0.4,
-},
 
-badgeUnlocked: {
-  backgroundColor: "rgba(212,175,55,0.15)",
-  borderWidth: 2,
-  borderColor: "#D4AF37",
+    // --------------------------------------------------------
+    // HEADER
+    // --------------------------------------------------------
 
-  shadowColor: "#D4AF37",
-  shadowOpacity: 0.7,
-  shadowRadius: 12,
-  shadowOffset: {
-    width: 0,
-    height: 0,
-  },
+    headerRow: {
+      flexDirection:
+        "row",
 
-  elevation: 10,
-},
+      alignItems:
+        "flex-start",
 
-badgeIcon: {
-  fontSize: 28,
-},
+      marginBottom: 22,
+    },
 
-badgeTitle: {
-  color: "#FFFFFF",
-  fontWeight: "900",
-  textAlign: "center",
-  marginTop: 8,
-},
 
-  },
-  avatarMeta: {
-    color: "#AAB3C5",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 4,
-    textTransform: "capitalize",
-  },
-  legacyScore: {
-    color: "#AAB3C5",
-    marginTop: 18,
-    fontWeight: "900",
-  },
-  levelBar: {
-    width: "100%",
-    height: 10,
-    backgroundColor: "#20344A",
-    borderRadius: 99,
-    overflow: "hidden",
-    marginTop: 14,
-  },
-  levelFill: {
-    width: "74%",
-    height: "100%",
-    backgroundColor: "#D4AF37",
-  },
-  levelText: {
-    color: "#AAB3C5",
-    fontWeight: "800",
-    marginTop: 10,
-  },
+    backButton: {
+      width: 48,
+      height: 48,
 
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  statBox: {
-    width: "31%",
-    backgroundColor: "rgba(8,18,37,0.96)",
-    borderRadius: 22,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#26344A",
-  },
-  statNumber: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#FFFFFF",
-    textAlign: "center",
-  },
-  statLabel: {
-    color: "#AAB3C5",
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 4,
-  },
+      borderRadius: 24,
 
-  sectionCard: {
-    backgroundColor: "rgba(8,18,37,0.96)",
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#26344A",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "900",
-    marginBottom: 14,
-  },
+      borderWidth: 1,
+      borderColor:
+        "#DDB535",
 
-  favoriteCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#101826",
-    padding: 16,
-    borderRadius: 22,
-  },
-  favoriteIcon: {
-    fontSize: 32,
-    marginRight: 14,
-  },
-  favoriteTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  favoriteSub: {
-    color: "#AAB3C5",
-    marginTop: 4,
-    fontWeight: "700",
-  },
+      backgroundColor:
+        "rgba(7,20,38,0.94)",
 
- collectionRow: {
-  width: "100%",
-  flexDirection: "row",
-  flexWrap: "wrap",
-  justifyContent: "space-between",
-},
+      justifyContent:
+        "center",
 
-collectionItem: {
-  width: "48%", // Two cards per row
-  minHeight: 130,
-  backgroundColor: "#101826",
-  borderRadius: 18,
-  paddingVertical: 20,
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: 14,
+      alignItems:
+        "center",
 
-  },
-  collectionIcon: {
-    fontSize: 28,
-  },
-  collectionTitle: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-    marginTop: 8,
-  },
+      marginRight: 12,
+    },
 
-  goldCard: {
-    backgroundColor: "rgba(20,16,5,0.95)",
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#D4AF37",
-    marginBottom: 20,
-  },
-  goldLabel: {
-    color: "#D4AF37",
-    fontWeight: "900",
-    letterSpacing: 4,
-    marginBottom: 10,
-  },
-  badgeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  badgeCard: {
-    width: "48%",
-    backgroundColor: "#101826",
-    borderRadius: 18,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 12,
-    opacity: 0.5,
-  },
-  badgeUnlocked: {
-    opacity: 1,
-    borderWidth: 1,
-    borderColor: "#D4AF37",
-  },
-  badgeIcon: {
-    fontSize: 28,
-  },
-  badgeTitle: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-    marginTop: 8,
-    textAlign: "center",
-  },
 
-  timelineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  timelineDot: {
-    color: "#D4AF37",
-    fontSize: 28,
-    marginRight: 12,
-  },
-  timelineTitle: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-    fontSize: 16,
-  },
-  timelineDate: {
-    color: "#AAB3C5",
-    fontWeight: "800",
-    marginTop: 2,
-  },
+    backText: {
+      color:
+        "#F1CB49",
 
-  rankRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 18,
-  },
-  rankRowActive: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-  },
-  rankDot: {
-    color: "#D4AF37",
-    fontSize: 18,
-    marginRight: 12,
-  },
-  rankName: {
-    color: "#AAB3C5",
-    fontWeight: "900",
-    fontSize: 16,
-  },
-  rankNameActive: {
-    color: "#FFFFFF",
-  },
+      fontSize: 39,
+      lineHeight: 42,
+    },
 
-  showcaseCard: {
-    backgroundColor: "rgba(8,18,37,0.96)",
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#26344A",
-    marginBottom: 20,
-  },
-  showcaseLabel: {
-    color: "#D4AF37",
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-  showcaseTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "900",
-    marginBottom: 14,
-  },
-  showcaseRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#26344A",
-    paddingVertical: 10,
-  },
-  showcaseItemLabel: {
-    color: "#AAB3C5",
-    fontWeight: "800",
-  },
-  showcaseItemValue: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-  },
 
-  bottomCard: {
-    backgroundColor: "rgba(20,16,5,0.95)",
-    borderRadius: 28,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#D4AF37",
-  },
-  bottomLabel: {
-    color: "#D4AF37",
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 10,
-  },
-  bottomTitle: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    marginBottom: 10,
-  },
+    backSpacer: {
+      width: 0,
+    },
 
-  passportCard: {
-  width: "48%",
-  height: 235,
-  backgroundColor: "#0E1A2F",
-  borderRadius: 24,
-  borderWidth: 1.5,
-  borderColor: "#263A5E",
-  overflow: "hidden",
-  marginBottom: 20,
-  alignItems: "center",
-  justifyContent: "center",
-},
 
-unlockedPassport: {
-  borderColor: "#D4AF37",
-},
+    headerTextWrap: {
+      flex: 1,
+    },
 
-passportImage: {
-  width: "100%",
-  height: 165,
-  resizeMode: "contain",
-},
 
-passportTitle: {
-  color: "#FFFFFF",
-  fontSize: 20,
-  fontWeight: "900",
-  marginTop: 8,
-},
-  bottomText: {
-    color: "#AAB3C5",
-    fontWeight: "800",
-    lineHeight: 22,
-  },
-});
+    eyebrow: {
+      color:
+        "#9EF0D4",
+
+      fontSize: 13,
+      fontWeight:
+        "900",
+
+      letterSpacing: 3,
+      marginBottom: 7,
+    },
+
+
+    title: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 36,
+      lineHeight: 40,
+
+      fontWeight:
+        "900",
+    },
+
+
+    headerSubtitle: {
+      color:
+        "#A8B5C8",
+
+      fontSize: 15,
+      lineHeight: 22,
+
+      fontWeight:
+        "700",
+
+      marginTop: 7,
+    },
+
+
+    // --------------------------------------------------------
+    // HERO
+    // --------------------------------------------------------
+
+    heroCard: {
+      overflow:
+        "hidden",
+
+      borderRadius: 30,
+
+      borderWidth: 2,
+      borderColor:
+        "#DBB536",
+
+      backgroundColor:
+        "#071427",
+
+      marginBottom: 30,
+
+      shadowColor:
+        "#E1B739",
+
+      shadowOpacity: 0.22,
+      shadowRadius: 22,
+      shadowOffset: {
+        width: 0,
+        height: 10,
+      },
+
+      elevation: 12,
+    },
+
+
+    heroGlow: {
+      position:
+        "absolute",
+
+      width: 430,
+      height: 430,
+
+      borderRadius: 215,
+
+      backgroundColor:
+        "rgba(75,44,170,0.30)",
+
+      top: 72,
+      alignSelf:
+        "center",
+    },
+
+
+    avatarStage: {
+      height: 500,
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "rgba(4,15,30,0.40)",
+
+      position:
+        "relative",
+    },
+
+
+    avatarImage: {
+      width:
+        "92%",
+
+      height:
+        "92%",
+    },
+
+
+    avatarFallback: {
+      fontSize: 110,
+    },
+
+
+    rankPill: {
+      position:
+        "absolute",
+
+      bottom: 18,
+
+      borderRadius: 24,
+
+      borderWidth: 1.5,
+      borderColor:
+        "#E3BC38",
+
+      backgroundColor:
+        "#07111F",
+
+      paddingVertical: 8,
+      paddingHorizontal: 22,
+    },
+
+
+    rankPillText: {
+      color:
+        "#FFD54A",
+
+      fontSize: 16,
+      fontWeight:
+        "900",
+    },
+
+
+    heroInfo: {
+      alignItems:
+        "center",
+
+      paddingHorizontal: 24,
+      paddingTop: 27,
+      paddingBottom: 30,
+
+      backgroundColor:
+        "rgba(8,24,44,0.96)",
+    },
+
+
+    profileLabel: {
+      color:
+        "#FFD34A",
+
+      fontSize: 13,
+      fontWeight:
+        "900",
+
+      letterSpacing: 3,
+
+      marginBottom: 8,
+    },
+
+
+    name: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 40,
+      lineHeight: 46,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+    },
+
+
+    avatarIdentity: {
+      color:
+        "#E7BE3D",
+
+      fontSize: 18,
+      fontWeight:
+        "900",
+
+      marginTop: 5,
+    },
+
+
+    outfitPill: {
+      marginTop: 18,
+
+      borderRadius: 25,
+
+      borderWidth: 1.5,
+      borderColor:
+        "#55DEA4",
+
+      backgroundColor:
+        "#0E3A2B",
+
+      paddingVertical: 9,
+      paddingHorizontal: 18,
+    },
+
+
+    outfitPillText: {
+      color:
+        "#A5F1D5",
+
+      fontSize: 15,
+      fontWeight:
+        "900",
+    },
+
+
+    legathonScore: {
+      color:
+        "#FFD54A",
+
+      fontSize: 21,
+      lineHeight: 28,
+
+      fontWeight:
+        "900",
+
+      marginTop: 24,
+
+      textAlign:
+        "center",
+    },
+
+
+    levelBar: {
+      width:
+        "100%",
+
+      height: 13,
+
+      borderRadius: 10,
+
+      backgroundColor:
+        "#25394F",
+
+      overflow:
+        "hidden",
+
+      marginTop: 20,
+    },
+
+
+    levelFill: {
+      height:
+        "100%",
+
+      borderRadius: 10,
+
+      backgroundColor:
+        "#E2B932",
+    },
+
+
+    levelText: {
+      color:
+        "#ADB9CB",
+
+      fontSize: 16,
+      fontWeight:
+        "800",
+
+      marginTop: 11,
+    },
+
+
+    avatarCenterButton: {
+      width:
+        "100%",
+
+      marginTop: 22,
+
+      minHeight: 56,
+
+      borderRadius: 28,
+
+      backgroundColor:
+        "#E1B736",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+    },
+
+
+    avatarCenterButtonText: {
+      color:
+        "#07111F",
+
+      fontSize: 17,
+      fontWeight:
+        "900",
+    },
+
+
+    // --------------------------------------------------------
+    // SECTIONS
+    // --------------------------------------------------------
+
+    sectionHeadingRow: {
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
+      marginBottom: 15,
+    },
+
+
+    sectionHeading: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 30,
+      fontWeight:
+        "900",
+
+      marginTop: 2,
+    },
+
+
+    goldLabel: {
+      color:
+        "#DFB634",
+
+      fontSize: 12,
+      fontWeight:
+        "900",
+
+      letterSpacing: 3,
+    },
+
+
+    sectionIcon: {
+      fontSize: 30,
+    },
+
+
+    sectionCard: {
+      borderRadius: 26,
+
+      borderWidth: 1,
+      borderColor:
+        "#304965",
+
+      backgroundColor:
+        "rgba(7,22,42,0.95)",
+
+      padding: 22,
+
+      marginBottom: 24,
+    },
+
+
+    sectionTop: {
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
+      marginBottom: 20,
+    },
+
+
+    sectionTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 26,
+      lineHeight: 32,
+
+      fontWeight:
+        "900",
+
+      marginTop: 5,
+    },
+
+
+    mutedText: {
+      color:
+        "#9EABBE",
+
+      fontSize: 14,
+      lineHeight: 20,
+
+      marginTop: 8,
+    },
+
+
+    // --------------------------------------------------------
+    // STATS
+    // --------------------------------------------------------
+
+    statsGrid: {
+      flexDirection:
+        "row",
+
+      flexWrap:
+        "wrap",
+
+      justifyContent:
+        "space-between",
+
+      marginBottom: 22,
+    },
+
+
+    statBox: {
+      width:
+        "48%",
+
+      minHeight: 150,
+
+      borderRadius: 23,
+
+      borderWidth: 1,
+      borderColor:
+        "#304B69",
+
+      backgroundColor:
+        "rgba(8,25,47,0.96)",
+
+      padding: 17,
+
+      justifyContent:
+        "center",
+
+      marginBottom: 14,
+    },
+
+
+    statIcon: {
+      fontSize: 24,
+      marginBottom: 8,
+    },
+
+
+    statNumber: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 31,
+      fontWeight:
+        "900",
+    },
+
+
+    statLabel: {
+      color:
+        "#AFB9CA",
+
+      fontSize: 14,
+      fontWeight:
+        "800",
+
+      marginTop: 4,
+    },
+
+
+    // --------------------------------------------------------
+    // FAVORITE
+    // --------------------------------------------------------
+
+    favoriteCard: {
+      minHeight: 108,
+
+      borderRadius: 22,
+
+      backgroundColor:
+        "#101D2D",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      padding: 15,
+    },
+
+
+    favoriteIconBox: {
+      width: 66,
+      height: 66,
+
+      borderRadius: 18,
+
+      backgroundColor:
+        "#15283E",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      marginRight: 14,
+    },
+
+
+    favoriteIcon: {
+      fontSize: 34,
+    },
+
+
+    favoriteTextWrap: {
+      flex: 1,
+    },
+
+
+    favoriteTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 20,
+      fontWeight:
+        "900",
+    },
+
+
+    favoriteSub: {
+      color:
+        "#AEB8C7",
+
+      fontSize: 14,
+      lineHeight: 20,
+
+      fontWeight:
+        "700",
+
+      marginTop: 5,
+    },
+
+
+    chevron: {
+      color:
+        "#D9B337",
+
+      fontSize: 35,
+      marginLeft: 8,
+    },
+
+
+    // --------------------------------------------------------
+    // COLLECTION
+    // --------------------------------------------------------
+
+    countPill: {
+      minWidth: 43,
+      height: 43,
+
+      borderRadius: 22,
+
+      backgroundColor:
+        "#DDB536",
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+    },
+
+
+    countPillText: {
+      color:
+        "#07111F",
+
+      fontSize: 18,
+      fontWeight:
+        "900",
+    },
+
+
+    collectionGrid: {
+      flexDirection:
+        "row",
+
+      flexWrap:
+        "wrap",
+
+      justifyContent:
+        "space-between",
+    },
+
+
+    passportCard: {
+      width:
+        "48%",
+
+      borderRadius: 23,
+
+      borderWidth: 1,
+      borderColor:
+        "#324D70",
+
+      backgroundColor:
+        "#101F35",
+
+      padding: 12,
+
+      alignItems:
+        "center",
+
+      marginBottom: 15,
+    },
+
+
+    unlockedPassport: {
+      borderWidth: 2,
+      borderColor:
+        "#DDB536",
+    },
+
+
+    passportImageWrap: {
+      width:
+        "100%",
+
+      aspectRatio: 0.82,
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+    },
+
+
+    passportImage: {
+      width:
+        "92%",
+
+      height:
+        "92%",
+    },
+
+
+    passportTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 18,
+
+      fontWeight:
+        "900",
+
+      marginTop: 7,
+
+      textAlign:
+        "center",
+    },
+
+
+    passportUnlockedText: {
+      color:
+        "#88E7BA",
+
+      fontSize: 10,
+      fontWeight:
+        "900",
+
+      letterSpacing: 1.3,
+
+      marginTop: 5,
+    },
+
+
+    passportLockedText: {
+      color:
+        "#8996AA",
+
+      fontSize: 10,
+      fontWeight:
+        "900",
+
+      letterSpacing: 1.3,
+
+      marginTop: 5,
+    },
+
+
+    // --------------------------------------------------------
+    // BADGES
+    // --------------------------------------------------------
+
+    goldCard: {
+      borderRadius: 27,
+
+      borderWidth: 1.5,
+      borderColor:
+        "#DDB536",
+
+      backgroundColor:
+        "rgba(24,18,2,0.95)",
+
+      padding: 22,
+
+      marginBottom: 24,
+    },
+
+
+    badgeGrid: {
+      flexDirection:
+        "row",
+
+      flexWrap:
+        "wrap",
+
+      justifyContent:
+        "space-between",
+
+      marginTop: 20,
+    },
+
+
+    badgeCard: {
+      width:
+        "48%",
+
+      minHeight: 145,
+
+      borderRadius: 22,
+
+      borderWidth: 1,
+
+      padding: 16,
+
+      justifyContent:
+        "center",
+
+      alignItems:
+        "center",
+
+      marginBottom: 14,
+    },
+
+
+    badgeUnlocked: {
+      borderColor:
+        "#DDB536",
+
+      backgroundColor:
+        "#101D2F",
+    },
+
+
+    badgeLocked: {
+      borderColor:
+        "#354256",
+
+      backgroundColor:
+        "#0B1421",
+    },
+
+
+    badgeIcon: {
+      fontSize: 36,
+      marginBottom: 9,
+    },
+
+
+    lockedOpacity: {
+      opacity: 0.35,
+    },
+
+
+    badgeTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 16,
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+    },
+
+
+    badgeTitleLocked: {
+      color:
+        "#748197",
+    },
+
+
+    badgeStateUnlocked: {
+      color:
+        "#8CE8BB",
+
+      fontSize: 9,
+      fontWeight:
+        "900",
+
+      letterSpacing: 1.5,
+
+      marginTop: 8,
+    },
+
+
+    badgeStateLocked: {
+      color:
+        "#657286",
+
+      fontSize: 9,
+      fontWeight:
+        "900",
+
+      letterSpacing: 1.5,
+
+      marginTop: 8,
+    },
+
+
+    // --------------------------------------------------------
+    // TIMELINE
+    // --------------------------------------------------------
+
+    timelineRow: {
+      flexDirection:
+        "row",
+
+      minHeight: 88,
+    },
+
+
+    timelineMarkerWrap: {
+      width: 34,
+
+      alignItems:
+        "center",
+    },
+
+
+    timelineDot: {
+      width: 18,
+      height: 18,
+
+      borderRadius: 9,
+
+      backgroundColor:
+        "#E2B936",
+
+      marginTop: 4,
+    },
+
+
+    timelineLine: {
+      width: 2,
+      flex: 1,
+
+      backgroundColor:
+        "#725F28",
+
+      marginTop: 5,
+    },
+
+
+    timelineTextWrap: {
+      flex: 1,
+      paddingLeft: 12,
+      paddingBottom: 20,
+    },
+
+
+    timelineTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 19,
+
+      fontWeight:
+        "900",
+    },
+
+
+    timelineDate: {
+      color:
+        "#A7B2C3",
+
+      fontSize: 14,
+      fontWeight:
+        "700",
+
+      marginTop: 5,
+    },
+
+
+    emptyState: {
+      borderRadius: 20,
+
+      backgroundColor:
+        "#0D1929",
+
+      padding: 25,
+
+      alignItems:
+        "center",
+    },
+
+
+    emptyStateIcon: {
+      fontSize: 38,
+      marginBottom: 10,
+    },
+
+
+    emptyText: {
+      color:
+        "#A4B0C1",
+
+      fontSize: 15,
+      lineHeight: 22,
+
+      textAlign:
+        "center",
+    },
+
+
+    // --------------------------------------------------------
+    // RANK
+    // --------------------------------------------------------
+
+    rankList: {
+      gap: 8,
+    },
+
+
+    rankRow: {
+      minHeight: 61,
+
+      borderRadius: 18,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      paddingHorizontal: 15,
+    },
+
+
+    rankRowActive: {
+      backgroundColor:
+        "#202C3E",
+    },
+
+
+    rankDiamond: {
+      color:
+        "#DDB536",
+
+      fontSize: 23,
+
+      width: 39,
+    },
+
+
+    rankDiamondActive: {
+      color:
+        "#F1C63B",
+    },
+
+
+    rankText: {
+      flex: 1,
+
+      color:
+        "#8390A5",
+
+      fontSize: 19,
+      fontWeight:
+        "900",
+    },
+
+
+    rankTextActive: {
+      color:
+        "#FFFFFF",
+    },
+
+
+    currentPill: {
+      borderRadius: 16,
+
+      backgroundColor:
+        "#E2B936",
+
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+    },
+
+
+    currentPillText: {
+      color:
+        "#07111F",
+
+      fontSize: 9,
+      fontWeight:
+        "900",
+    },
+
+
+    // --------------------------------------------------------
+    // SHOWCASE
+    // --------------------------------------------------------
+
+    showcaseCard: {
+      borderRadius: 27,
+
+      borderWidth: 1,
+      borderColor:
+        "#394E68",
+
+      backgroundColor:
+        "rgba(7,23,43,0.97)",
+
+      padding: 22,
+
+      marginBottom: 24,
+    },
+
+
+    showcaseTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 30,
+      lineHeight: 37,
+
+      fontWeight:
+        "900",
+
+      marginTop: 6,
+      marginBottom: 18,
+    },
+
+
+    showcaseRow: {
+      minHeight: 61,
+
+      borderBottomWidth: 1,
+      borderBottomColor:
+        "#2B3B50",
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
+      gap: 14,
+    },
+
+
+    showcaseItemLabel: {
+      flex: 1,
+
+      color:
+        "#9EABBF",
+
+      fontSize: 14,
+
+      fontWeight:
+        "800",
+    },
+
+
+    showcaseItemValue: {
+      flex: 1,
+
+      color:
+        "#FFFFFF",
+
+      fontSize: 14,
+      fontWeight:
+        "900",
+
+      textAlign:
+        "right",
+    },
+
+
+    // --------------------------------------------------------
+    // FOOTER
+    // --------------------------------------------------------
+
+    bottomCard: {
+      borderRadius: 27,
+
+      borderWidth: 1,
+      borderColor:
+        "#DDB536",
+
+      backgroundColor:
+        "rgba(12,20,32,0.96)",
+
+      padding: 25,
+
+      marginBottom: 24,
+    },
+
+
+    bottomLabel: {
+      color:
+        "#9EF0D4",
+
+      fontSize: 11,
+      fontWeight:
+        "900",
+
+      letterSpacing: 3,
+    },
+
+
+    bottomTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize: 28,
+      lineHeight: 34,
+
+      fontWeight:
+        "900",
+
+      marginTop: 8,
+    },
+
+
+    bottomText: {
+      color:
+        "#A9B5C5",
+
+      fontSize: 15,
+      lineHeight: 23,
+
+      marginTop: 10,
+    },
+
+
+    loadingText: {
+      color:
+        "#91A0B4",
+
+      textAlign:
+        "center",
+
+      marginTop: 6,
+    },
+
+  });
