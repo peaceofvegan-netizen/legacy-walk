@@ -1,4 +1,19 @@
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import {
+  AppState,
+} from "react-native";
+
+import {
+  isStepTrackingAvailable,
+  syncTodaySteps,
+} from "./utils/stepTrackingEngine";
 import {
   View,
   Text,
@@ -6,7 +21,7 @@ import {
   StyleSheet,
   Image,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { translate, loadLanguage } from "./i18n/i18n";
 import PassportDetailScreen from "./screens/PassportDetailScreen";
@@ -14,7 +29,7 @@ import WalkingDashboardScreen from "./screens/WalkingDashboardScreen";
 import JourneysScreen from "./screens/JourneysScreen";
 import JourneyDetailScreen from "./screens/JourneyDetailScreen";
 import GPSJourneyMapScreen from "./screens/GPSJourneyMapScreen";
-
+import WalkingFunctionScreen from "./screens/WalkingFunctionScreen";
 import RewardsScreen from "./screens/RewardsScreen";
 import MoreScreen from "./screens/MoreScreen";
 import AvatarCenterScreen from "./screens/AvatarCenterScreen";
@@ -23,7 +38,7 @@ import AvatarProfileScreen from "./screens/AvatarProfileScreen";
 import MarathonScreen from "./screens/MarathonScreen";
 import WorldMarathonDetailScreen from "./screens/WorldMarathonDetailScreen";
 import { AVATARS } from "./data/avatarCatalog";
-
+import { useStepCounter } from "./hooks/useStepCounter";
 
 import JourneyPreferencesScreen from "./screens/JourneyPreferencesScreen";
 import PersonalizationSummaryScreen from "./screens/PersonalizationSummaryScreen";
@@ -93,6 +108,7 @@ export default function App() {
   const [equippedAvatar, setEquippedAvatar] = useState(null);
   const [subscriptionPlan, setSubscriptionPlan] = useState("free");
   const [isPremium, setIsPremium] = useState(false);
+  const walkingData = useStepCounter();
   const [totalSteps, setTotalSteps] = useState(0);
   const [wCoinBalance, setWCoinBalance] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -104,7 +120,155 @@ async function addWCoins(amount) {
   const saved = await AsyncStorage.getItem("wCoinBalance");
   const current = Number(saved || 0);
   const updated = current + Number(amount || 0);
+// ============================================================
+// GLOBAL STEP ROUTER
+// ============================================================
 
+const appStateRef =
+  useRef(AppState.currentState);
+
+const stepSyncRunningRef =
+  useRef(false);
+
+const stepSyncTimerRef =
+  useRef(null);
+
+
+const runGlobalStepSync =
+  useCallback(async () => {
+    if (stepSyncRunningRef.current) {
+      return;
+    }
+
+    stepSyncRunningRef.current = true;
+
+    try {
+      const available =
+        await isStepTrackingAvailable();
+
+      if (!available) {
+        return;
+      }
+
+      const result =
+        await syncTodaySteps();
+
+      if (__DEV__) {
+        console.log(
+          "[GLOBAL STEP ROUTER]",
+          {
+            delta:
+              result?.delta ?? 0,
+
+            destination:
+              result?.destination ??
+              null,
+
+            marathonId:
+              result?.marathonId ??
+              null,
+
+            synced:
+              result?.synced === true,
+          }
+        );
+      }
+    } catch (error) {
+      console.log(
+        "Global step router error:",
+        error
+      );
+    } finally {
+      stepSyncRunningRef.current = false;
+    }
+  }, []);
+
+
+// ============================================================
+// INITIAL STEP SYNC
+// ============================================================
+
+useEffect(() => {
+  runGlobalStepSync();
+}, [runGlobalStepSync]);
+
+
+// ============================================================
+// APP-WIDE STEP SYNC
+// ============================================================
+
+useEffect(() => {
+  const startStepSync = () => {
+    if (stepSyncTimerRef.current) {
+      return;
+    }
+
+    stepSyncTimerRef.current =
+      setInterval(() => {
+        runGlobalStepSync();
+      }, 5000);
+  };
+
+
+  const stopStepSync = () => {
+    if (!stepSyncTimerRef.current) {
+      return;
+    }
+
+    clearInterval(
+      stepSyncTimerRef.current
+    );
+
+    stepSyncTimerRef.current = null;
+  };
+
+
+  if (
+    AppState.currentState ===
+    "active"
+  ) {
+    startStepSync();
+  }
+
+
+  const subscription =
+    AppState.addEventListener(
+      "change",
+      (nextState) => {
+        const previousState =
+          appStateRef.current;
+
+        appStateRef.current =
+          nextState;
+
+
+        if (nextState === "active") {
+          runGlobalStepSync();
+          startStepSync();
+          return;
+        }
+
+
+        if (
+          previousState === "active" &&
+          (
+            nextState === "inactive" ||
+            nextState === "background"
+          )
+        ) {
+          runGlobalStepSync();
+          stopStepSync();
+        }
+      }
+    );
+
+
+  return () => {
+    stopStepSync();
+
+    subscription.remove();
+  };
+}, [runGlobalStepSync]);
   await AsyncStorage.setItem("wCoinBalance", String(updated));
   setWCoinBalance(updated);
 
@@ -475,7 +639,7 @@ lifetimeSteps={lifetimeSteps}
         goToSettings={() => setActiveTab("settings")}
         goToPrivacyPolicy={() => setActiveTab("privacyPolicy")}
         goToAbout={() => setActiveTab("about")}
-       
+       goToWalkingFunction={() => setActiveTab("walkingFunction")}
         goToJourneyPreferences={() => setActiveTab("journeyPreferences")}
       />
  
@@ -509,7 +673,7 @@ lifetimeSteps={lifetimeSteps}
     }}
   />
 
-   
+  
     
     ) : activeTab === "wCoinWallet" ? (
       <WCoinWalletScreen
@@ -539,6 +703,28 @@ lifetimeSteps={lifetimeSteps}
         language={language}
         goBack={goMore}
       />
+
+   ): activeTab === "walkingFunction" ? (
+  <WalkingFunctionScreen
+   todaySteps={walkingData.steps}
+
+    liveSteps={walkingData.steps}
+    liveMiles={walkingData.miles}
+    walkingSeconds={walkingData.walkingSeconds}
+    walkingMinutes={walkingData.walkingMinutes}
+    paceMinutesPerMile={walkingData.paceMinutesPerMile}
+    speedMph={walkingData.speedMph}
+    cadence={walkingData.cadence}
+    pedometerAvailable={walkingData.isAvailable}
+
+    goBack={goMore}
+    goHome={() => setActiveTab("home")}
+    goJourneys={() => setActiveTab("journeys")}
+    goRewards={() => setActiveTab("rewards")}
+    goMore={() => setActiveTab("more")}
+  />
+
+
         ):activeTab === "aiCoach" ? (
     <AIWellnessMasterScreen
   goToGPSJourneyMap={(params) => {

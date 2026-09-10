@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,1095 +6,2186 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ImageBackground,
+  Alert,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const translations = {
-  en: {
-    title: "Legathon Community",
-    subtitle: "Walk • Encourage • Grow Together",
-    walkersOnline: "Walkers Online",
-    todayQuote: "Today's Legacy Quote",
-    quote: "Every step you take is building a stronger legathon.",
-    encourage: "Encourage",
-    celebrate: "Celebrate",
-    support: "Support",
-    liveWalkers: "Walking Right Now",
-    walkingCircles: "Walking Circles",
-    challenges: "Community Challenges",
-    friends: "Friends",
-    join: "Join",
-    view: "View",
-    steps: "Steps",
-    communityFeed: "Community Feed",
-  },
+const COMMUNITY_BG = require("../assets/collage-background.png");
 
-  es: {
-    title: "Comunidad Legacy",
-    subtitle: "Camina • Anima • Crece Juntos",
-    walkersOnline: "Caminantes En Línea",
-    todayQuote: "Frase Legathon De Hoy",
-    quote: "Cada paso que das construye un legado más fuerte.",
-    encourage: "Animar",
-    celebrate: "Celebrar",
-    support: "Apoyar",
-    liveWalkers: "Caminando Ahora",
-    walkingCircles: "Círculos De Caminata",
-    challenges: "Desafíos Comunitarios",
-    friends: "Amigos",
-    join: "Unirse",
-    view: "Ver",
-    steps: "Pasos",
-    communityFeed: "Comunidad",
-  },
-};
+const COMMUNITY_STATE_KEY = "@legathon_community_state";
 
 const communityFeed = [
   {
-    id: "1",
-    icon: "🏅",
-    name: "James",
-    text: "completed Checkpoint 3",
+    id: "feed-1",
+    icon: "🏯",
+    name: "James Wilson",
+    activity: "completed Checkpoint 3",
     journey: "Great Wall of China",
-    action: "celebrate",
+    action: "Celebrate",
+    actionIcon: "🎉",
   },
   {
-    id: "2",
-    icon: "🚶",
-    name: "Maria",
-    text: "walked 14,582 steps today",
+    id: "feed-2",
+    icon: "🌿",
+    name: "Maria Johnson",
+    activity: "walked 14,582 steps",
     journey: "Amazon Rainforest",
-    action: "encourage",
+    action: "Encourage",
+    actionIcon: "👏",
   },
   {
-    id: "3",
-    icon: "🌍",
-    name: "Sarah",
-    text: "earned a new passport stamp",
+    id: "feed-3",
+    icon: "🏅",
+    name: "Sarah Thompson",
+    activity: "earned a new journey stamp",
     journey: "Selma to Montgomery",
-    action: "support",
+    action: "Support",
+    actionIcon: "💪",
   },
 ];
 
-const liveWalks = [
-  { id: "amazon", title: "Amazon Rainforest", flag: "🇧🇷", walkers: 1248 },
-  { id: "greatwall", title: "Great Wall", flag: "🇨🇳", walkers: 982 },
-  { id: "selma", title: "Selma to Montgomery", flag: "🇺🇸", walkers: 674 },
+const friendsWalking = [
+  {
+    id: "james-wilson",
+    name: "James Wilson",
+    journey: "Amazon Rainforest",
+    steps: 8240,
+    icon: "🌿",
+    isOnline: true,
+  },
+  {
+    id: "maria-johnson",
+    name: "Maria Johnson",
+    journey: "Great Wall of China",
+    steps: 14582,
+    icon: "🏯",
+    isOnline: true,
+  },
+];
+
+const friendRequestPerson = {
+  id: "daniel-brooks",
+  name: "Daniel Brooks",
+  journey: "Selma to Montgomery",
+  steps: 6840,
+  icon: "👟",
+  isOnline: true,
+};
+
+const activities = [
+  {
+    id: "activity-1",
+    icon: "🔥",
+    title: "Walking Streak",
+    text: "Several walkers extended their walking streak today.",
+  },
+  {
+    id: "activity-2",
+    icon: "🏆",
+    title: "Journey Completed",
+    text: "A community member completed the Great Wall of China journey.",
+  },
+  {
+    id: "activity-3",
+    icon: "🌍",
+    title: "Community Growing",
+    text: "New walkers joined the Legathon community.",
+  },
 ];
 
 const walkingCircles = [
-  { id: "blackLegacy", title: "Black Legacy", icon: "✊", members: 5827 },
-  { id: "autism", title: "Autism Awareness", icon: "💙", members: 3240 },
-  { id: "world", title: "World Explorers", icon: "🌍", members: 9120 },
-  { id: "heart", title: "Heart Health", icon: "❤️", members: 2188 },
+  {
+    id: "black-legacy",
+    icon: "✊🏾",
+    name: "Black Legacy",
+    members: 5827,
+  },
+  {
+    id: "autism-awareness",
+    icon: "🧩",
+    name: "Autism Awareness",
+    members: 3240,
+  },
+  {
+    id: "world-explorers",
+    icon: "🌍",
+    name: "World Explorers",
+    members: 9120,
+  },
+  {
+    id: "heart-health",
+    icon: "❤️",
+    name: "Heart Health",
+    members: 2188,
+  },
+];
+
+const topWalkingCircles = [
+  {
+    id: "world-explorers",
+    rank: 1,
+    icon: "🌍",
+    name: "World Explorers",
+    members: 9120,
+  },
+  {
+    id: "black-legacy",
+    rank: 2,
+    icon: "✊🏾",
+    name: "Black Legacy",
+    members: 5827,
+  },
+  {
+    id: "autism-awareness",
+    rank: 3,
+    icon: "🧩",
+    name: "Autism Awareness",
+    members: 3240,
+  },
 ];
 
 const challenges = [
   {
-    id: "weekend",
+    id: "weekend-challenge",
+    icon: "🔥",
     title: "Weekend Challenge",
-    goal: 50000,
+    description: "Walk 50,000 community steps this weekend.",
     progress: 42600,
+    target: 50000,
     reward: 500,
   },
   {
-    id: "global",
+    id: "global-walking-weekend",
+    icon: "🌍",
     title: "Global Walking Weekend",
-    goal: 100000,
+    description: "Help the community reach 100,000 steps.",
     progress: 31000,
+    target: 100000,
     reward: 1000,
   },
 ];
 
-export default function CommunityScreen({
-  language = "en",
-  goBack,
-  goToJourney,
-  goToProfile,
-  goToAICoach,
-  goToChallenge,
-  goToCommunityEvent,
+const events = [
+  {
+    id: "global-event",
+    icon: "🌎",
+    title: "Global Walking Weekend",
+    date: "Community Event",
+    description: "Walk with Legathon members around the world.",
+  },
+  {
+    id: "autism-event",
+    icon: "🧩",
+    title: "Autism Awareness Walk",
+    date: "Awareness Event",
+    description: "Walk together in support of autism awareness.",
+  },
+  {
+    id: "heart-event",
+    icon: "❤️",
+    title: "Heart Health Walk",
+    date: "Wellness Event",
+    description: "Join the community for a heart-healthy walking event.",
+  },
+];
+
+const followSuggestions = [
+  {
+    id: "maya-runs",
+    icon: "🏆",
+    name: "MayaRuns",
+    subtitle: "Legend Walker",
+  },
+  {
+    id: "history-hunter",
+    icon: "🔥",
+    name: "HistoryHunter",
+    subtitle: "Master Explorer",
+  },
+  {
+    id: "world-explorers",
+    icon: "🌍",
+    name: "World Explorers",
+    subtitle: "Walking Circle",
+  },
+];
+
+function CommunityTab({
+  label,
+  selected,
+  onPress,
+  badge,
 }) {
-  const t = translations[language] || translations.en;
-
-  const [activeTab, setActiveTab] = useState("global");
-
-  const [todaySteps, setTodaySteps] = useState(0);
-  const [lifetimeSteps, setLifetimeSteps] = useState(0);
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [wcoins, setWcoins] = useState(0);
-  const [passportStamps, setPassportStamps] = useState(0);
-  const [completedJourneys, setCompletedJourneys] = useState(0);
-  const [activeJourney, setActiveJourney] = useState(null);
-
-  useEffect(() => {
-    loadCommunityData();
-  }, []);
-
-  async function loadCommunityData() {
-    try {
-      const [
-        today,
-        lifetime,
-        streak,
-        coins,
-        passport,
-        completed,
-        journey,
-      ] = await Promise.all([
-        AsyncStorage.getItem("todaySteps"),
-        AsyncStorage.getItem("lifetimeSteps"),
-        AsyncStorage.getItem("currentStreak"),
-        AsyncStorage.getItem("wcoinBalance"),
-        AsyncStorage.getItem("passportStampCount"),
-        AsyncStorage.getItem("completedJourneyCount"),
-        AsyncStorage.getItem("activeJourney"),
-      ]);
-
-      setTodaySteps(Number(today || 0));
-      setLifetimeSteps(Number(lifetime || 0));
-      setCurrentStreak(Number(streak || 0));
-      setWcoins(Number(coins || 0));
-      setPassportStamps(Number(passport || 0));
-      setCompletedJourneys(Number(completed || 0));
-
-      if (journey) {
-        setActiveJourney(JSON.parse(journey));
-      }
-    } catch (err) {
-      console.log("Community Load Error:", err);
-    }
-  }
-
-  const walkersOnline = useMemo(() => {
-    return liveWalks.reduce(
-      (sum, item) => sum + item.walkers,
-      0
-    );
-  }, []);
-
-  const communityStats = [
-    {
-      label: "Today",
-      value: todaySteps.toLocaleString(),
-    },
-    {
-      label: "Lifetime",
-      value: lifetimeSteps.toLocaleString(),
-    },
-    {
-      label: "Streak",
-      value: `${currentStreak} Days`,
-    },
-    {
-      label: "W Coins",
-      value: wcoins.toLocaleString(),
-    },
-  ];
-
-  async function sendEncouragement(feedId) {
-    const saved =
-      await AsyncStorage.getItem("communityEncouragements");
-
-    const current = saved ? JSON.parse(saved) : [];
-
-    current.push({
-      id: Date.now().toString(),
-      feedId,
-      createdAt: new Date().toISOString(),
-    });
-
-    await AsyncStorage.setItem(
-      "communityEncouragements",
-      JSON.stringify(current)
-    );
-  }
-
-  async function joinChallenge(challenge) {
-    await AsyncStorage.setItem(
-      "activeCommunityChallenge",
-      JSON.stringify(challenge)
-    );
-
-    goToChallenge?.(challenge);
-  }
-
-  async function joinWalk(walk) {
-    await AsyncStorage.setItem(
-      "activeCommunityWalk",
-      JSON.stringify(walk)
-    );
-
-    goToJourney?.(walk);
-  }
-
   return (
-    <SafeAreaView style={styles.screen}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+    <TouchableOpacity
+      style={[
+        styles.tabButton,
+        selected && styles.tabButtonSelected,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.tabButtonText,
+          selected && styles.tabButtonTextSelected,
+        ]}
       >
-
-              <TouchableOpacity onPress={goBack}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <Text style={styles.kicker}>LEGATHON WALK</Text>
-
-          <Text style={styles.title}>
-            {t.title}
-          </Text>
-
-          <Text style={styles.subtitle}>
-            {t.subtitle}
-          </Text>
-
-          <View style={styles.onlineCard}>
-            <Text style={styles.onlineNumber}>
-              {walkersOnline.toLocaleString()}
-            </Text>
-
-            <Text style={styles.onlineLabel}>
-              {t.walkersOnline}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.statsGrid}>
-          {communityStats.map((stat) => (
-            <View key={stat.label} style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {stat.value}
-              </Text>
-
-              <Text style={styles.statLabel}>
-                {stat.label}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.passportCard}>
-          <Text style={styles.passportKicker}>
-            COMMUNITY PASSPORT
-          </Text>
-
-          <Text style={styles.passportName}>
-            Legacy Walker
-          </Text>
-
-          <Text style={styles.passportSub}>
-            Your community identity is built through walking,
-            encouragement, and completed journeys.
-          </Text>
-
-          <View style={styles.passportGrid}>
-            <View style={styles.passportStat}>
-              <Text style={styles.passportValue}>
-                {passportStamps}
-              </Text>
-              <Text style={styles.passportLabel}>Stamps</Text>
-            </View>
-
-            <View style={styles.passportStat}>
-              <Text style={styles.passportValue}>
-                {completedJourneys}
-              </Text>
-              <Text style={styles.passportLabel}>Journeys</Text>
-            </View>
-
-            <View style={styles.passportStat}>
-              <Text style={styles.passportValue}>
-                {currentStreak}
-              </Text>
-              <Text style={styles.passportLabel}>Streak</Text>
-            </View>
-
-            <View style={styles.passportStat}>
-              <Text style={styles.passportValue}>
-                {wcoins.toLocaleString()}
-              </Text>
-              <Text style={styles.passportLabel}>W Coins</Text>
-            </View>
-          </View>
-        </View>
-
-        {activeJourney && (
-          <View style={styles.heroCard}>
-            <Text style={styles.heroSmall}>
-              CURRENT JOURNEY
-            </Text>
-
-            <Text style={styles.heroTitle}>
-              {activeJourney.flag || "🌍"} {activeJourney.title}
-            </Text>
-
-            <Text style={styles.heroProgress}>
-              {activeJourney.progress || 0}% Complete
-            </Text>
-
-            <View style={styles.heroBar}>
-              <View
-                style={[
-                  styles.heroFill,
-                  {
-                    width: `${Math.min(
-                      Number(activeJourney.progress || 0),
-                      100
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.walkButton}
-              onPress={() => goToJourney?.(activeJourney)}
-            >
-              <Text style={styles.walkButtonText}>
-                Continue Walking
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-                <View style={styles.tabRow}>
-          {["global", "friends", "following"].map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[
-                styles.tabButton,
-                activeTab === tab && styles.tabButtonActive,
-              ]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab && styles.tabTextActive,
-                ]}
-              >
-                {tab.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.quoteCard}>
-          <Text style={styles.sectionMini}>
-            {t.todayQuote}
-          </Text>
-
-          <Text style={styles.quoteText}>
-            “{t.quote}”
-          </Text>
-
-          <TouchableOpacity style={styles.encourageButton}>
-            <Text style={styles.encourageText}>
-              ❤️ {t.encourage}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <SectionTitle title="🔔 Activity Center" />
-
-        <View style={styles.activityCard}>
-          <ActivityItem
-            icon="🏅"
-            title="Checkpoint Completed"
-            subtitle="Amazon Rainforest • Checkpoint 2"
-            time="2m"
-          />
-
-          <View style={styles.activityDivider} />
-
-          <ActivityItem
-            icon="👏"
-            title="You received encouragement"
-            subtitle="James Wilson cheered your walk."
-            time="8m"
-          />
-
-          <View style={styles.activityDivider} />
-
-          <ActivityItem
-            icon="🪙"
-            title="W Coins Earned"
-            subtitle="+250 W Coins from today's challenge."
-            time="Today"
-          />
-        </View>
-
-        <SectionTitle title={t.communityFeed} />
-
-        {communityFeed.map((item) => (
-          <View key={item.id} style={styles.feedCard}>
-            <Text style={styles.feedIcon}>
-              {item.icon}
-            </Text>
-
-            <View style={styles.feedContent}>
-              <Text style={styles.feedTitle}>
-                {item.name} {item.text}
-              </Text>
-
-              <Text style={styles.feedJourney}>
-                {item.journey}
-              </Text>
-
-              <TouchableOpacity
-                style={styles.feedAction}
-                onPress={() => sendEncouragement(item.id)}
-              >
-                <Text style={styles.feedActionText}>
-                  {item.action === "celebrate"
-                    ? `🎉 ${t.celebrate}`
-                    : item.action === "support"
-                    ? `🙌 ${t.support}`
-                    : `👏 ${t.encourage}`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-
-                <SectionTitle title={t.liveWalkers} />
-
-        {liveWalks.map((walk) => (
-          <TouchableOpacity
-            key={walk.id}
-            style={styles.liveCard}
-            onPress={() => joinWalk(walk)}
-          >
-            <Text style={styles.liveFlag}>
-              {walk.flag}
-            </Text>
-
-            <View style={{ flex: 1 }}>
-              <Text style={styles.liveTitle}>
-                {walk.title}
-              </Text>
-
-              <Text style={styles.liveSub}>
-                {walk.walkers.toLocaleString()} walkers
-              </Text>
-            </View>
-
-            <Text style={styles.joinText}>
-              {t.join}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        <SectionTitle title="🔥 Walking Streak" />
-
-        <View style={styles.streakCard}>
-          <Text style={styles.streakTitle}>
-            Current Streak
-          </Text>
-
-          <Text style={styles.streakDays}>
-            {currentStreak} Days
-          </Text>
-
-          <Text style={styles.streakSub}>
-            Keep walking today to continue your streak.
-          </Text>
-        </View>
-
-        <SectionTitle title="👥 Friends Walking Now" />
-
-        <View style={styles.friendCard}>
-          <Text style={styles.friendAvatar}>👤</Text>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.friendName}>
-              James Wilson
-            </Text>
-
-            <Text style={styles.friendJourney}>
-              Amazon Rainforest
-            </Text>
-
-            <Text style={styles.friendSteps}>
-              {todaySteps.toLocaleString()} Steps Today
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.cheerButton}>
-            <Text style={styles.cheerText}>
-              👏 Cheer
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <SectionTitle title="Friend Requests" />
-
-        <View style={styles.requestCard}>
-          <View>
-            <Text style={styles.requestName}>
-              Maria Johnson
-            </Text>
-
-            <Text style={styles.requestText}>
-              Wants to join your Walking Circle
-            </Text>
-          </View>
-
-          <View style={styles.requestButtons}>
-            <TouchableOpacity style={styles.acceptButton}>
-              <Text style={styles.acceptText}>
-                Accept
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.declineButton}>
-              <Text style={styles.declineText}>
-                Decline
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-                <SectionTitle title={t.walkingCircles} />
-
-        <View style={styles.circleGrid}>
-          {walkingCircles.map((circle) => (
-            <TouchableOpacity
-              key={circle.id}
-              style={styles.circleCard}
-            >
-              <Text style={styles.circleIcon}>
-                {circle.icon}
-              </Text>
-
-              <Text style={styles.circleTitle}>
-                {circle.title}
-              </Text>
-
-              <Text style={styles.circleMembers}>
-                {circle.members.toLocaleString()} members
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <SectionTitle title="🏆 Top Walking Circles" />
-
-        <View style={styles.circleRanking}>
-          <Text style={styles.rank}>🥇</Text>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rankTitle}>
-              World Explorers
-            </Text>
-
-            <Text style={styles.rankMembers}>
-              9,120 Members
-            </Text>
-          </View>
-
-          <Text style={styles.rankSteps}>
-            2.8M Steps
-          </Text>
-        </View>
-
-        <SectionTitle title={t.challenges} />
-
-        {challenges.map((challenge) => {
-          const percent = Math.min(
-            Math.round((challenge.progress / challenge.goal) * 100),
-            100
-          );
-
-          return (
-            <View key={challenge.id} style={styles.challengeCard}>
-              <Text style={styles.challengeTitle}>
-                {challenge.title}
-              </Text>
-
-              <Text style={styles.challengeProgress}>
-                {challenge.progress.toLocaleString()} /{" "}
-                {challenge.goal.toLocaleString()} {t.steps}
-              </Text>
-
-              <View style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${percent}%` },
-                  ]}
-                />
-              </View>
-
-              <Text style={styles.rewardText}>
-                🪙 {challenge.reward} W Coins
-              </Text>
-
-              <TouchableOpacity
-                style={styles.challengeButton}
-                onPress={() => joinChallenge(challenge)}
-              >
-                <Text style={styles.challengeButtonText}>
-                  Join Challenge
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        })}
-
-                <SectionTitle title="📅 Community Events" />
-
-        <View style={styles.eventCard}>
-          <Text style={styles.eventTitle}>
-            🌎 Global Walking Weekend
-          </Text>
-
-          <Text style={styles.eventSub}>
-            Starts Saturday • 9:00 AM
-          </Text>
-
-          <TouchableOpacity
-            style={styles.eventButton}
-            onPress={() =>
-              goToCommunityEvent?.({
-                id: "global-weekend",
-                title: "Global Walking Weekend",
-              })
-            }
-          >
-            <Text style={styles.eventButtonText}>
-              Join Event
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.eventCard}>
-          <Text style={styles.eventTitle}>
-            💙 Autism Awareness Walk
-          </Text>
-
-          <Text style={styles.eventSub}>
-            April Community Challenge
-          </Text>
-
-          <TouchableOpacity
-            style={styles.eventButton}
-            onPress={() =>
-              goToCommunityEvent?.({
-                id: "autism-awareness",
-                title: "Autism Awareness Walk",
-              })
-            }
-          >
-            <Text style={styles.eventButtonText}>
-              Join Event
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.eventCard}>
-          <Text style={styles.eventTitle}>
-            ❤️ Heart Health Walk
-          </Text>
-
-          <Text style={styles.eventSub}>
-            Walk for wellness and prevention
-          </Text>
-
-          <TouchableOpacity
-            style={styles.eventButton}
-            onPress={() =>
-              goToCommunityEvent?.({
-                id: "heart-health",
-                title: "Heart Health Walk",
-              })
-            }
-          >
-            <Text style={styles.eventButtonText}>
-              Join Event
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <SectionTitle title="🤖 Legathon AI Community Coach" />
-
-        <View style={styles.aiCoachCard}>
-          <Text style={styles.aiCoachTitle}>
-            Your Community Coach
-          </Text>
-
-          <Text style={styles.aiCoachMessage}>
-            Great job today! Your walking circle is making progress.
-            Encourage your friends, keep your streak alive, and stay
-            consistent with your goals.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.aiCoachButton}
-            onPress={goToAICoach}
-          >
-            <Text style={styles.aiCoachButtonText}>
-              Open AI Coach
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.communityRewardCard}>
-          <Text style={styles.communityRewardTitle}>
-            Community Rewards
-          </Text>
-
-          <Text style={styles.communityRewardAmount}>
-            🪙 {wcoins.toLocaleString()} W Coins
-          </Text>
-
-          <Text style={styles.communityRewardText}>
-            Earn coins by encouraging friends, joining challenges,
-            and completing community events.
-          </Text>
-        </View>
-
-      <View style={{ height: 130 }} />
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-function SectionTitle({ title }) {
-  return (
-    <Text style={styles.sectionTitle}>
-      {title}
-    </Text>
-  );
-}
-
-function ActivityItem({ icon, title, subtitle, time }) {
-  return (
-    <View style={styles.activityItem}>
-      <Text style={styles.activityIcon}>
-        {icon}
+        {label}
       </Text>
 
-      <View style={styles.activityContent}>
-        <Text style={styles.activityTitle}>
-          {title}
+      {!!badge && (
+        <View style={styles.tabBadge}>
+          <Text style={styles.tabBadgeText}>
+            {badge}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function SectionTitle({ icon, title, subtitle }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionIcon}>
+          {icon}
         </Text>
 
-        <Text style={styles.activitySubtitle}>
-          {subtitle}
+        <Text style={styles.sectionTitle}>
+          {title}
         </Text>
       </View>
 
-      <Text style={styles.activityTime}>
-        {time}
-      </Text>
+      {!!subtitle && (
+        <Text style={styles.sectionSubtitle}>
+          {subtitle}
+        </Text>
+      )}
     </View>
   );
 }
 
+export default function CommunityScreen({
+  navigation,
+  goBack,
+  goToAICoach,
+}) {
+  const [selectedTab, setSelectedTab] =
+    useState("global");
+
+  const [cheeredFriends, setCheeredFriends] =
+    useState({});
+
+  const [
+    friendRequestStatus,
+    setFriendRequestStatus,
+  ] = useState("pending");
+
+  const [
+    acceptedFriends,
+    setAcceptedFriends,
+  ] = useState([]);
+
+  const [
+    joinedChallenges,
+    setJoinedChallenges,
+  ] = useState({});
+
+  const [
+    joinedEvents,
+    setJoinedEvents,
+  ] = useState({});
+
+  const [
+    feedReactions,
+    setFeedReactions,
+  ] = useState({});
+
+  const [
+    joinedCircles,
+    setJoinedCircles,
+  ] = useState({});
+
+  const [following, setFollowing] =
+    useState({});
+
+  const [
+    readActivities,
+    setReadActivities,
+  ] = useState({});
+
+  useEffect(() => {
+    loadCommunityState();
+  }, []);
+
+  const loadCommunityState = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(
+        COMMUNITY_STATE_KEY
+      );
+
+      if (!saved) return;
+
+      const data = JSON.parse(saved);
+
+      setCheeredFriends(
+        data.cheeredFriends || {}
+      );
+
+      setFriendRequestStatus(
+        data.friendRequestStatus || "pending"
+      );
+
+      setAcceptedFriends(
+        data.acceptedFriends || []
+      );
+
+      setJoinedChallenges(
+        data.joinedChallenges || {}
+      );
+
+      setJoinedEvents(
+        data.joinedEvents || {}
+      );
+
+      setFeedReactions(
+        data.feedReactions || {}
+      );
+
+      setJoinedCircles(
+        data.joinedCircles || {}
+      );
+
+      setFollowing(
+        data.following || {}
+      );
+
+      setReadActivities(
+        data.readActivities || {}
+      );
+    } catch (error) {
+      console.log(
+        "COMMUNITY LOAD ERROR:",
+        error
+      );
+    }
+  };
+
+  const persistCommunityState =
+    async (overrides = {}) => {
+      try {
+        const stateToSave = {
+          cheeredFriends,
+          friendRequestStatus,
+          acceptedFriends,
+          joinedChallenges,
+          joinedEvents,
+          feedReactions,
+          joinedCircles,
+          following,
+          readActivities,
+          ...overrides,
+        };
+
+        await AsyncStorage.setItem(
+          COMMUNITY_STATE_KEY,
+          JSON.stringify(stateToSave)
+        );
+      } catch (error) {
+        console.log(
+          "COMMUNITY SAVE ERROR:",
+          error
+        );
+      }
+    };
+
+  const handleBack = () => {
+    if (goBack) {
+      goBack();
+      return;
+    }
+
+    if (navigation?.goBack) {
+      navigation.goBack();
+    }
+  };
+
+  const handleCheer = async (friendId) => {
+    const updated = {
+      ...cheeredFriends,
+      [friendId]: true,
+    };
+
+    setCheeredFriends(updated);
+
+    await persistCommunityState({
+      cheeredFriends: updated,
+    });
+  };
+
+  const handleAcceptFriend = async () => {
+    const updatedFriends =
+      acceptedFriends.some(
+        (friend) =>
+          friend.id ===
+          friendRequestPerson.id
+      )
+        ? acceptedFriends
+        : [
+            ...acceptedFriends,
+            friendRequestPerson,
+          ];
+
+    setFriendRequestStatus("accepted");
+    setAcceptedFriends(updatedFriends);
+
+    await persistCommunityState({
+      friendRequestStatus: "accepted",
+      acceptedFriends: updatedFriends,
+    });
+  };
+
+  const handleDeclineFriend = async () => {
+    setFriendRequestStatus("declined");
+
+    await persistCommunityState({
+      friendRequestStatus: "declined",
+    });
+  };
+
+  const handleRemoveFriend =
+    async (friendId) => {
+      const updatedFriends =
+        acceptedFriends.filter(
+          (friend) =>
+            friend.id !== friendId
+        );
+
+      setAcceptedFriends(updatedFriends);
+
+      await persistCommunityState({
+        acceptedFriends: updatedFriends,
+      });
+    };
+
+  const handleJoinChallenge =
+    async (challengeId) => {
+      const updated = {
+        ...joinedChallenges,
+        [challengeId]:
+          !joinedChallenges[challengeId],
+      };
+
+      setJoinedChallenges(updated);
+
+      await persistCommunityState({
+        joinedChallenges: updated,
+      });
+    };
+
+  const handleJoinEvent =
+    async (eventId) => {
+      const updated = {
+        ...joinedEvents,
+        [eventId]:
+          !joinedEvents[eventId],
+      };
+
+      setJoinedEvents(updated);
+
+      await persistCommunityState({
+        joinedEvents: updated,
+      });
+    };
+
+  const handleFeedReaction =
+    async (postId) => {
+      const updated = {
+        ...feedReactions,
+        [postId]: true,
+      };
+
+      setFeedReactions(updated);
+
+      await persistCommunityState({
+        feedReactions: updated,
+      });
+    };
+
+  const handleJoinCircle =
+    async (circleId) => {
+      const updated = {
+        ...joinedCircles,
+        [circleId]:
+          !joinedCircles[circleId],
+      };
+
+      setJoinedCircles(updated);
+
+      await persistCommunityState({
+        joinedCircles: updated,
+      });
+    };
+
+  const handleToggleFollow =
+    async (id) => {
+      const updated = {
+        ...following,
+        [id]: !following[id],
+      };
+
+      setFollowing(updated);
+
+      await persistCommunityState({
+        following: updated,
+      });
+    };
+
+  const handleActivityRead =
+    async (activityId) => {
+      const updated = {
+        ...readActivities,
+        [activityId]: true,
+      };
+
+      setReadActivities(updated);
+
+      await persistCommunityState({
+        readActivities: updated,
+      });
+    };
+
+  const handleOpenAICoach = () => {
+    if (goToAICoach) {
+      goToAICoach();
+      return;
+    }
+
+    if (navigation?.navigate) {
+      navigation.navigate("AIWellness");
+      return;
+    }
+
+    Alert.alert(
+      "Legathon AI",
+      "AI Community Coach navigation is ready to be connected."
+    );
+  };
+
+  const allFriends = useMemo(
+    () => [
+      ...friendsWalking,
+      ...acceptedFriends,
+    ],
+    [acceptedFriends]
+  );
+
+  const totalFriends =
+    allFriends.length;
+
+  const onlineFriends =
+    allFriends.filter(
+      (friend) =>
+        friend.isOnline !== false
+    ).length;
+
+  const unreadActivityCount =
+    activities.filter(
+      (item) =>
+        !readActivities[item.id]
+    ).length;
+
+  const pendingFriendRequests =
+    friendRequestStatus === "pending"
+      ? 1
+      : 0;
+
+  const renderFriendsTab = () => {
+    return (
+      <>
+        <SectionTitle
+          icon="👟"
+          title="Friends Walking Now"
+          subtitle={`${onlineFriends} of ${totalFriends} friends online`}
+        />
+
+        {allFriends.map((friend) => {
+          const isAcceptedFriend =
+            acceptedFriends.some(
+              (accepted) =>
+                accepted.id === friend.id
+            );
+
+          return (
+            <View
+              key={friend.id}
+              style={styles.friendCard}
+            >
+              <View
+                style={
+                  styles.friendIconWrap
+                }
+              >
+                <Text
+                  style={styles.friendIcon}
+                >
+                  {friend.icon}
+                </Text>
+              </View>
+
+              <View
+                style={styles.friendInfo}
+              >
+                <View
+                  style={
+                    styles.friendNameRow
+                  }
+                >
+                  <Text
+                    style={
+                      styles.friendName
+                    }
+                  >
+                    {friend.name}
+                  </Text>
+
+                  <View
+                    style={
+                      styles.onlineDot
+                    }
+                  />
+                </View>
+
+                <Text
+                  style={
+                    styles.friendJourney
+                  }
+                >
+                  {friend.journey}
+                </Text>
+
+                <Text
+                  style={styles.friendSteps}
+                >
+                  {Number(
+                    friend.steps || 0
+                  ).toLocaleString()}{" "}
+                  steps
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.friendActions
+                }
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.cheerButton,
+                    cheeredFriends[
+                      friend.id
+                    ] &&
+                      styles.cheerButtonActive,
+                  ]}
+                  onPress={() =>
+                    handleCheer(
+                      friend.id
+                    )
+                  }
+                  disabled={
+                    !!cheeredFriends[
+                      friend.id
+                    ]
+                  }
+                >
+                  <Text
+                    style={
+                      styles.cheerButtonText
+                    }
+                  >
+                    {cheeredFriends[
+                      friend.id
+                    ]
+                      ? "✓ Cheered"
+                      : "👏 Cheer"}
+                  </Text>
+                </TouchableOpacity>
+
+                {isAcceptedFriend && (
+                  <TouchableOpacity
+                    style={
+                      styles.removeFriendButton
+                    }
+                    onPress={() =>
+                      handleRemoveFriend(
+                        friend.id
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.removeFriendButtonText
+                      }
+                    >
+                      Remove
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        <SectionTitle
+          icon="👥"
+          title="Friend Requests"
+        />
+
+        <View style={styles.requestCard}>
+          <View
+            style={styles.requestTop}
+          >
+            <View
+              style={
+                styles.requestIconWrap
+              }
+            >
+              <Text
+                style={styles.requestIcon}
+              >
+                👟
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.requestInfo
+              }
+            >
+              <Text
+                style={styles.requestName}
+              >
+                {friendRequestPerson.name}
+              </Text>
+
+              <Text
+                style={styles.requestText}
+              >
+                Wants to walk with you
+              </Text>
+            </View>
+          </View>
+
+          {friendRequestStatus ===
+          "pending" ? (
+            <View
+              style={
+                styles.requestButtonRow
+              }
+            >
+              <TouchableOpacity
+                style={
+                  styles.acceptButton
+                }
+                onPress={
+                  handleAcceptFriend
+                }
+              >
+                <Text
+                  style={
+                    styles.acceptButtonText
+                  }
+                >
+                  Accept
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={
+                  styles.declineButton
+                }
+                onPress={
+                  handleDeclineFriend
+                }
+              >
+                <Text
+                  style={
+                    styles.declineButtonText
+                  }
+                >
+                  Decline
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View
+              style={
+                styles.requestStatusBox
+              }
+            >
+              <Text
+                style={
+                  styles.requestStatusText
+                }
+              >
+                {friendRequestStatus ===
+                "accepted"
+                  ? "✓ Friend Added"
+                  : "Request Declined"}
+              </Text>
+            </View>
+          )}
+        </View>
+      </>
+    );
+  };
+
+  const renderFollowingTab = () => {
+    return (
+      <>
+        <SectionTitle
+          icon="📡"
+          title="Following"
+          subtitle="Walkers and circles you follow"
+        />
+
+        {followSuggestions.map(
+          (item) => (
+            <View
+              key={item.id}
+              style={styles.followCard}
+            >
+              <View
+                style={
+                  styles.followIconWrap
+                }
+              >
+                <Text
+                  style={
+                    styles.followIcon
+                  }
+                >
+                  {item.icon}
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.followInfo
+                }
+              >
+                <Text
+                  style={
+                    styles.followName
+                  }
+                >
+                  {item.name}
+                </Text>
+
+                <Text
+                  style={
+                    styles.followSubtitle
+                  }
+                >
+                  {item.subtitle}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.followButton,
+                  following[item.id] &&
+                    styles.followButtonActive,
+                ]}
+                onPress={() =>
+                  handleToggleFollow(
+                    item.id
+                  )
+                }
+              >
+                <Text
+                  style={[
+                    styles.followButtonText,
+                    following[item.id] &&
+                      styles.followButtonTextActive,
+                  ]}
+                >
+                  {following[item.id]
+                    ? "✓ Following"
+                    : "Follow"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )
+        )}
+      </>
+    );
+  };
+
+  const renderGlobalTab = () => {
+    return (
+      <>
+        <SectionTitle
+          icon="🔔"
+          title="Activity Center"
+          subtitle={
+            unreadActivityCount > 0
+              ? `${unreadActivityCount} unread updates`
+              : "You're all caught up"
+          }
+        />
+
+        {activities.map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={[
+              styles.activityCard,
+              readActivities[item.id] &&
+                styles.activityCardRead,
+            ]}
+            onPress={() =>
+              handleActivityRead(
+                item.id
+              )
+            }
+            disabled={
+              !!readActivities[item.id]
+            }
+          >
+            <View
+              style={
+                styles.activityIconWrap
+              }
+            >
+              <Text
+                style={
+                  styles.activityIcon
+                }
+              >
+                {item.icon}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.activityContent
+              }
+            >
+              <Text
+                style={
+                  styles.activityTitle
+                }
+              >
+                {item.title}
+              </Text>
+
+              <Text
+                style={
+                  styles.activityText
+                }
+              >
+                {item.text}
+              </Text>
+
+              <Text
+                style={[
+                  styles.activityStatus,
+                  readActivities[
+                    item.id
+                  ] &&
+                    styles.activityStatusRead,
+                ]}
+              >
+                {readActivities[
+                  item.id
+                ]
+                  ? "✓ Read"
+                  : "Tap to mark as read"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        <SectionTitle
+          icon="🌎"
+          title="Community Feed"
+          subtitle="Celebrate walkers around the world"
+        />
+
+        {communityFeed.map(
+          (item) => (
+            <View
+              key={item.id}
+              style={styles.feedCard}
+            >
+              <View
+                style={
+                  styles.feedTopRow
+                }
+              >
+                <View
+                  style={
+                    styles.feedAvatar
+                  }
+                >
+                  <Text
+                    style={
+                      styles.feedAvatarText
+                    }
+                  >
+                    {item.icon}
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.feedInfo
+                  }
+                >
+                  <Text
+                    style={
+                      styles.feedName
+                    }
+                  >
+                    {item.name}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.feedActivity
+                    }
+                  >
+                    {item.activity}
+                  </Text>
+                </View>
+              </View>
+
+              <View
+                style={
+                  styles.feedJourneyBox
+                }
+              >
+                <Text
+                  style={
+                    styles.feedJourneyLabel
+                  }
+                >
+                  JOURNEY
+                </Text>
+
+                <Text
+                  style={
+                    styles.feedJourneyText
+                  }
+                >
+                  {item.journey}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.feedActionButton,
+                  feedReactions[
+                    item.id
+                  ] &&
+                    styles.feedActionButtonActive,
+                ]}
+                onPress={() =>
+                  handleFeedReaction(
+                    item.id
+                  )
+                }
+                disabled={
+                  !!feedReactions[item.id]
+                }
+              >
+                <Text
+                  style={[
+                    styles.feedActionText,
+                    feedReactions[
+                      item.id
+                    ] &&
+                      styles.feedActionTextActive,
+                  ]}
+                >
+                  {feedReactions[
+                    item.id
+                  ]
+                    ? "✓ Sent"
+                    : `${item.actionIcon} ${item.action}`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )
+        )}
+
+        <SectionTitle
+          icon="👣"
+          title="Walking Circles"
+          subtitle="Find your walking community"
+        />
+
+        <View
+          style={styles.circleGrid}
+        >
+          {walkingCircles.map(
+            (circle) => (
+              <TouchableOpacity
+                key={circle.id}
+                style={[
+                  styles.circleCard,
+                  joinedCircles[
+                    circle.id
+                  ] &&
+                    styles.circleCardJoined,
+                ]}
+                onPress={() =>
+                  handleJoinCircle(
+                    circle.id
+                  )
+                }
+              >
+                <Text
+                  style={
+                    styles.circleIcon
+                  }
+                >
+                  {circle.icon}
+                </Text>
+
+                <Text
+                  style={
+                    styles.circleName
+                  }
+                >
+                  {circle.name}
+                </Text>
+
+                <Text
+                  style={
+                    styles.circleMembers
+                  }
+                >
+                  {circle.members.toLocaleString()}{" "}
+                  members
+                </Text>
+
+                <Text
+                  style={[
+                    styles.circleJoinText,
+                    joinedCircles[
+                      circle.id
+                    ] &&
+                      styles.circleJoinTextActive,
+                  ]}
+                >
+                  {joinedCircles[
+                    circle.id
+                  ]
+                    ? "✓ Joined • Tap to Leave"
+                    : "Join Circle"}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
+        </View>
+
+        <SectionTitle
+          icon="🏆"
+          title="Top Walking Circles"
+        />
+
+        {topWalkingCircles.map(
+          (circle) => (
+            <View
+              key={circle.id}
+              style={
+                styles.topCircleCard
+              }
+            >
+              <View
+                style={
+                  styles.topCircleRank
+                }
+              >
+                <Text
+                  style={
+                    styles.topCircleRankText
+                  }
+                >
+                  #{circle.rank}
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.topCircleIcon
+                }
+              >
+                {circle.icon}
+              </Text>
+
+              <View
+                style={
+                  styles.topCircleInfo
+                }
+              >
+                <Text
+                  style={
+                    styles.topCircleName
+                  }
+                >
+                  {circle.name}
+                </Text>
+
+                <Text
+                  style={
+                    styles.topCircleMembers
+                  }
+                >
+                  {circle.members.toLocaleString()}{" "}
+                  members
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.topCircleButton,
+                  joinedCircles[
+                    circle.id
+                  ] &&
+                    styles.topCircleButtonJoined,
+                ]}
+                onPress={() =>
+                  handleJoinCircle(
+                    circle.id
+                  )
+                }
+              >
+                <Text
+                  style={[
+                    styles.topCircleButtonText,
+                    joinedCircles[
+                      circle.id
+                    ] &&
+                      styles.topCircleButtonTextJoined,
+                  ]}
+                >
+                  {joinedCircles[
+                    circle.id
+                  ]
+                    ? "✓ Joined"
+                    : "Join"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )
+        )}
+
+        <SectionTitle
+          icon="🎯"
+          title="Community Challenges"
+        />
+
+        {challenges.map(
+          (challenge) => {
+            const percentage =
+              Math.min(
+                challenge.progress /
+                  challenge.target,
+                1
+              ) * 100;
+
+            return (
+              <View
+                key={challenge.id}
+                style={
+                  styles.challengeCard
+                }
+              >
+                <View
+                  style={
+                    styles.challengeHeader
+                  }
+                >
+                  <Text
+                    style={
+                      styles.challengeIcon
+                    }
+                  >
+                    {challenge.icon}
+                  </Text>
+
+                  <View
+                    style={
+                      styles.challengeHeaderInfo
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.challengeTitle
+                      }
+                    >
+                      {challenge.title}
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.challengeDescription
+                      }
+                    >
+                      {
+                        challenge.description
+                      }
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={
+                    styles.progressTrack
+                  }
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${percentage}%`,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View
+                  style={
+                    styles.challengeStats
+                  }
+                >
+                  <Text
+                    style={
+                      styles.challengeProgressText
+                    }
+                  >
+                    {challenge.progress.toLocaleString()}{" "}
+                    /{" "}
+                    {challenge.target.toLocaleString()}
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.challengeReward
+                    }
+                  >
+                    🪙{" "}
+                    {challenge.reward.toLocaleString()}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.aquaButton,
+                    joinedChallenges[
+                      challenge.id
+                    ] &&
+                      styles.joinedButton,
+                  ]}
+                  onPress={() =>
+                    handleJoinChallenge(
+                      challenge.id
+                    )
+                  }
+                >
+                  <Text
+                    style={
+                      styles.aquaButtonText
+                    }
+                  >
+                    {joinedChallenges[
+                      challenge.id
+                    ]
+                      ? "✓ Joined • Tap to Leave"
+                      : "Join Challenge"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
+        )}
+
+        <SectionTitle
+          icon="📅"
+          title="Community Events"
+        />
+
+        {events.map((event) => (
+          <View
+            key={event.id}
+            style={styles.eventCard}
+          >
+            <View
+              style={
+                styles.eventIconWrap
+              }
+            >
+              <Text
+                style={
+                  styles.eventIcon
+                }
+              >
+                {event.icon}
+              </Text>
+            </View>
+
+            <View
+              style={styles.eventInfo}
+            >
+              <Text
+                style={
+                  styles.eventTitle
+                }
+              >
+                {event.title}
+              </Text>
+
+              <Text
+                style={
+                  styles.eventDate
+                }
+              >
+                {event.date}
+              </Text>
+
+              <Text
+                style={
+                  styles.eventDescription
+                }
+              >
+                {event.description}
+              </Text>
+
+              <TouchableOpacity
+                style={[
+                  styles.goldButton,
+                  joinedEvents[
+                    event.id
+                  ] &&
+                    styles.joinedEventButton,
+                ]}
+                onPress={() =>
+                  handleJoinEvent(
+                    event.id
+                  )
+                }
+              >
+                <Text
+                  style={[
+                    styles.goldButtonText,
+                    joinedEvents[
+                      event.id
+                    ] &&
+                      styles.joinedEventButtonText,
+                  ]}
+                >
+                  {joinedEvents[
+                    event.id
+                  ]
+                    ? "✓ Joined • Tap to Leave"
+                    : "Join Event"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+
+        <SectionTitle
+          icon="🧠"
+          title="Legathon AI Community Coach"
+        />
+
+        <View style={styles.aiCard}>
+          <View
+            style={styles.aiIconWrap}
+          >
+            <Text style={styles.aiIcon}>
+              ✨
+            </Text>
+          </View>
+
+          <Text style={styles.aiTitle}>
+            Walk Smarter Together
+          </Text>
+
+          <Text style={styles.aiText}>
+            Get encouragement, community
+            insights, walking motivation,
+            and personalized guidance from
+            Legathon AI.
+          </Text>
+
+          <TouchableOpacity
+            style={
+              styles.aiCoachButton
+            }
+            onPress={
+              handleOpenAICoach
+            }
+          >
+            <Text
+              style={
+                styles.aiCoachButtonText
+              }
+            >
+              Open AI Community Coach
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </>
+    );
+  };
+
+  const renderTabContent = () => {
+    if (selectedTab === "friends") {
+      return renderFriendsTab();
+    }
+
+    if (
+      selectedTab === "following"
+    ) {
+      return renderFollowingTab();
+    }
+
+    return renderGlobalTab();
+  };
+
+  return (
+    <SafeAreaView
+      style={styles.safeArea}
+    >
+      <ImageBackground
+        source={COMMUNITY_BG}
+        style={styles.background}
+        imageStyle={
+          styles.backgroundImage
+        }
+      >
+        <View
+          style={
+            styles.backgroundOverlay
+          }
+        />
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={
+            styles.scrollContent
+          }
+          showsVerticalScrollIndicator={
+            false
+          }
+        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBack}
+          >
+            <Text
+              style={
+                styles.backButtonText
+              }
+            >
+              ‹ Back
+            </Text>
+          </TouchableOpacity>
+
+          <Text
+            style={styles.brandText}
+          >
+            LEGATHON WALK
+          </Text>
+
+          <Text
+            style={styles.mainTitle}
+          >
+            Legathon Community
+          </Text>
+
+          <Text
+            style={styles.mainSubtitle}
+          >
+            Walk • Encourage • Grow
+            Together
+          </Text>
+
+          <View
+            style={styles.onlineCard}
+          >
+            <View>
+              <Text
+                style={
+                  styles.onlineLabel
+                }
+              >
+                WALKERS ONLINE
+              </Text>
+
+              <Text
+                style={
+                  styles.onlineCount
+                }
+              >
+                {onlineFriends.toLocaleString()}
+              </Text>
+            </View>
+
+            <View
+              style={
+                styles.onlineRight
+              }
+            >
+              <View
+                style={
+                  styles.largeOnlineDot
+                }
+              />
+
+              <Text
+                style={
+                  styles.onlineStatus
+                }
+              >
+                Friends online
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.tabRow}>
+            <CommunityTab
+              label="GLOBAL"
+              selected={
+                selectedTab === "global"
+              }
+              onPress={() =>
+                setSelectedTab("global")
+              }
+              badge={
+                unreadActivityCount > 0
+                  ? unreadActivityCount
+                  : null
+              }
+            />
+
+            <CommunityTab
+              label="FRIENDS"
+              selected={
+                selectedTab === "friends"
+              }
+              onPress={() =>
+                setSelectedTab("friends")
+              }
+              badge={
+                pendingFriendRequests
+              }
+            />
+
+            <CommunityTab
+              label="FOLLOWING"
+              selected={
+                selectedTab ===
+                "following"
+              }
+              onPress={() =>
+                setSelectedTab(
+                  "following"
+                )
+              }
+            />
+          </View>
+
+          {renderTabContent()}
+        </ScrollView>
+      </ImageBackground>
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
-  screen: {
+  safeArea: {
     flex: 1,
-    backgroundColor: "#020814",
+    backgroundColor: "#020813",
   },
 
-  content: {
-    padding: 20,
-    paddingBottom: 180,
+  background: {
+    flex: 1,
+    backgroundColor: "#020813",
   },
 
-  backText: {
-    color: "#8EF8D3",
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 20,
+  backgroundImage: {
+    opacity: 0.23,
   },
 
-  header: {
-    marginBottom: 22,
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor:
+      "rgba(2, 8, 19, 0.78)",
   },
 
-  kicker: {
-    color: "#FFD54A",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 4,
-    marginBottom: 8,
+  scrollView: {
+    flex: 1,
   },
 
-  title: {
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 150,
+  },
+
+  backButton: {
+    alignSelf: "flex-start",
+    paddingVertical: 8,
+    paddingRight: 18,
+    marginBottom: 6,
+  },
+
+  backButtonText: {
     color: "#FFFFFF",
-    fontSize: 42,
-    fontWeight: "900",
-  },
-
-  subtitle: {
-    color: "#B8C3D8",
     fontSize: 17,
-    fontWeight: "700",
-    marginTop: 8,
-  },
-
-  onlineCard: {
-    marginTop: 20,
-    backgroundColor: "#0B1628",
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#1E2C42",
-  },
-
-  onlineNumber: {
-    color: "#FFD54A",
-    fontSize: 38,
-    fontWeight: "900",
-  },
-
-  onlineLabel: {
-    color: "#B8C3D8",
-    fontSize: 16,
     fontWeight: "800",
-    marginTop: 4,
   },
 
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 22,
-  },
-
-  statCard: {
-    width: "48%",
-    backgroundColor: "#0B1628",
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#1E2C42",
-  },
-
-  statValue: {
-    color: "#FFD54A",
-    fontSize: 24,
+  brandText: {
+    color: "#FFD343",
+    fontSize: 14,
     fontWeight: "900",
-  },
-
-  statLabel: {
-    color: "#B8C3D8",
-    fontSize: 13,
-    fontWeight: "800",
+    letterSpacing: 2.2,
     marginTop: 6,
   },
 
-  passportCard: {
-    backgroundColor: "#101827",
-    borderRadius: 28,
-    padding: 22,
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: "#FFD54A",
-  },
-
-  passportKicker: {
-    color: "#FFD54A",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-
-  passportName: {
+  mainTitle: {
     color: "#FFFFFF",
-    fontSize: 28,
+    fontSize: 38,
+    lineHeight: 43,
     fontWeight: "900",
-  },
-
-  passportSub: {
-    color: "#B8C3D8",
-    fontSize: 15,
-    fontWeight: "700",
-    lineHeight: 23,
     marginTop: 8,
   },
 
-  passportGrid: {
+  mainSubtitle: {
+    color: "#AFC0D9",
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 8,
+    marginBottom: 22,
+  },
+
+  onlineCard: {
+    backgroundColor:
+      "rgba(15, 29, 49, 0.96)",
+    borderWidth: 1,
+    borderColor: "#243856",
+    borderRadius: 24,
+    padding: 20,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 18,
+    alignItems: "center",
+    justifyContent:
+      "space-between",
+    marginBottom: 20,
   },
 
-  passportStat: {
-    width: "48%",
-    backgroundColor: "#0B1628",
-    borderRadius: 18,
-    padding: 16,
-  },
-
-  passportValue: {
-    color: "#8EF8D3",
-    fontSize: 24,
+  onlineLabel: {
+    color: "#8FA5C2",
+    fontSize: 12,
     fontWeight: "900",
+    letterSpacing: 1.5,
   },
 
-  passportLabel: {
-    color: "#B8C3D8",
+  onlineCount: {
+    color: "#80F2CE",
+    fontSize: 34,
+    fontWeight: "900",
+    marginTop: 3,
+  },
+
+  onlineRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  largeOnlineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#80F2CE",
+    marginRight: 8,
+  },
+
+  onlineStatus: {
+    color: "#DDE7F5",
     fontSize: 13,
     fontWeight: "800",
-    marginTop: 4,
-  },
-
-    heroCard: {
-    backgroundColor: "#101827",
-    borderRadius: 28,
-    padding: 22,
-    borderWidth: 2,
-    borderColor: "#FFD54A",
-    marginBottom: 24,
-  },
-
-  heroSmall: {
-    color: "#FFD54A",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-  },
-
-  heroProgress: {
-    color: "#8EF8D3",
-    fontSize: 17,
-    fontWeight: "900",
-    marginTop: 8,
-  },
-
-  heroBar: {
-    height: 12,
-    backgroundColor: "#233247",
-    borderRadius: 999,
-    overflow: "hidden",
-    marginTop: 16,
-  },
-
-  heroFill: {
-    height: "100%",
-    backgroundColor: "#FFD54A",
-  },
-
-  walkButton: {
-    backgroundColor: "#00E5C7",
-    borderRadius: 20,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginTop: 18,
-  },
-
-  walkButtonText: {
-    color: "#07111F",
-    fontSize: 17,
-    fontWeight: "900",
   },
 
   tabRow: {
     flexDirection: "row",
-    marginBottom: 22,
-    justifyContent: "space-between",
+    backgroundColor:
+      "rgba(10, 22, 38, 0.96)",
+    borderRadius: 20,
+    padding: 5,
+    marginBottom: 24,
   },
 
   tabButton: {
     flex: 1,
-    marginHorizontal: 4,
-    backgroundColor: "#0B1628",
-    borderRadius: 18,
-    paddingVertical: 14,
+    minHeight: 46,
+    borderRadius: 16,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#1E2C42",
+    justifyContent: "center",
+    flexDirection: "row",
+    paddingHorizontal: 4,
   },
 
-  tabButtonActive: {
-    backgroundColor: "#FFD54A",
+  tabButtonSelected: {
+    backgroundColor: "#FFD343",
   },
 
-  tabText: {
-    color: "#B8C3D8",
-    fontWeight: "800",
-  },
-
-  tabTextActive: {
-    color: "#07111F",
+  tabButtonText: {
+    color: "#91A3BC",
+    fontSize: 11,
     fontWeight: "900",
+    letterSpacing: 0.5,
   },
 
-  quoteCard: {
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "#263447",
-    marginBottom: 24,
+  tabButtonTextSelected: {
+    color: "#08111D",
   },
 
-  sectionMini: {
-    color: "#FFD54A",
-    fontWeight: "900",
-    letterSpacing: 2,
-    marginBottom: 10,
-  },
-
-  quoteText: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    lineHeight: 30,
-    fontWeight: "800",
-  },
-
-  encourageButton: {
-    marginTop: 18,
-    backgroundColor: "#00E5C7",
-    borderRadius: 20,
-    paddingVertical: 14,
+  tabBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF5B5B",
     alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 5,
+    paddingHorizontal: 4,
   },
 
-  encourageText: {
-    color: "#07111F",
-    fontWeight: "900",
-    fontSize: 16,
-  },
-
-  sectionTitle: {
+  tabBadgeText: {
     color: "#FFFFFF",
-    fontSize: 26,
+    fontSize: 10,
     fontWeight: "900",
-    marginBottom: 18,
-    marginTop: 10,
   },
 
-  activityCard: {
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#263447",
-    marginBottom: 24,
+  sectionHeader: {
+    marginTop: 7,
+    marginBottom: 13,
   },
 
-  activityItem: {
+  sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
   },
 
+  sectionIcon: {
+    fontSize: 23,
+    marginRight: 9,
+  },
+
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 23,
+    fontWeight: "900",
+  },
+
+  sectionSubtitle: {
+    color: "#8FA2BD",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 5,
+    marginLeft: 34,
+  },
+
+  friendCard: {
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  friendIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#1B2A42",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  friendIcon: {
+    fontSize: 25,
+  },
+
+  friendInfo: {
+    flex: 1,
+  },
+
+  friendNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  friendName: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  onlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#80F2CE",
+    marginLeft: 7,
+  },
+
+  friendJourney: {
+    color: "#AFC0D9",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+
+  friendSteps: {
+    color: "#FFD343",
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+
+  friendActions: {
+    alignItems: "center",
+    marginLeft: 8,
+  },
+
+  cheerButton: {
+    backgroundColor: "#182C45",
+    borderWidth: 1,
+    borderColor: "#35516F",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+
+  cheerButtonActive: {
+    backgroundColor: "#1F5C4E",
+    borderColor: "#80F2CE",
+  },
+
+  cheerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  removeFriendButton: {
+    marginTop: 7,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+
+  removeFriendButtonText: {
+    color: "#9AA9BF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  requestCard: {
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 22,
+  },
+
+  requestTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  requestIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#1D2C44",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  requestIcon: {
+    fontSize: 27,
+  },
+
+  requestInfo: {
+    flex: 1,
+  },
+
+  requestName: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+
+  requestText: {
+    color: "#AFC0D9",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+
+  requestButtonRow: {
+    flexDirection: "row",
+    marginTop: 18,
+  },
+
+  acceptButton: {
+    flex: 1,
+    backgroundColor: "#80F2CE",
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginRight: 6,
+  },
+
+  acceptButtonText: {
+    color: "#06101D",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  declineButton: {
+    flex: 1,
+    backgroundColor: "#1D2B40",
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginLeft: 6,
+  },
+
+  declineButtonText: {
+    color: "#DCE5F2",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  requestStatusBox: {
+    marginTop: 18,
+    backgroundColor: "#172946",
+    borderRadius: 18,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+
+  requestStatusText: {
+    color: "#80F2CE",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  followCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 12,
+  },
+
+  followIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#1D2C44",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  followIcon: {
+    fontSize: 25,
+  },
+
+  followInfo: {
+    flex: 1,
+  },
+
+  followName: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  followSubtitle: {
+    color: "#AEBBD2",
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+
+  followButton: {
+    borderWidth: 1.5,
+    borderColor: "#80F2CE",
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+
+  followButtonActive: {
+    backgroundColor: "#1F5C4E",
+  },
+
+  followButtonText: {
+    color: "#80F2CE",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  followButtonTextActive: {
+    color: "#FFFFFF",
+  },
+
+  activityCard: {
+    flexDirection: "row",
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderWidth: 1,
+    borderColor: "#263B58",
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 11,
+  },
+
+  activityCardRead: {
+    opacity: 0.6,
+    borderColor: "#26364D",
+  },
+
+  activityIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#1E304B",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
   activityIcon: {
-    fontSize: 28,
-    marginRight: 14,
+    fontSize: 22,
   },
 
   activityContent: {
@@ -1103,428 +2194,449 @@ const styles = StyleSheet.create({
 
   activityTitle: {
     color: "#FFFFFF",
-    fontWeight: "900",
     fontSize: 16,
+    fontWeight: "900",
   },
 
-  activitySubtitle: {
-    color: "#B8C3D8",
-    marginTop: 4,
+  activityText: {
+    color: "#AFC0D9",
     fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 3,
   },
 
-  activityTime: {
-    color: "#8EF8D3",
+  activityStatus: {
+    color: "#FFD343",
+    fontSize: 11,
     fontWeight: "800",
-    fontSize: 12,
+    marginTop: 7,
   },
 
-  activityDivider: {
-    height: 1,
-    backgroundColor: "#263447",
-    marginVertical: 16,
+  activityStatusRead: {
+    color: "#80F2CE",
   },
 
-    feedCard: {
+  feedCard: {
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 17,
+    marginBottom: 13,
+  },
+
+  feedTopRow: {
     flexDirection: "row",
-    backgroundColor: "#0B1628",
+    alignItems: "center",
+  },
+
+  feedAvatar: {
+    width: 48,
+    height: 48,
     borderRadius: 24,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#1E2C42",
+    backgroundColor: "#1C2B42",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
 
-  feedIcon: {
-    fontSize: 36,
-    marginRight: 16,
+  feedAvatarText: {
+    fontSize: 24,
   },
 
-  feedContent: {
+  feedInfo: {
     flex: 1,
   },
 
-  feedTitle: {
+  feedName: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "900",
-    lineHeight: 25,
   },
 
-  feedJourney: {
-    color: "#8EF8D3",
-    fontSize: 15,
+  feedActivity: {
+    color: "#AFBED2",
+    fontSize: 13,
+    fontWeight: "600",
     marginTop: 4,
-    fontWeight: "700",
   },
 
-  feedAction: {
+  feedJourneyBox: {
+    backgroundColor: "#0D1727",
+    borderRadius: 14,
+    padding: 12,
     marginTop: 14,
-    alignSelf: "flex-start",
-    backgroundColor: "#16243A",
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+  },
+
+  feedJourneyLabel: {
+    color: "#8194AE",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+  },
+
+  feedJourneyText: {
+    color: "#FFD343",
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 3,
+  },
+
+  feedActionButton: {
     borderWidth: 1,
-    borderColor: "#00E5C7",
+    borderColor: "#36506E",
+    borderRadius: 15,
+    paddingVertical: 11,
+    alignItems: "center",
+    marginTop: 13,
+  },
+
+  feedActionButtonActive: {
+    backgroundColor: "#1F5C4E",
+    borderColor: "#80F2CE",
   },
 
   feedActionText: {
-    color: "#8EF8D3",
-    fontWeight: "900",
-  },
-
-  liveCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#101827",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#263447",
-  },
-
-  liveFlag: {
-    fontSize: 34,
-    marginRight: 14,
-  },
-
-  liveTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: "900",
   },
 
-  liveSub: {
-    color: "#8EF8D3",
-    marginTop: 4,
-  },
-
-  joinText: {
-    color: "#FFD54A",
-    fontWeight: "900",
-    fontSize: 15,
-  },
-
-  streakCard: {
-    backgroundColor: "#111C2D",
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 22,
-    borderWidth: 1,
-    borderColor: "#FF8C42",
-  },
-
-  streakTitle: {
-    color: "#FFB347",
-    fontWeight: "900",
-    fontSize: 18,
-  },
-
-  streakDays: {
+  feedActionTextActive: {
     color: "#FFFFFF",
-    fontSize: 40,
-    fontWeight: "900",
-    marginTop: 8,
-  },
-
-  streakSub: {
-    color: "#B8C3D8",
-    marginTop: 6,
-  },
-
-  friendCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 18,
-    marginBottom: 18,
-  },
-
-  friendAvatar: {
-    fontSize: 34,
-    marginRight: 14,
-  },
-
-  friendName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
-  friendJourney: {
-    color: "#8EF8D3",
-    marginTop: 4,
-  },
-
-  friendSteps: {
-    color: "#B8C3D8",
-    marginTop: 4,
-  },
-
-  cheerButton: {
-    backgroundColor: "#16243A",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-  },
-
-  cheerText: {
-    color: "#8EF8D3",
-    fontWeight: "900",
-  },
-
-  requestCard: {
-    backgroundColor: "#101827",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 18,
-  },
-
-  requestName: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-    fontSize: 18,
-  },
-
-  requestText: {
-    color: "#B8C3D8",
-    marginTop: 4,
-  },
-
-  requestButtons: {
-    flexDirection: "row",
-    marginTop: 16,
-  },
-
-  acceptButton: {
-    flex: 1,
-    backgroundColor: "#00E5C7",
-    borderRadius: 16,
-    paddingVertical: 12,
-    marginRight: 8,
-    alignItems: "center",
-  },
-
-  declineButton: {
-    flex: 1,
-    backgroundColor: "#263447",
-    borderRadius: 16,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-
-  acceptText: {
-    color: "#07111F",
-    fontWeight: "900",
-  },
-
-  declineText: {
-    color: "#FFFFFF",
-    fontWeight: "900",
   },
 
   circleGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 24,
+    justifyContent:
+      "space-between",
   },
 
   circleCard: {
-    width: "48%",
-    backgroundColor: "#101827",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 14,
+    width: "48.5%",
+    minHeight: 170,
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderWidth: 1,
+    borderColor: "#263B58",
+    borderRadius: 21,
+    padding: 15,
+    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  circleCardJoined: {
+    borderWidth: 2,
+    borderColor: "#80F2CE",
+    backgroundColor: "#102A2B",
   },
 
   circleIcon: {
-    fontSize: 34,
-    marginBottom: 12,
+    fontSize: 31,
+    marginBottom: 9,
   },
 
-  circleTitle: {
+  circleName: {
     color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "900",
-    fontSize: 17,
+    textAlign: "center",
   },
 
   circleMembers: {
-    color: "#8EF8D3",
-    marginTop: 4,
+    color: "#91A4BD",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 6,
+    textAlign: "center",
   },
 
-  circleRanking: {
+  circleJoinText: {
+    color: "#FFD343",
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 12,
+    textAlign: "center",
+  },
+
+  circleJoinTextActive: {
+    color: "#80F2CE",
+  },
+
+  topCircleCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#101827",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 24,
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 19,
+    padding: 14,
+    marginBottom: 10,
   },
 
-  rank: {
-    fontSize: 36,
-    marginRight: 14,
+  topCircleRank: {
+    width: 36,
   },
 
-  rankTitle: {
+  topCircleRankText: {
+    color: "#FFD343",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  topCircleIcon: {
+    fontSize: 25,
+    marginRight: 10,
+  },
+
+  topCircleInfo: {
+    flex: 1,
+  },
+
+  topCircleName: {
     color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "900",
   },
 
-  rankMembers: {
-    color: "#B8C3D8",
-    marginTop: 4,
+  topCircleMembers: {
+    color: "#91A4BD",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 3,
   },
 
-  rankSteps: {
-    color: "#FFD54A",
+  topCircleButton: {
+    backgroundColor: "#FFD343",
+    borderRadius: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+
+  topCircleButtonJoined: {
+    backgroundColor: "#1F5C4E",
+  },
+
+  topCircleButtonText: {
+    color: "#07111E",
+    fontSize: 11,
     fontWeight: "900",
+  },
+
+  topCircleButtonTextJoined: {
+    color: "#FFFFFF",
   },
 
   challengeCard: {
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 18,
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 17,
+    marginBottom: 13,
+  },
+
+  challengeHeader: {
+    flexDirection: "row",
+  },
+
+  challengeIcon: {
+    fontSize: 31,
+    marginRight: 12,
+  },
+
+  challengeHeaderInfo: {
+    flex: 1,
   },
 
   challengeTitle: {
     color: "#FFFFFF",
-    fontWeight: "900",
-    fontSize: 20,
-  },
-
-  challengeProgress: {
-    color: "#B8C3D8",
-    marginVertical: 10,
-  },
-
-  progressTrack: {
-    height: 12,
-    backgroundColor: "#233247",
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#FFD54A",
-  },
-
-  rewardText: {
-    color: "#FFD54A",
-    fontWeight: "900",
-    marginTop: 12,
-  },
-
-  challengeButton: {
-    marginTop: 16,
-    backgroundColor: "#00E5C7",
-    borderRadius: 18,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-
-  challengeButtonText: {
-    color: "#07111F",
-    fontWeight: "900",
-  },
-
-  eventCard: {
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 18,
-  },
-
-  eventTitle: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "900",
-  },
-
-  eventSub: {
-    color: "#8EF8D3",
-    marginTop: 6,
-  },
-
-  eventButton: {
-    marginTop: 16,
-    backgroundColor: "#FFD54A",
-    borderRadius: 18,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-
-  eventButtonText: {
-    color: "#07111F",
-    fontWeight: "900",
-  },
-
-  aiCoachCard: {
-    backgroundColor: "#111C2D",
-    borderRadius: 28,
-    padding: 22,
-    borderWidth: 2,
-    borderColor: "#00E5C7",
-    marginBottom: 22,
-  },
-
-  aiCoachTitle: {
-    color: "#00E5C7",
-    fontSize: 22,
-    fontWeight: "900",
-  },
-
-  aiCoachMessage: {
-    color: "#FFFFFF",
-    marginTop: 12,
-    lineHeight: 24,
-  },
-
-  aiCoachButton: {
-    marginTop: 18,
-    backgroundColor: "#FFD54A",
-    borderRadius: 20,
-    paddingVertical: 15,
-    alignItems: "center",
-  },
-
-  aiCoachButtonText: {
-    color: "#07111F",
-    fontWeight: "900",
-  },
-
-  communityRewardCard: {
-    backgroundColor: "#101827",
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#FFD54A",
-  },
-
-  communityRewardTitle: {
-    color: "#FFD54A",
     fontSize: 18,
     fontWeight: "900",
   },
 
-  communityRewardAmount: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "900",
-    marginTop: 10,
+  challengeDescription: {
+    color: "#AFC0D9",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 4,
   },
 
-  communityRewardText: {
-    color: "#B8C3D8",
-    marginTop: 10,
-    lineHeight: 22,
+  progressTrack: {
+    height: 10,
+    backgroundColor: "#26354A",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginTop: 17,
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#80F2CE",
+    borderRadius: 10,
+  },
+
+  challengeStats: {
+    flexDirection: "row",
+    justifyContent:
+      "space-between",
+    marginTop: 8,
+  },
+
+  challengeProgressText: {
+    color: "#B9C6D9",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  challengeReward: {
+    color: "#FFD343",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  aquaButton: {
+    backgroundColor: "#80F2CE",
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginTop: 15,
+  },
+
+  aquaButtonText: {
+    color: "#06101D",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  joinedButton: {
+    backgroundColor: "#66CDB1",
+  },
+
+  eventCard: {
+    flexDirection: "row",
+    backgroundColor:
+      "rgba(16, 29, 49, 0.97)",
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 13,
+  },
+
+  eventIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#1E2F48",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 13,
+  },
+
+  eventIcon: {
+    fontSize: 27,
+  },
+
+  eventInfo: {
+    flex: 1,
+  },
+
+  eventTitle: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  eventDate: {
+    color: "#FFD343",
+    fontSize: 11,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+
+  eventDescription: {
+    color: "#AFC0D9",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+    marginTop: 6,
+  },
+
+  goldButton: {
+    backgroundColor: "#FFD343",
+    borderRadius: 15,
+    paddingVertical: 11,
+    alignItems: "center",
+    marginTop: 13,
+  },
+
+  goldButtonText: {
+    color: "#07111E",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  joinedEventButton: {
+    backgroundColor: "#1F5C4E",
+  },
+
+  joinedEventButtonText: {
+    color: "#FFFFFF",
+  },
+
+  aiCard: {
+    backgroundColor:
+      "rgba(16, 29, 49, 0.98)",
+    borderWidth: 1,
+    borderColor: "#3A5C68",
+    borderRadius: 25,
+    padding: 22,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  aiIconWrap: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: "#173844",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 13,
+  },
+
+  aiIcon: {
+    fontSize: 32,
+  },
+
+  aiTitle: {
+    color: "#FFFFFF",
+    fontSize: 21,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  aiText: {
+    color: "#AFC0D9",
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 9,
+  },
+
+  aiCoachButton: {
+    width: "100%",
+    backgroundColor: "#80F2CE",
+    borderRadius: 17,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginTop: 17,
+  },
+
+  aiCoachButtonText: {
+    color: "#03101B",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

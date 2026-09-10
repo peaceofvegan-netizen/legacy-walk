@@ -21,8 +21,10 @@ export default function MoreScreen({
   goToPassport,
   goToCertificates,
 
-  goToWalkingAnalytics,
-  goToStepPermissions,
+ goToWalkingAnalytics,
+goToWalkingFunction,
+
+  
   goToAICoach,
   goToGPSJourneyMap,
   goToJourneyStory,
@@ -78,13 +80,25 @@ export default function MoreScreen({
       
         </Section>
 
-        <Section title={translate(language, "walkTools")}>
-          <MenuItem icon="📊" title={translate(language, "walkingAnalytics")} onPress={goToWalkingAnalytics} />
-            <MenuItem
-  icon="⚙️"
-  title="Journey Preferences"
-  onPress={goToJourneyPreferences}
-/>
+  <Section title={translate(language, "walkTools")}>
+
+  <MenuItem
+    icon="📊"
+    title={translate(language, "walkingAnalytics")}
+    onPress={goToWalkingAnalytics}
+  />
+
+  <MenuItem
+    icon="🚶"
+    title="Walking Pace & Function"
+    onPress={goToWalkingFunction}
+  />
+
+  <MenuItem
+    icon="⚙️"
+    title="Journey Preferences"
+    onPress={goToJourneyPreferences}
+  />
 
           <MenuItem icon="🧠" title={translate(language, "aiCoach")} onPress={goToAICoach} />
           <MenuItem icon="🗺️" title={translate(language, "gpsJourneyMap")} onPress={goToGPSJourneyMap} />

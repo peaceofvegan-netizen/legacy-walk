@@ -1,0 +1,144 @@
+// utils/journeyAvatarReward.js
+
+import {
+  unlockAvatarSuit,
+} from "./avatarWardrobeStorage";
+
+
+// ============================================================
+// APPLY JOURNEY AVATAR REWARD
+// ============================================================
+//
+// This is ONLY for Journey completion rewards.
+//
+// Legathon / Marathon completion must NOT call this utility.
+//
+// Expected Journey:
+//
+// {
+//   id: "journey_01",
+//   ...
+//
+//   avatarReward: {
+//     avatarId: "avatar_01",
+//     suitId: "suit_01"
+//   }
+// }
+//
+// ============================================================
+
+export async function applyJourneyAvatarReward(
+  journey
+) {
+  try {
+    if (!journey?.id) {
+      return {
+        applied: false,
+        advanced: false,
+        reason: "invalid-journey",
+      };
+    }
+
+    const reward =
+      journey?.avatarReward;
+
+    // Journey may not have a suit reward.
+    if (
+      !reward?.avatarId ||
+      !reward?.suitId
+    ) {
+      return {
+        applied: false,
+        advanced: false,
+        reason: "no-avatar-reward",
+      };
+    }
+
+    const result =
+      await unlockAvatarSuit(
+        reward.avatarId,
+        reward.suitId
+      );
+
+    if (!result?.saved) {
+      return {
+        applied: false,
+        advanced: false,
+        reason:
+          result?.reason ||
+          "suit-unlock-failed",
+
+        avatarId:
+          reward.avatarId,
+
+        suitId:
+          reward.suitId,
+
+        result,
+      };
+    }
+
+    return {
+      applied: true,
+
+      advanced:
+        result?.advanced === true,
+
+      unlockedNow:
+        result?.unlockedNow === true,
+
+      alreadyUnlocked:
+        result?.alreadyUnlocked === true,
+
+      avatarId:
+        reward.avatarId,
+
+      suitId:
+        reward.suitId,
+
+      previousSuit:
+        result?.previousSuit ||
+        null,
+
+      currentSuit:
+        result?.currentSuit ||
+        reward.suitId,
+
+      previousLevel:
+        result?.previousLevel ??
+        null,
+
+      currentLevel:
+        result?.currentLevel ??
+        null,
+
+      result,
+    };
+  } catch (error) {
+    console.log(
+      "Apply Journey avatar reward error:",
+      error
+    );
+
+    return {
+      applied: false,
+      advanced: false,
+      reason: "journey-avatar-reward-error",
+      error,
+    };
+  }
+}
+
+
+// ============================================================
+// DOES JOURNEY HAVE AVATAR REWARD?
+// ============================================================
+
+export function hasJourneyAvatarReward(
+  journey
+) {
+  return Boolean(
+    journey?.avatarReward?.avatarId &&
+    journey?.avatarReward?.suitId
+  );
+}

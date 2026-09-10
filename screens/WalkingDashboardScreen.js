@@ -9,9 +9,13 @@ import {
   Dimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import useLegathonPoints from "../hooks/useLegathonPoints";
 import { Pedometer } from "expo-sensors";
 import Svg, { Circle } from "react-native-svg";
 import { avatarOptions } from "../data/avatarOptions";
+import {
+  getCurrentAvatarVisual,
+} from "../utils/avatarVisualResolver";
 const { width } = Dimensions.get("window");
 
 const DASHBOARD_MOCKUP = require("../assets/logo/dashboard.png");
@@ -32,7 +36,7 @@ function formatNumber(value) {
 }
 
 function stepsToMiles(steps) {
-  return ((Number(steps || 0) * 2.5) / 5280).toFixed(2);
+  return (Number(steps || 0) / 2000).toFixed(2);
 }
 
 function caloriesFromSteps(steps) {
@@ -90,78 +94,256 @@ export default function WalkingDashboardScreen({
   goToLegathons,
 }) {
   const [todaySteps, setTodaySteps] = React.useState(0);
-  const [lifetimeSteps, setLifetimeSteps] = React.useState(0);
-  const [userAvatar, setUserAvatar] = React.useState( avatarOptions[0]?.image);
-  const [activeJourney, setActiveJourney] = React.useState(null);
-  const [avatarName, setAvatarName] = React.useState("Legacy Walker");
+const [lifetimeSteps, setLifetimeSteps] = React.useState(0);
+
+const [userAvatar, setUserAvatar] = React.useState(
+  avatarOptions[0]?.image || null
+);
+
+const [selectedAvatarId, setSelectedAvatarId] = React.useState(
+  avatarOptions[0]?.id || null
+);
+
+const [activeJourney, setActiveJourney] = React.useState(null);
+
+const [avatarName, setAvatarName] = React.useState(
+  "Legacy Walker"
+);
+
 const [dashboardJourney, setDashboardJourney] = useState(null);
+
+const {
+  points: legathonPoints,
+  rank: legathonRank,
+} = useLegathonPoints();
+
   React.useEffect(() => {
     loadDashboard();
   }, []);
 
-  React.useEffect(() => {
-    let subscription;
+ React.useEffect(() => {
+  let subscription;
 
-    async function startPedometer() {
-      try {
-        const isAvailable = await Pedometer.isAvailableAsync();
-        if (!isAvailable) return;
+  async function startPedometer() {
+    try {
+      const isAvailable = await Pedometer.isAvailableAsync();
+      if (!isAvailable) return;
 
-        let lastReading = Number(
-          (await AsyncStorage.getItem("lastPedometerReading")) || 0
+      const today = new Date().toDateString();
+
+      // Get phone's current step total for today.
+      // We use this only as a reference — NOT as Legathon steps.
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const now = new Date();
+
+      const result = await Pedometer.getStepCountAsync(
+        startOfDay,
+        now
+      );
+
+      const phoneStepsNow = Number(result?.steps || 0);
+
+      // Load Legathon tracking information
+      let trackingDate =
+        await AsyncStorage.getItem("legathonTrackingDate");
+
+      let baseline = Number(
+        (await AsyncStorage.getItem("legathonStepBaseline")) || 0
+      );
+
+      let savedToday = Number(
+        (await AsyncStorage.getItem("todaySteps")) || 0
+      );
+
+      let savedLifetime = Number(
+        (await AsyncStorage.getItem("lifetimeSteps")) || 0
+      );
+
+      // FIRST TIME USER
+      // Start Legathon at ZERO and remember the phone's current steps.
+      if (!trackingDate) {
+        trackingDate = today;
+        baseline = phoneStepsNow;
+        savedToday = 0;
+        savedLifetime = 0;
+
+        await AsyncStorage.setItem(
+          "legathonTrackingDate",
+          today
         );
 
-        subscription = Pedometer.watchStepCount(async (result) => {
-          const currentReading = Number(result.steps || 0);
+        await AsyncStorage.setItem(
+          "legathonStepBaseline",
+          String(phoneStepsNow)
+        );
 
-          if (lastReading === 0) {
-            lastReading = currentReading;
-            await AsyncStorage.setItem(
-              "lastPedometerReading",
-              String(currentReading)
+        await AsyncStorage.setItem("todaySteps", "0");
+        await AsyncStorage.setItem("lifetimeSteps", "0");
+      }
+
+      // NEW DAY
+      // Today resets to zero.
+      // Lifetime DOES NOT reset.
+      if (trackingDate !== today) {
+        trackingDate = today;
+        baseline = phoneStepsNow;
+        savedToday = 0;
+
+        await AsyncStorage.setItem(
+          "legathonTrackingDate",
+          today
+        );
+
+        await AsyncStorage.setItem(
+          "legathonStepBaseline",
+          String(phoneStepsNow)
+        );
+
+        await AsyncStorage.setItem("todaySteps", "0");
+      }
+
+      setTodaySteps(savedToday);
+      setLifetimeSteps(savedLifetime);
+
+      // Keep checking while app is running
+      subscription = Pedometer.watchStepCount(async () => {
+        try {
+          const currentDate = new Date().toDateString();
+
+          const currentStartOfDay = new Date();
+          currentStartOfDay.setHours(0, 0, 0, 0);
+
+          const currentResult =
+            await Pedometer.getStepCountAsync(
+              currentStartOfDay,
+              new Date()
             );
+
+          const currentPhoneSteps = Number(
+            currentResult?.steps || 0
+          );
+
+          let storedDate =
+            await AsyncStorage.getItem(
+              "legathonTrackingDate"
+            );
+
+          let storedBaseline = Number(
+            (await AsyncStorage.getItem(
+              "legathonStepBaseline"
+            )) || 0
+          );
+
+          let previousToday = Number(
+            (await AsyncStorage.getItem(
+              "todaySteps"
+            )) || 0
+          );
+
+          let currentLifetime = Number(
+            (await AsyncStorage.getItem(
+              "lifetimeSteps"
+            )) || 0
+          );
+
+          // MIDNIGHT RESET
+          if (storedDate !== currentDate) {
+            storedDate = currentDate;
+            storedBaseline = currentPhoneSteps;
+            previousToday = 0;
+
+            await AsyncStorage.setItem(
+              "legathonTrackingDate",
+              currentDate
+            );
+
+            await AsyncStorage.setItem(
+              "legathonStepBaseline",
+              String(currentPhoneSteps)
+            );
+
+            await AsyncStorage.setItem(
+              "todaySteps",
+              "0"
+            );
+
+            setTodaySteps(0);
             return;
           }
 
-          const newSteps = Math.max(currentReading - lastReading, 0);
-          lastReading = currentReading;
-
-          await AsyncStorage.setItem(
-            "lastPedometerReading",
-            String(currentReading)
+          // Only count steps taken AFTER Legathon baseline
+          const legathonToday = Math.max(
+            currentPhoneSteps - storedBaseline,
+            0
           );
 
-          if (newSteps <= 0) return;
+          // Only add NEW steps to Lifetime
+          const newSteps = Math.max(
+            legathonToday - previousToday,
+            0
+          );
 
-          setTodaySteps((prev) => {
-            const updated = Number(prev || 0) + newSteps;
-            AsyncStorage.setItem("todaySteps", String(updated));
-            return updated;
-          });
+          if (newSteps > 0) {
+            const updatedLifetime =
+              currentLifetime + newSteps;
 
-          setLifetimeSteps((prev) => {
-            const updated = Number(prev || 0) + newSteps;
-            AsyncStorage.setItem("lifetimeSteps", String(updated));
-            return updated;
-          });
-        });
-      } catch (error) {
-        console.log("Pedometer error:", error);
-      }
+            setTodaySteps(legathonToday);
+            setLifetimeSteps(updatedLifetime);
+
+            await AsyncStorage.setItem(
+              "todaySteps",
+              String(legathonToday)
+            );
+
+            await AsyncStorage.setItem(
+              "lifetimeSteps",
+              String(updatedLifetime)
+            );
+          }
+        } catch (error) {
+          console.log(
+            "Live step update error:",
+            error
+          );
+        }
+      });
+    } catch (error) {
+      console.log("Pedometer error:", error);
     }
+  }
 
-    startPedometer();
+  startPedometer();
 
-    return () => {
-      if (subscription) subscription.remove();
-    };
-  }, []);
+  return () => {
+    if (subscription) subscription.remove();
+  };
+}, []);
 
 async function loadDashboard() {
   try {
-    const savedToday = await AsyncStorage.getItem("todaySteps");
-    const savedLifetime = await AsyncStorage.getItem("lifetimeSteps");
-    const savedProfile = await AsyncStorage.getItem("avatarProfile");
+    const today = new Date().toDateString();
+
+const trackingDate = await AsyncStorage.getItem(
+  "legathonTrackingDate"
+);
+
+let savedToday = await AsyncStorage.getItem("todaySteps");
+
+// Today Steps resets when the Legathon tracking date changes.
+// Lifetime Steps is NEVER reset here.
+if (trackingDate && trackingDate !== today) {
+  savedToday = "0";
+  await AsyncStorage.setItem("todaySteps", "0");
+}
+
+    const savedLifetime =
+      await AsyncStorage.getItem("lifetimeSteps");
+
+    const savedProfile =
+      await AsyncStorage.getItem("avatarProfile");
+
     const savedActiveJourney =
       await AsyncStorage.getItem("activeJourney");
 
@@ -181,24 +363,48 @@ async function loadDashboard() {
             ),
       });
     }
+if (savedProfile) {
+  const profile =
+    JSON.parse(savedProfile);
 
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
+  setAvatarName(
+    profile?.name ||
+    "Legacy Walker"
+  );
 
-      setAvatarName(profile.name || "Legacy Walker");
+  const foundAvatar =
+    avatarOptions.find(
+      (avatar) =>
+        avatar.id ===
+        profile?.avatarId
+    );
 
-      const foundAvatar = avatarOptions.find(
-        (avatar) => avatar.id === profile.avatarId
+  if (foundAvatar) {
+    setSelectedAvatarId(
+      foundAvatar.id
+    );
+
+    const visual =
+      await getCurrentAvatarVisual(
+        foundAvatar.id
       );
 
-      if (foundAvatar) {
-        setUserAvatar(foundAvatar);
-      }
-    }
-  } catch (error) {
-    console.log("Dashboard load error:", error);
+    setUserAvatar(
+      visual?.image ||
+      foundAvatar.image ||
+      null
+    );
   }
 }
+
+} catch (error) {
+  console.log(
+    "Dashboard load error:",
+    error
+  );
+}
+}
+ 
 const miles = Number(stepsToMiles(todaySteps));
 const calories = Number(caloriesFromSteps(todaySteps));
 const homeJourneyProgress = activeJourney?.completed
@@ -339,7 +545,35 @@ return (
   </Text>
 </View>
    
+{/* LEGATHON POINTS */}
+<View style={styles.legathonPointsCard}>
+  <View style={{ flex: 1 }}>
+    <Text style={styles.legathonPointsLabel}>
+      ⭐ LEGATHON POINTS
+    </Text>
 
+    <Text style={styles.legathonPointsValue}>
+      {Number(legathonPoints || 0).toLocaleString()}
+    </Text>
+
+    <Text style={styles.legathonPointsRank}>
+      {legathonRank?.currentRank || "New Walker"}
+    </Text>
+  </View>
+
+  <View style={styles.legathonPointsRight}>
+    <Text style={styles.legathonPointsNext}>
+      Next: {legathonRank?.nextRank || "MAX"}
+    </Text>
+
+    <Text style={styles.legathonPointsRemaining}>
+      {Number(
+        legathonRank?.pointsRemaining || 0
+      ).toLocaleString()}{" "}
+      points remaining
+    </Text>
+  </View>
+</View>
  {/* LEGACY PROGRESS */}
 <View style={styles.legacyBox}>
   <View style={styles.legacyRing}>
@@ -679,5 +913,58 @@ caloriesValue: {
   fontWeight: "900",
   textAlign: "center",
   includeFontPadding: false,
+
 },
+legathonPointsCard: {
+  marginTop: 16,
+  marginBottom: 16,
+  paddingVertical: 18,
+  paddingHorizontal: 20,
+  borderRadius: 20,
+  borderWidth: 1.5,
+  borderColor: "#D4AF37",
+  backgroundColor: "#071326",
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
+legathonPointsLabel: {
+  color: "#7FFFD4",
+  fontSize: 14,
+  fontWeight: "800",
+  letterSpacing: 1,
+},
+
+legathonPointsValue: {
+  color: "#FFFFFF",
+  fontSize: 30,
+  fontWeight: "900",
+  marginTop: 4,
+},
+
+legathonPointsRank: {
+  color: "#D4AF37",
+  fontSize: 15,
+  fontWeight: "800",
+  marginTop: 3,
+},
+
+legathonPointsRight: {
+  alignItems: "flex-end",
+},
+
+legathonPointsNext: {
+  color: "#FFFFFF",
+  fontSize: 13,
+  fontWeight: "700",
+},
+
+legathonPointsRemaining: {
+  color: "#9FB0C8",
+  fontSize: 11,
+  fontWeight: "600",
+  marginTop: 4,
+},
+
 });

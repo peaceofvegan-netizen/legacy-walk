@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { addWCoins } from "./wcoinStorage";
+import { processRewards } from "./rewardManager";
 
-const JOURNEY_REWARDS_KEY = "LEGACY_WALK_JOURNEY_REWARDS";
-const LEGACY_POINTS_KEY = "LEGACY_WALK_LEGACY_POINTS";
-const AVATAR_XP_KEY = "LEGACY_WALK_AVATAR_XP";
+const JOURNEY_REWARDS_KEY = "LEGATHON_WALK_JOURNEY_REWARDS";
+const LEGACY_POINTS_KEY = "LEGATHON_WALK_LEGACY_POINTS";
+const AVATAR_XP_KEY = "LEGATHON_WALK_AVATAR_XP";
 
 
 
@@ -1223,6 +1224,59 @@ export const completeJourneyReward = async journeyId => {
     )
   );
 
+
+const rewards = [];
+
+if (coinsToAward > 0) {
+  rewards.push({
+    type: "wcoins",
+    amount: coinsToAward,
+  });
+}
+
+if (rewardPoints > 0) {
+  rewards.push({
+    type: "points",
+    amount: rewardPoints,
+  });
+}
+
+if (reward?.tracksuit) {
+  rewards.push({
+    type: "tracksuit",
+    id: reward.tracksuit,
+  });
+}
+
+if (reward?.badge) {
+  rewards.push({
+    type: "badge",
+    id: reward.badge,
+  });
+}
+
+if (reward?.passport) {
+  rewards.push({
+    type: "passport",
+    id: reward.passport,
+  });
+}
+
+if (reward?.certificate) {
+  rewards.push({
+    type: "certificate",
+    id: reward.certificate,
+  });
+}
+
+if (reward?.rank) {
+  rewards.push({
+    type: "rank",
+    id: reward.rank,
+  });
+}
+
+await processRewards(rewards);
   const walletResult = await addWCoins(
     coinsToAward
   );
