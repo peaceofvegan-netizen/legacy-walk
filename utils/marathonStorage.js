@@ -1,2119 +1,1129 @@
-// utils/marathonStorage.js
-import {
-  unlockAvatarSuit,
-} from "./avatarWardrobeStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import MARATHON_CATALOG, {
   MARATHON_TOTAL_STEPS,
 } from "../data/marathonCatalog";
 
-
-// ============================================================
-// LEGATHON MARATHON STORAGE
-// ============================================================
-//
-// IMPORTANT:
-//
-// Marathon progress is completely independent.
-//
-// This file NEVER uses:
-//
-// - Lifetime Steps
-// - Today Steps as marathon progress
-// - startingLifetimeSteps
-// - Journey steps
-// - Pedometer
-//
-// It receives ONLY step deltas that have already been routed
-// to the active Legathon by stepTrackingEngine.js.
-//
-// ============================================================
-
-
 // ============================================================
 // STORAGE KEYS
+// Keep these unchanged to preserve existing saved data.
 // ============================================================
 
-const MARATHON_PROGRESS_KEY =
+const PROGRESS_KEY =
   "LEGATHON_MARATHON_PROGRESS_V2";
 
-const ACTIVE_MARATHON_KEY =
+const ACTIVE_KEY =
   "LEGATHON_ACTIVE_MARATHON_V2";
 
-const MARATHON_REWARDS_KEY =
+const REWARDS_KEY =
   "LEGATHON_MARATHON_REWARDS_V2";
 
-const MARATHON_COMPLETION_ALERTS_KEY =
+const ALERTS_KEY =
   "LEGATHON_MARATHON_COMPLETION_ALERTS_V2";
 
-const MARATHON_PASSPORT_KEY =
+const PASSPORT_KEY =
   "LEGATHON_MARATHON_PASSPORT_V2";
 
-const MARATHON_CERTIFICATES_KEY =
+const CERTIFICATES_KEY =
   "LEGATHON_MARATHON_CERTIFICATES_V2";
 
-
 // ============================================================
-// HELPERS
+// GENERAL HELPERS
 // ============================================================
 
-const safeNumber = (value) => {
-  const parsed =
-    Number(value ?? 0);
+const nowISO = () => new Date().toISOString();
+
+const isObject = value =>
+  value !== null &&
+  typeof value === "object" &&
+  !Array.isArray(value);
+
+function integer(value) {
+  const parsed = Number(value);
 
   return Number.isFinite(parsed)
-    ? parsed
+    ? Math.max(0, Math.floor(parsed))
     : 0;
-};
+}
 
+// ============================================================
+// STORAGE OPERATION QUEUE
+//
+// Serializes writes made through this module in this JS runtime.
+// ============================================================
 
-const safeInteger = (value) => {
-  return Math.max(
-    0,
-    Math.floor(
-      safeNumber(value)
-    )
-  );
-};
+let writeQueue = Promise.resolve();
 
+function mutate(operation, flag = "saved") {
+  const task = writeQueue.then(operation);
 
-const clamp = (
-  value,
-  minimum = 0,
-  maximum = 100
-) => {
-  return Math.min(
-    maximum,
-    Math.max(
-      minimum,
-      safeNumber(value)
-    )
-  );
-};
+  writeQueue = task.catch(() => {});
 
+  return task.catch(error => {
+    console.error("Marathon storage:", error);
 
-const nowISO = () =>
-  new Date().toISOString();
+    return {
+      [flag]: false,
+      reason: "storage-error",
+      error,
+    };
+  });
+}
 
+async function settledRead(operation) {
+  await writeQueue;
+  return operation();
+}
 
-const parseJSON = (
-  value,
-  fallback
-) => {
-  if (!value) {
+// ============================================================
+// LOW-LEVEL STORAGE HELPERS
+// ============================================================
+
+async function readJSON(key, fallback) {
+  const raw = await AsyncStorage.getItem(key);
+
+  if (raw === null) {
     return fallback;
   }
 
   try {
-    return JSON.parse(value);
-  } catch (error) {
-    console.log(
-      "Marathon JSON parse error:",
-      error
+    return JSON.parse(raw);
+  } catch {
+    // Do not overwrite unreadable progress with an empty map.
+    throw new Error(
+      `Saved marathon data could not be read: ${key}`
     );
-
-    return fallback;
   }
-};
-
-
-// ============================================================
-// CATALOG HELPERS
-// ============================================================
-
-export function normalizeMarathonId(
-  marathonId
-) {
-  if (
-    marathonId === null ||
-    marathonId === undefined
-  ) {
-    return null;
-  }
-
-  const normalized =
-    String(marathonId)
-      .trim();
-
-  return normalized || null;
 }
 
+async function readMap(key) {
+  const value = await readJSON(key, {});
 
-export function getMarathonById(
-  marathonId
-) {
-  const normalizedId =
-    normalizeMarathonId(
-      marathonId
+  if (!isObject(value)) {
+    throw new Error(
+      `Invalid saved marathon data: ${key}`
     );
+  }
 
-  if (!normalizedId) {
+  return value;
+}
+
+async function writeJSON(key, value) {
+  await AsyncStorage.setItem(
+    key,
+    JSON.stringify(value)
+  );
+}
+
+// ============================================================
+// MARATHON LOOKUP
+// ============================================================
+
+export function normalizeMarathonId(value) {
+  if (value === null || value === undefined) {
     return null;
   }
+
+  return String(value).trim() || null;
+}
+
+export function getMarathonById(value) {
+  const id = normalizeMarathonId(value);
 
   return (
     MARATHON_CATALOG.find(
-      (marathon) =>
-        marathon.id ===
-        normalizedId
+      item =>
+        normalizeMarathonId(item.id) === id
     ) || null
   );
 }
 
+export function getNextMarathon(value) {
+  const id = normalizeMarathonId(value);
 
-const getMarathonIndex = (
-  marathonId
-) => {
-  const normalizedId =
-    normalizeMarathonId(
-      marathonId
+  const index = MARATHON_CATALOG.findIndex(
+    item =>
+      normalizeMarathonId(item.id) === id
+  );
+
+  return index >= 0
+    ? MARATHON_CATALOG[index + 1] || null
+    : null;
+}
+
+// ============================================================
+// PROGRESS NORMALIZATION
+// ============================================================
+
+function normalizeProgress(
+  marathon,
+  saved = {},
+  reward = {}
+) {
+  if (!isObject(saved)) {
+    throw new Error(
+      `Invalid progress for ${marathon.id}`
     );
-
-  if (!normalizedId) {
-    return -1;
   }
 
-  return MARATHON_CATALOG.findIndex(
-    (marathon) =>
-      marathon.id ===
-      normalizedId
-  );
-};
-
-
-const getMarathonTotalSteps = (
-  marathon
-) => {
-  return (
-    safeInteger(
-      marathon?.totalSteps
-    ) ||
-    safeInteger(
-      MARATHON_TOTAL_STEPS
-    ) ||
-    1
-  );
-};
-
-
-// ============================================================
-// DEFAULT PROGRESS
-// ============================================================
-
-const createDefaultProgress = (
-  marathon
-) => {
-  return {
-    id: marathon.id,
-
-    marathonId:
-      marathon.id,
-
-    // --------------------------------------------------------
-    // LEGATHON-ONLY ACCUMULATED STEPS
-    // --------------------------------------------------------
-
-    steps: 0,
-
-    totalSteps:
-      getMarathonTotalSteps(
-        marathon
-      ),
-
-    progress: 0,
-
-    // --------------------------------------------------------
-    // ACCESS
-    // --------------------------------------------------------
-
-    unlocked:
-      marathon
-        ?.unlockedByDefault ===
-        true,
-
-    // --------------------------------------------------------
-    // COMPLETION
-    // --------------------------------------------------------
-
-    completed: false,
-
-    rewardClaimed: false,
-
-    // --------------------------------------------------------
-    // TIMESTAMPS
-    // --------------------------------------------------------
-
-    startedAt: null,
-
-    lastActivatedAt: null,
-
-    completedAt: null,
-
-    lastUpdated: null,
-  };
-};
-
-
-// ============================================================
-// NORMALIZE PROGRESS
-// ============================================================
-
-const normalizeProgress = (
-  marathon,
-  saved = {}
-) => {
-  const defaults =
-    createDefaultProgress(
-      marathon
-    );
-
   const totalSteps =
-    safeInteger(
-      saved?.totalSteps
-    ) ||
-    defaults.totalSteps;
+    integer(saved.totalSteps) ||
+    integer(marathon.totalSteps) ||
+    integer(MARATHON_TOTAL_STEPS) ||
+    52400;
 
-  const steps =
-    Math.min(
-      totalSteps,
-      safeInteger(
-        saved?.steps
-      )
-    );
+  const steps = Math.min(
+    totalSteps,
+    integer(saved.steps)
+  );
 
   const completed =
-    saved?.completed ===
-      true ||
-    (
-      totalSteps > 0 &&
-      steps >= totalSteps
-    );
-
-  const progress =
-    completed
-      ? 100
-      : totalSteps > 0
-        ? clamp(
-            (
-              steps /
-              totalSteps
-            ) * 100
-          )
-        : 0;
+    saved.completed === true ||
+    steps >= totalSteps;
 
   return {
-    ...defaults,
     ...saved,
 
-    id:
-      marathon.id,
-
-    marathonId:
-      marathon.id,
+    id: marathon.id,
+    marathonId: marathon.id,
 
     steps,
-
     totalSteps,
 
-    progress,
-
-    unlocked:
-      saved?.unlocked ===
-        true ||
-      marathon
-        ?.unlockedByDefault ===
-        true,
+    progress: completed
+      ? 100
+      : (steps / totalSteps) * 100,
 
     completed,
 
+    unlocked:
+      completed ||
+      saved.unlocked === true ||
+      marathon.unlockedByDefault === true,
+
     rewardClaimed:
-      saved?.rewardClaimed ===
-      true,
+      saved.rewardClaimed === true ||
+      Boolean(reward?.claimedAt),
 
     startedAt:
-      saved?.startedAt ||
-      null,
+      saved.startedAt || null,
 
     lastActivatedAt:
-      saved
-        ?.lastActivatedAt ||
-      null,
+      saved.lastActivatedAt || null,
 
-    completedAt:
-      completed
-        ? (
-            saved
-              ?.completedAt ||
-            null
-          )
-        : null,
+    completedAt: completed
+      ? saved.completedAt || null
+      : null,
 
     lastUpdated:
-      saved
-        ?.lastUpdated ||
+      saved.lastUpdated || null,
+  };
+}
+
+function normalizeMap(stored, rewards = {}) {
+  const map = { ...stored };
+
+  for (const marathon of MARATHON_CATALOG) {
+    map[marathon.id] = normalizeProgress(
+      marathon,
+      stored[marathon.id] || {},
+      rewards[marathon.id]
+    );
+  }
+
+  const completedCount =
+    MARATHON_CATALOG.filter(
+      item => map[item.id].completed
+    ).length;
+
+  MARATHON_CATALOG.forEach(
+    (marathon, index) => {
+      const required =
+        marathon.requiredCompletedMarathons;
+
+      const hasRequirement =
+        required !== undefined &&
+        required !== null &&
+        Number.isFinite(Number(required));
+
+      const eligible = hasRequirement
+        ? completedCount >= integer(required)
+        : index === 0 ||
+          map[
+            MARATHON_CATALOG[index - 1].id
+          ].completed;
+
+      map[marathon.id].unlocked =
+        map[marathon.id].unlocked ||
+        eligible;
+    }
+  );
+
+  return map;
+}
+
+async function readProgressMap() {
+  const stored =
+    await readMap(PROGRESS_KEY);
+
+  const rewards =
+    await readMap(REWARDS_KEY);
+
+  return normalizeMap(stored, rewards);
+}
+
+// ============================================================
+// ACTIVE MARATHON HELPERS
+// ============================================================
+
+async function readActiveRecord() {
+  const value =
+    await readJSON(ACTIVE_KEY, null);
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return {
+      marathonId: value,
+    };
+  }
+
+  if (!isObject(value)) {
+    throw new Error(
+      "Invalid saved active marathon."
+    );
+  }
+
+  return value;
+}
+
+function activeFrom(record, map) {
+  const marathon = getMarathonById(
+    record?.marathonId || record?.id
+  );
+
+  if (
+    !marathon ||
+    map[marathon.id]?.completed
+  ) {
+    return null;
+  }
+
+  return {
+    id: marathon.id,
+    marathonId: marathon.id,
+
+    marathon,
+    progress: map[marathon.id],
+
+    startedAt:
+      map[marathon.id].startedAt ||
+      record.startedAt ||
       null,
+
+    activatedAt:
+      record.activatedAt || null,
   };
-};
+}
 
-
-// ============================================================
-// CREATE DEFAULT MAP
-// ============================================================
-
-const createDefaultProgressMap =
-  () => {
-    const map = {};
-
-    MARATHON_CATALOG.forEach(
-      (marathon) => {
-        map[
-          marathon.id
-        ] =
-          createDefaultProgress(
-            marathon
-          );
-      }
-    );
-
-    return map;
-  };
-
-
-// ============================================================
-// LOAD PROGRESS MAP
-// ============================================================
-
-export async function
-loadMarathonProgressMap() {
+async function removeCompletedActive() {
   try {
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_PROGRESS_KEY
-      );
-
-    const stored =
-      parseJSON(
-        saved,
-        {}
-      );
-
-    const normalized = {};
-
-    MARATHON_CATALOG.forEach(
-      (marathon) => {
-        normalized[
-          marathon.id
-        ] =
-          normalizeProgress(
-            marathon,
-            stored?.[
-              marathon.id
-            ] || {}
-          );
-      }
-    );
-
-    return normalized;
+    await AsyncStorage.removeItem(ACTIVE_KEY);
+    return null;
   } catch (error) {
-    console.log(
-      "Load marathon progress map error:",
-      error
-    );
-
-    return createDefaultProgressMap();
+    // Progress has already committed.
+    // Do not report the step credit as failed.
+    return error.message || String(error);
   }
 }
 
-
 // ============================================================
-// SAVE PROGRESS MAP
+// LOAD AND SAVE PROGRESS
 // ============================================================
 
-export async function
-saveMarathonProgressMap(
+export function loadMarathonProgressMap() {
+  return settledRead(readProgressMap);
+}
+
+export function saveMarathonProgressMap(
   progressMap
 ) {
-  try {
-    const safeMap =
-      progressMap &&
-      typeof progressMap ===
-        "object"
-        ? progressMap
-        : {};
+  return mutate(async () => {
+    if (!isObject(progressMap)) {
+      return {
+        saved: false,
+        reason: "invalid-progress-map",
+      };
+    }
 
-    await AsyncStorage.setItem(
-      MARATHON_PROGRESS_KEY,
-      JSON.stringify(
-        safeMap
-      )
+    const current =
+      await readProgressMap();
+
+    const rewards =
+      await readMap(REWARDS_KEY);
+
+    const updated = normalizeMap(
+      {
+        ...current,
+        ...progressMap,
+      },
+      rewards
+    );
+
+    await writeJSON(
+      PROGRESS_KEY,
+      updated
     );
 
     return {
       saved: true,
-      progressMap:
-        safeMap,
+      progressMap: updated,
     };
-  } catch (error) {
-    console.log(
-      "Save marathon progress map error:",
-      error
-    );
-
-    return {
-      saved: false,
-      error,
-    };
-  }
+  });
 }
 
-
-// ============================================================
-// GET ONE PROGRESS RECORD
-// ============================================================
-
-export async function
-getMarathonProgress(
+export function getMarathonProgress(
   marathonId
 ) {
-  try {
+  return settledRead(async () => {
     const marathon =
-      getMarathonById(
-        marathonId
-      );
+      getMarathonById(marathonId);
 
     if (!marathon) {
       return null;
     }
 
-    const progressMap =
-      await loadMarathonProgressMap();
+    const map = await readProgressMap();
 
-    return normalizeProgress(
-      marathon,
-      progressMap?.[
-        marathon.id
-      ] || {}
-    );
-  } catch (error) {
-    console.log(
-      "Get marathon progress error:",
-      error
-    );
-
-    return null;
-  }
+    return map[marathon.id];
+  });
 }
 
+export function getCompletedMarathonCount() {
+  return settledRead(async () => {
+    const map = await readProgressMap();
 
-// ============================================================
-// SAVE ONE PROGRESS RECORD
-// ============================================================
-
-async function
-saveSingleMarathonProgress(
-  marathonId,
-  progress
-) {
-  const marathon =
-    getMarathonById(
-      marathonId
-    );
-
-  if (!marathon) {
-    return {
-      saved: false,
-      reason:
-        "marathon-not-found",
-    };
-  }
-
-  const progressMap =
-    await loadMarathonProgressMap();
-
-  const normalized =
-    normalizeProgress(
-      marathon,
-      progress
-    );
-
-  const updatedMap = {
-    ...progressMap,
-
-    [marathon.id]:
-      normalized,
-  };
-
-  const result =
-    await saveMarathonProgressMap(
-      updatedMap
-    );
-
-  return {
-    saved:
-      result?.saved === true,
-
-    progress:
-      normalized,
-
-    progressMap:
-      updatedMap,
-  };
+    return MARATHON_CATALOG.filter(
+      item => map[item.id].completed
+    ).length;
+  });
 }
 
-
-// ============================================================
-// COMPLETED COUNT
-// ============================================================
-
-export async function
-getCompletedMarathonCount() {
-  const progressMap =
-    await loadMarathonProgressMap();
-
-  return MARATHON_CATALOG.filter(
-    (marathon) =>
-      progressMap?.[
-        marathon.id
-      ]?.completed === true
-  ).length;
-}
-
-
-// ============================================================
-// UNLOCK CHECK
-// ============================================================
-
-export async function
-isMarathonUnlocked(
+export function isMarathonUnlocked(
   marathonId
 ) {
-  const marathon =
-    getMarathonById(
-      marathonId
-    );
-
-  if (!marathon) {
-    return false;
-  }
-
-  if (
-    marathon
-      .unlockedByDefault ===
-    true
-  ) {
-    return true;
-  }
-
-  const saved =
-    await getMarathonProgress(
-      marathon.id
-    );
-
-  if (
-    saved?.unlocked ===
-    true
-  ) {
-    return true;
-  }
-
-  const required =
-    safeInteger(
-      marathon
-        .requiredCompletedMarathons
-    );
-
-  if (required <= 0) {
-    return true;
-  }
-
-  const completedCount =
-    await getCompletedMarathonCount();
-
-  return (
-    completedCount >=
-    required
-  );
-}
-
-
-// ============================================================
-// ACTIVE MARATHON
-// ============================================================
-
-export async function
-getActiveMarathon() {
-  try {
-    const saved =
-      await AsyncStorage.getItem(
-        ACTIVE_MARATHON_KEY
-      );
-
-    const active =
-      parseJSON(
-        saved,
-        null
-      );
-
-    if (!active) {
-      return null;
-    }
-
-    const marathonId =
-      normalizeMarathonId(
-        active?.marathonId ??
-        active?.id
-      );
-
-    if (!marathonId) {
-      await AsyncStorage.removeItem(
-        ACTIVE_MARATHON_KEY
-      );
-
-      return null;
-    }
-
+  return settledRead(async () => {
     const marathon =
-      getMarathonById(
-        marathonId
-      );
+      getMarathonById(marathonId);
 
     if (!marathon) {
-      await AsyncStorage.removeItem(
-        ACTIVE_MARATHON_KEY
-      );
-
-      return null;
+      return false;
     }
 
-    const progress =
-      await getMarathonProgress(
-        marathon.id
-      );
+    const map = await readProgressMap();
 
-    // Completed Legathon cannot remain
-    // the active step destination.
-
-    if (
-      progress?.completed ===
-      true
-    ) {
-      await AsyncStorage.removeItem(
-        ACTIVE_MARATHON_KEY
-      );
-
-      return null;
-    }
-
-    return {
-      id:
-        marathon.id,
-
-      marathonId:
-        marathon.id,
-
-      marathon,
-
-      progress,
-
-      startedAt:
-        progress?.startedAt ||
-        active?.startedAt ||
-        null,
-
-      activatedAt:
-        active?.activatedAt ||
-        null,
-    };
-  } catch (error) {
-    console.log(
-      "Get active marathon error:",
-      error
-    );
-
-    return null;
-  }
+    return map[marathon.id].unlocked;
+  });
 }
 
+// ============================================================
+// GET ACTIVE MARATHON
+// ============================================================
+
+export function getActiveMarathon() {
+  return settledRead(async () => {
+    const record =
+      await readActiveRecord();
+
+    const map =
+      await readProgressMap();
+
+    return activeFrom(record, map);
+  });
+}
 
 // ============================================================
 // SET ACTIVE MARATHON
-//
-// IMPORTANT:
-//
-// This function does NOT:
-// - read lifetime steps
-// - read today steps
-// - create a pedometer checkpoint
-//
-// legathonSession.js handles the routing transition.
 // ============================================================
 
-export async function
-setActiveMarathon(
+export function setActiveMarathon(
   marathonId
 ) {
-  try {
+  return mutate(async () => {
     const marathon =
-      getMarathonById(
-        marathonId
-      );
+      getMarathonById(marathonId);
 
     if (!marathon) {
       return {
         saved: false,
-        reason:
-          "marathon-not-found",
+        reason: "marathon-not-found",
       };
     }
 
-    const unlocked =
-      await isMarathonUnlocked(
-        marathon.id
-      );
+    const map =
+      await readProgressMap();
 
-    if (!unlocked) {
+    const progress =
+      map[marathon.id];
+
+    if (progress.completed) {
       return {
         saved: false,
-        reason:
-          "marathon-locked",
-      };
-    }
-
-    let progress =
-      await getMarathonProgress(
-        marathon.id
-      );
-
-    if (!progress) {
-      progress =
-        createDefaultProgress(
-          marathon
-        );
-    }
-
-    if (
-      progress.completed ===
-      true
-    ) {
-      return {
-        saved: false,
-
-        reason:
-          "marathon-completed",
-
+        reason: "marathon-completed",
         marathon,
-
         progress,
       };
     }
 
-
-    // --------------------------------------------------------
-    // ONLY ONE LEGATHON CAN BE ACTIVE
-    // --------------------------------------------------------
-
-    const existingActive =
-      await getActiveMarathon();
-
-    if (
-      existingActive
-        ?.marathonId &&
-      existingActive
-        .marathonId !==
-        marathon.id
-    ) {
+    if (!progress.unlocked) {
       return {
         saved: false,
-
-        reason:
-          "another-marathon-active",
-
-        activeMarathon:
-          existingActive
-            .marathon,
+        reason: "marathon-locked",
       };
     }
 
+    const existing = activeFrom(
+      await readActiveRecord(),
+      map
+    );
 
-    const now =
-      nowISO();
+    if (
+      existing &&
+      existing.marathonId !== marathon.id
+    ) {
+      return {
+        saved: false,
+        reason: "another-marathon-active",
+        activeMarathon: existing.marathon,
+      };
+    }
 
+    const now = nowISO();
 
-    const updatedProgress = {
+    const updated = {
       ...progress,
 
       unlocked: true,
 
       startedAt:
-        progress.startedAt ||
-        now,
+        progress.startedAt || now,
 
-      lastActivatedAt:
-        now,
-
-      lastUpdated:
-        now,
+      lastActivatedAt: now,
+      lastUpdated: now,
     };
 
+    await writeJSON(PROGRESS_KEY, {
+      ...map,
+      [marathon.id]: updated,
+    });
 
-    const progressResult =
-      await saveSingleMarathonProgress(
-        marathon.id,
-        updatedProgress
-      );
-
-    if (
-      !progressResult?.saved
-    ) {
-      return {
-        saved: false,
-        reason:
-          "progress-save-failed",
-      };
-    }
-
-
-    const activeState = {
-      id:
-        marathon.id,
-
-      marathonId:
-        marathon.id,
-
-      startedAt:
-        progressResult
-          .progress
-          .startedAt,
-
-      activatedAt:
-        now,
+    const active = {
+      id: marathon.id,
+      marathonId: marathon.id,
+      startedAt: updated.startedAt,
+      activatedAt: now,
     };
 
-
-    await AsyncStorage.setItem(
-      ACTIVE_MARATHON_KEY,
-      JSON.stringify(
-        activeState
-      )
-    );
-
+    await writeJSON(ACTIVE_KEY, active);
 
     return {
       saved: true,
-
       marathon,
-
-      progress:
-        progressResult.progress,
-
-      active:
-        activeState,
+      progress: updated,
+      active,
     };
-  } catch (error) {
-    console.log(
-      "Set active marathon error:",
-      error
-    );
-
-    return {
-      saved: false,
-
-      reason:
-        "storage-error",
-
-      error,
-    };
-  }
+  });
 }
 
-
-// ============================================================
-// START ALIAS
-// ============================================================
-
-export async function
-startMarathon(
-  marathonId
-) {
-  return setActiveMarathon(
-    marathonId
-  );
+export function startMarathon(marathonId) {
+  return setActiveMarathon(marathonId);
 }
 
-
-// ============================================================
-// CLEAR ACTIVE MARATHON
-// ============================================================
-
-export async function
-clearActiveMarathon() {
-  try {
-    await AsyncStorage.removeItem(
-      ACTIVE_MARATHON_KEY
-    );
+export function clearActiveMarathon() {
+  return mutate(async () => {
+    await AsyncStorage.removeItem(ACTIVE_KEY);
 
     return {
       cleared: true,
     };
-  } catch (error) {
-    console.log(
-      "Clear active marathon error:",
-      error
-    );
-
-    return {
-      cleared: false,
-      error,
-    };
-  }
+  }, "cleared");
 }
 
-
 // ============================================================
-// GET NEXT MARATHON
+// UNLOCK THE NEXT CHALLENGE
 // ============================================================
 
-export function getNextMarathon(
-  marathonId
+export function unlockNextMarathon(
+  completedMarathonId
 ) {
-  const currentIndex =
-    getMarathonIndex(
-      marathonId
-    );
+  return mutate(async () => {
+    const marathon =
+      getMarathonById(completedMarathonId);
 
-  if (
-    currentIndex < 0 ||
-    currentIndex >=
-      MARATHON_CATALOG.length -
-        1
-  ) {
-    return null;
-  }
+    const next =
+      getNextMarathon(completedMarathonId);
 
-  return (
-    MARATHON_CATALOG[
-      currentIndex + 1
-    ] || null
+    if (!marathon || !next) {
+      return null;
+    }
+
+    const map =
+      await readProgressMap();
+
+    if (!map[marathon.id].completed) {
+      return null;
+    }
+
+    map[next.id] = {
+      ...map[next.id],
+      unlocked: true,
+      lastUpdated: nowISO(),
+    };
+
+    await writeJSON(PROGRESS_KEY, map);
+
+    return next;
+  }).then(result =>
+    result?.saved === false
+      ? null
+      : result
   );
 }
 
-
 // ============================================================
-// UNLOCK NEXT MARATHON
-// ============================================================
-
-export async function
-unlockNextMarathon(
-  completedMarathonId
-) {
-  try {
-    const next =
-      getNextMarathon(
-        completedMarathonId
-      );
-
-    if (!next) {
-      return null;
-    }
-
-    const current =
-      await getMarathonProgress(
-        next.id
-      );
-
-    if (!current) {
-      return null;
-    }
-
-    if (
-      current.unlocked ===
-      true
-    ) {
-      return next;
-    }
-
-    const updated = {
-      ...current,
-
-      unlocked: true,
-
-      lastUpdated:
-        nowISO(),
-    };
-
-
-    await saveSingleMarathonProgress(
-      next.id,
-      updated
-    );
-
-
-    return next;
-  } catch (error) {
-    console.log(
-      "Unlock next marathon error:",
-      error
-    );
-
-    return null;
-  }
-}
-
-
-// ============================================================
-// ADD LEGATHON STEPS
+// ADD MARATHON STEPS
 //
-// THIS IS THE CORE STEP RECEIVER.
-//
-// It receives ONLY the physical step delta that the central
-// router has already assigned to Legathon Mode.
-//
-// Example:
-//
-// Router determines:
-//     24 new physical steps
-//
-// This function receives:
-//     24
-//
-// NOT:
-//     282,110 lifetime steps
-//     8,460 device total
-//     150 today's cumulative steps
-//
+// Receives a NEW step delta from the tracking engine.
+// Never pass today's total or a live sensor total directly.
 // ============================================================
 
-export async function
-addMarathonSteps(
-  stepDelta
-) {
-  try {
-    const incomingSteps =
-      safeInteger(
-        stepDelta
-      );
+export function addMarathonSteps(stepDelta) {
+  return mutate(async () => {
+    const incoming = integer(stepDelta);
 
-    if (
-      incomingSteps <= 0
-    ) {
+    if (!incoming) {
       return {
         saved: true,
-
         added: 0,
-
         overflow: 0,
-
         completedNow: false,
-
-        reason:
-          "zero-delta",
+        reason: "zero-delta",
       };
     }
-
-
-    // --------------------------------------------------------
-    // ACTIVE LEGATHON
-    // --------------------------------------------------------
-
-    const active =
-      await getActiveMarathon();
-
-    if (
-      !active?.marathonId ||
-      !active?.marathon
-    ) {
-      return {
-        saved: false,
-
-        added: 0,
-
-        overflow:
-          incomingSteps,
-
-        completedNow:
-          false,
-
-        reason:
-          "no-active-marathon",
-      };
-    }
-
-
-    const marathon =
-      active.marathon;
-
-    const marathonId =
-      marathon.id;
-
-
-    const current =
-      await getMarathonProgress(
-        marathonId
-      );
-
-
-    if (!current) {
-      return {
-        saved: false,
-
-        added: 0,
-
-        overflow:
-          incomingSteps,
-
-        completedNow:
-          false,
-
-        reason:
-          "progress-not-found",
-      };
-    }
-
-
-    const totalSteps =
-      getMarathonTotalSteps(
-        marathon
-      );
-
-
-    const previousSteps =
-      Math.min(
-        totalSteps,
-        safeInteger(
-          current.steps
-        )
-      );
-
-
-    // --------------------------------------------------------
-    // ALREADY FINISHED
-    // --------------------------------------------------------
-
-    if (
-      current.completed ===
-        true ||
-      previousSteps >=
-        totalSteps
-    ) {
-      return {
-        saved: true,
-
-        added: 0,
-
-        overflow:
-          incomingSteps,
-
-        completedNow:
-          false,
-
-        alreadyCompleted:
-          true,
-
-        marathon,
-
-        progress:
-          current,
-      };
-    }
-
-
-    // --------------------------------------------------------
-    // EXACT CREDIT
-    // --------------------------------------------------------
-
-    const remaining =
-      Math.max(
-        totalSteps -
-          previousSteps,
-        0
-      );
-
-
-    const creditedSteps =
-      Math.min(
-        incomingSteps,
-        remaining
-      );
-
-
-    // Steps beyond the finish line are not
-    // transferred to Journey.
-
-    const overflow =
-      Math.max(
-        incomingSteps -
-          creditedSteps,
-        0
-      );
-
-
-    const nextSteps =
-      previousSteps +
-      creditedSteps;
-
-
-    const completed =
-      nextSteps >=
-      totalSteps;
-
-
-    const completedNow =
-      completed &&
-      current.completed !==
-        true;
-
-
-    const progress =
-      completed
-        ? 100
-        : clamp(
-            (
-              nextSteps /
-              totalSteps
-            ) * 100
-          );
-
-
-    const now =
-      nowISO();
-
-
-    const updated = {
-      ...current,
-
-      steps:
-        nextSteps,
-
-      totalSteps,
-
-      progress,
-
-      completed,
-
-      completedAt:
-        completed
-          ? (
-              current.completedAt ||
-              now
-            )
-          : null,
-
-      lastUpdated:
-        now,
-    };
-
-
-    const savedResult =
-      await saveSingleMarathonProgress(
-        marathonId,
-        updated
-      );
-
-
-    if (
-      !savedResult?.saved
-    ) {
-      return {
-        saved: false,
-
-        added: 0,
-
-        overflow:
-          incomingSteps,
-
-        completedNow:
-          false,
-
-        reason:
-          "progress-save-failed",
-      };
-    }
-
-
-    // --------------------------------------------------------
-    // STILL ACTIVE
-    // --------------------------------------------------------
-
-    if (!completedNow) {
-      return {
-        saved: true,
-
-        added:
-          creditedSteps,
-
-        overflow,
-
-        completedNow:
-          false,
-
-        marathon,
-
-        progress:
-          savedResult.progress,
-      };
-    }
-
-
-    // ========================================================
-    // JUST COMPLETED
-    // ========================================================
-
-    const nextMarathonUnlocked =
-      await unlockNextMarathon(
-        marathonId
-      );
-
-
-    // --------------------------------------------------------
-    // CRITICAL:
-    //
-    // Finished marathon must stop being the active marathon.
-    //
-    // The step router / Legathon session then establishes the
-    // fresh Journey checkpoint before Journey resumes.
-    // --------------------------------------------------------
-
-    await AsyncStorage.removeItem(
-      ACTIVE_MARATHON_KEY
-    );
-
-
-    return {
-      saved: true,
-
-      added:
-        creditedSteps,
-
-      overflow,
-
-      completedNow:
-        true,
-
-      marathon,
-
-      progress:
-        savedResult.progress,
-
-      nextMarathonUnlocked,
-    };
-  } catch (error) {
-    console.log(
-      "Add marathon steps error:",
-      error
-    );
-
-    return {
-      saved: false,
-
-      added: 0,
-
-      overflow: 0,
-
-      completedNow:
-        false,
-
-      reason:
-        "add-marathon-steps-error",
-
-      error,
-    };
-  }
-}
-
-
-// ============================================================
-// MANUAL COMPLETE
-//
-// Mainly useful for testing/admin functions.
-// Normal completion should happen through addMarathonSteps().
-// ============================================================
-
-export async function
-completeActiveMarathon() {
-  try {
-    const active =
-      await getActiveMarathon();
-
-    if (
-      !active?.marathon
-    ) {
-      return {
-        saved: false,
-        reason:
-          "no-active-marathon",
-      };
-    }
-
-    const marathon =
-      active.marathon;
-
-    const current =
-      await getMarathonProgress(
-        marathon.id
-      );
-
-    if (!current) {
-      return {
-        saved: false,
-        reason:
-          "progress-not-found",
-      };
-    }
-
-    const now =
-      nowISO();
-
-    const totalSteps =
-      getMarathonTotalSteps(
-        marathon
-      );
-
-
-    const updated = {
-      ...current,
-
-      steps:
-        totalSteps,
-
-      totalSteps,
-
-      progress: 100,
-
-      completed: true,
-
-      completedAt:
-        current.completedAt ||
-        now,
-
-      lastUpdated:
-        now,
-    };
-
-
-    const savedResult =
-      await saveSingleMarathonProgress(
-        marathon.id,
-        updated
-      );
-
-
-    if (
-      !savedResult?.saved
-    ) {
-      return {
-        saved: false,
-        reason:
-          "progress-save-failed",
-      };
-    }
-
-
-    const nextMarathonUnlocked =
-      await unlockNextMarathon(
-        marathon.id
-      );
-
-
-    await clearActiveMarathon();
-
-
-    return {
-      saved: true,
-
-      completedNow:
-        current.completed !==
-        true,
-
-      marathon,
-
-      progress:
-        savedResult.progress,
-
-      nextMarathonUnlocked,
-    };
-  } catch (error) {
-    console.log(
-      "Complete active marathon error:",
-      error
-    );
-
-    return {
-      saved: false,
-
-      reason:
-        "completion-error",
-
-      error,
-    };
-  }
-}
-
-
-// ============================================================
-// COMPLETION ALERT STATE
-//
-// This is UI state only.
-//
-// It prevents the same completion celebration from appearing
-// repeatedly after reopening a completed challenge.
-// ============================================================
-
-export async function
-hasShownMarathonCompletionAlert(
-  marathonId
-) {
-  try {
-    const normalizedId =
-      normalizeMarathonId(
-        marathonId
-      );
-
-    if (!normalizedId) {
-      return false;
-    }
-
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_COMPLETION_ALERTS_KEY
-      );
 
     const map =
-      parseJSON(
-        saved,
-        {}
-      );
+      await readProgressMap();
 
-    return (
-      map?.[
-        normalizedId
-      ] === true
-    );
-  } catch (error) {
-    console.log(
-      "Read marathon alert state error:",
-      error
+    const active = activeFrom(
+      await readActiveRecord(),
+      map
     );
 
-    return false;
-  }
+    if (!active) {
+      return {
+        saved: false,
+        added: 0,
+        overflow: incoming,
+        completedNow: false,
+        reason: "no-active-marathon",
+      };
+    }
+
+    const marathon = active.marathon;
+    const current = map[marathon.id];
+
+    const added = Math.min(
+      incoming,
+      current.totalSteps - current.steps
+    );
+
+    const steps =
+      current.steps + added;
+
+    const completedNow =
+      steps >= current.totalSteps;
+
+    const now = nowISO();
+
+    const progress = {
+      ...current,
+      steps,
+
+      completed: completedNow,
+
+      progress: completedNow
+        ? 100
+        : (steps / current.totalSteps) * 100,
+
+      completedAt: completedNow
+        ? current.completedAt || now
+        : null,
+
+      lastUpdated: now,
+    };
+
+    map[marathon.id] = progress;
+
+    const next = completedNow
+      ? getNextMarathon(marathon.id)
+      : null;
+
+    if (next) {
+      map[next.id] = {
+        ...map[next.id],
+        unlocked: true,
+        lastUpdated: now,
+      };
+    }
+
+    // Save progress and the next unlock in one write.
+    await writeJSON(PROGRESS_KEY, map);
+
+    const cleanupWarning = completedNow
+      ? await removeCompletedActive()
+      : null;
+
+    return {
+      saved: true,
+      added,
+      overflow: incoming - added,
+      completedNow,
+
+      marathonId: marathon.id,
+      marathon,
+      progress,
+
+      nextMarathonUnlocked: next,
+      cleanupWarning,
+    };
+  });
 }
 
+// ============================================================
+// COMPLETE ACTIVE MARATHON
+//
+// Does not invent missing steps.
+// Does not pay rewards.
+// ============================================================
 
-export async function
-markMarathonCompletionAlertShown(
+export function completeActiveMarathon() {
+  return mutate(async () => {
+    const record =
+      await readActiveRecord();
+
+    const marathon = getMarathonById(
+      record?.marathonId || record?.id
+    );
+
+    if (!marathon) {
+      return {
+        saved: false,
+        reason: "no-active-marathon",
+      };
+    }
+
+    const map =
+      await readProgressMap();
+
+    const current =
+      map[marathon.id];
+
+    if (current.steps < current.totalSteps) {
+      return {
+        saved: false,
+        reason: "marathon-not-finished",
+
+        marathon,
+        progress: current,
+
+        remainingSteps:
+          current.totalSteps - current.steps,
+      };
+    }
+
+    const now = nowISO();
+
+    const progress = {
+      ...current,
+      completed: true,
+      progress: 100,
+      completedAt: current.completedAt || now,
+      lastUpdated: now,
+    };
+
+    map[marathon.id] = progress;
+
+    const next =
+      getNextMarathon(marathon.id);
+
+    if (next) {
+      map[next.id] = {
+        ...map[next.id],
+        unlocked: true,
+        lastUpdated: now,
+      };
+    }
+
+    await writeJSON(PROGRESS_KEY, map);
+
+    const cleanupWarning =
+      await removeCompletedActive();
+
+    return {
+      saved: true,
+      completedNow: !current.completedAt,
+
+      marathon,
+      progress,
+
+      nextMarathonUnlocked: next,
+      cleanupWarning,
+    };
+  });
+}
+
+// ============================================================
+// COMPLETION ALERT RECORDS
+// ============================================================
+
+export function hasShownMarathonCompletionAlert(
   marathonId
 ) {
-  try {
-    const normalizedId =
-      normalizeMarathonId(
-        marathonId
-      );
+  return settledRead(async () => {
+    const id =
+      normalizeMarathonId(marathonId);
 
-    if (!normalizedId) {
+    if (!id) {
       return false;
     }
 
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_COMPLETION_ALERTS_KEY
-      );
+    const map = await readMap(ALERTS_KEY);
 
-    const current =
-      parseJSON(
-        saved,
-        {}
-      );
-
-    const updated = {
-      ...current,
-
-      [normalizedId]:
-        true,
-    };
-
-
-    await AsyncStorage.setItem(
-      MARATHON_COMPLETION_ALERTS_KEY,
-      JSON.stringify(
-        updated
-      )
-    );
-
-
-    return true;
-  } catch (error) {
-    console.log(
-      "Save marathon alert state error:",
-      error
-    );
-
-    return false;
-  }
+    return map[id] === true;
+  });
 }
 
+export function markMarathonCompletionAlertShown(
+  marathonId
+) {
+  return mutate(async () => {
+    const marathon =
+      getMarathonById(marathonId);
+
+    if (!marathon) {
+      return false;
+    }
+
+    const map =
+      await readMap(ALERTS_KEY);
+
+    await writeJSON(ALERTS_KEY, {
+      ...map,
+      [marathon.id]: true,
+    });
+
+    return true;
+  }).then(result => result === true);
+}
 
 // ============================================================
 // REWARD RECORDS
+//
+// These functions record claims.
+// They do not credit the wallet, points balance, or avatar XP.
 // ============================================================
 
-export async function
-loadMarathonRewards() {
-  try {
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_REWARDS_KEY
-      );
-
-    return parseJSON(
-      saved,
-      {}
-    );
-  } catch (error) {
-    console.log(
-      "Load marathon rewards error:",
-      error
-    );
-
-    return {};
-  }
+export function loadMarathonRewards() {
+  return settledRead(() =>
+    readMap(REWARDS_KEY)
+  );
 }
 
-
-export async function
-saveMarathonRewardRecord(
+export function saveMarathonRewardRecord(
   marathonId,
   rewardData
 ) {
-  try {
-    const normalizedId =
-      normalizeMarathonId(
-        marathonId
-      );
+  return mutate(async () => {
+    const marathon =
+      getMarathonById(marathonId);
 
-    if (!normalizedId) {
+    if (!marathon) {
       return {
         saved: false,
-        reason:
-          "invalid-marathon-id",
+        reason: "marathon-not-found",
+      };
+    }
+
+    const map =
+      await readProgressMap();
+
+    if (!map[marathon.id].completed) {
+      return {
+        saved: false,
+        reason: "marathon-not-completed",
+      };
+    }
+
+    if (!isObject(rewardData)) {
+      return {
+        saved: false,
+        reason: "invalid-reward-data",
       };
     }
 
     const rewards =
-      await loadMarathonRewards();
+      await readMap(REWARDS_KEY);
+
+    const existing =
+      rewards[marathon.id];
+
+    if (existing?.claimedAt) {
+      return {
+        saved: true,
+        alreadyClaimed: true,
+        record: existing,
+      };
+    }
 
     const record = {
+      ...existing,
       ...rewardData,
 
-      marathonId:
-        normalizedId,
-
-      savedAt:
-        nowISO(),
+      marathonId: marathon.id,
+      savedAt: nowISO(),
     };
 
-
-    const updated = {
+    await writeJSON(REWARDS_KEY, {
       ...rewards,
-
-      [normalizedId]:
-        record,
-    };
-
-
-    await AsyncStorage.setItem(
-      MARATHON_REWARDS_KEY,
-      JSON.stringify(
-        updated
-      )
-    );
-
+      [marathon.id]: record,
+    });
 
     return {
       saved: true,
       record,
     };
-  } catch (error) {
-    console.log(
-      "Save marathon reward record error:",
-      error
-    );
-
-    return {
-      saved: false,
-      error,
-    };
-  }
+  });
 }
-
 
 // ============================================================
 // MARK REWARD CLAIMED
 //
-// IMPORTANT:
-//
-// This only marks the marathon record as claimed.
-//
-// Actual WCoin / Legathon Point / Avatar XP awarding should
-// remain in your central reward system so balances are not
-// duplicated.
+// Call after the reward system confirms the award.
+// Repeated calls preserve the existing claim timestamp.
 // ============================================================
 
-export async function
-markMarathonRewardClaimed(
+export function markMarathonRewardClaimed(
   marathonId
 ) {
-  try {
+  return mutate(async () => {
     const marathon =
-      getMarathonById(
-        marathonId
-      );
+      getMarathonById(marathonId);
 
     if (!marathon) {
       return {
         saved: false,
-        reason:
-          "marathon-not-found",
+        reason: "marathon-not-found",
       };
     }
 
+    const map =
+      await readProgressMap();
 
-    const progress =
-      await getMarathonProgress(
-        marathon.id
-      );
+    const current =
+      map[marathon.id];
 
-
-    if (!progress) {
+    if (!current.completed) {
       return {
         saved: false,
-        reason:
-          "progress-not-found",
+        reason: "marathon-not-completed",
       };
     }
 
+    const rewards =
+      await readMap(REWARDS_KEY);
 
-    if (!progress.completed) {
-      return {
-        saved: false,
-        reason:
-          "marathon-not-completed",
-      };
-    }
+    const now = nowISO();
 
+    const record = {
+      ...rewards[marathon.id],
 
-    if (
-      progress.rewardClaimed ===
-      true
-    ) {
-      return {
-        saved: true,
+      marathonId: marathon.id,
+      title: marathon.title,
 
-        alreadyClaimed:
-          true,
+      rewardCoins:
+        integer(marathon.rewardCoins),
 
-        progress,
-      };
-    }
+      rewardPoints:
+        integer(marathon.rewardPoints),
 
+      avatarXP:
+        integer(marathon.avatarXP),
 
-    const updated = {
-      ...progress,
+      badge:
+        marathon.badge || null,
 
-      rewardClaimed:
-        true,
+      claimedAt:
+        rewards[marathon.id]?.claimedAt || now,
 
-      lastUpdated:
-        nowISO(),
+      savedAt: now,
     };
 
+    // The ledger remains authoritative if the progress
+    // mirror cannot be written afterward.
+    await writeJSON(REWARDS_KEY, {
+      ...rewards,
+      [marathon.id]: record,
+    });
 
-    const result =
-      await saveSingleMarathonProgress(
-        marathon.id,
-        updated
-      );
+    const progress = {
+      ...current,
+      rewardClaimed: true,
+      lastUpdated: now,
+    };
 
+    let progressWarning = null;
 
-    if (
-      result?.saved
-    ) {
-      await saveMarathonRewardRecord(
-        marathon.id,
-        {
-          title:
-            marathon.title,
-
-          rewardCoins:
-            safeInteger(
-              marathon.rewardCoins
-            ),
-
-          rewardPoints:
-            safeInteger(
-              marathon.rewardPoints
-            ),
-
-          avatarXP:
-            safeInteger(
-              marathon.avatarXP
-            ),
-
-          badge:
-            marathon.badge ||
-            null,
-
-          claimedAt:
-            nowISO(),
-        }
-      );
+    try {
+      await writeJSON(PROGRESS_KEY, {
+        ...map,
+        [marathon.id]: progress,
+      });
+    } catch (error) {
+      progressWarning =
+        error.message || String(error);
     }
 
-
     return {
-      saved:
-        result?.saved ===
-        true,
+      saved: true,
+      alreadyClaimed: current.rewardClaimed,
 
       marathon,
+      progress,
+      record,
 
-      progress:
-        result?.progress ||
-        updated,
+      progressWarning,
     };
-  } catch (error) {
-    console.log(
-      "Mark marathon reward claimed error:",
-      error
-    );
-
-    return {
-      saved: false,
-      error,
-    };
-  }
+  });
 }
 
+// ============================================================
+// PASSPORT AND CERTIFICATE HELPERS
+// ============================================================
+
+function saveDocumentMap(
+  key,
+  field,
+  value
+) {
+  return mutate(async () => {
+    if (!isObject(value)) {
+      return {
+        saved: false,
+        reason: `invalid-${field}`,
+      };
+    }
+
+    const current =
+      await readMap(key);
+
+    const updated = {
+      ...current,
+      ...value,
+    };
+
+    await writeJSON(key, updated);
+
+    return {
+      saved: true,
+      [field]: updated,
+    };
+  });
+}
 
 // ============================================================
 // PASSPORT
 // ============================================================
 
-export async function
-loadMarathonPassport() {
-  try {
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_PASSPORT_KEY
-      );
-
-    return parseJSON(
-      saved,
-      {}
-    );
-  } catch (error) {
-    console.log(
-      "Load marathon passport error:",
-      error
-    );
-
-    return {};
-  }
+export function loadMarathonPassport() {
+  return settledRead(() =>
+    readMap(PASSPORT_KEY)
+  );
 }
 
-
-export async function
-saveMarathonPassport(
-  passport
-) {
-  try {
-    const value =
-      passport &&
-      typeof passport ===
-        "object"
-        ? passport
-        : {};
-
-    await AsyncStorage.setItem(
-      MARATHON_PASSPORT_KEY,
-      JSON.stringify(
-        value
-      )
-    );
-
-    return {
-      saved: true,
-      passport:
-        value,
-    };
-  } catch (error) {
-    console.log(
-      "Save marathon passport error:",
-      error
-    );
-
-    return {
-      saved: false,
-      error,
-    };
-  }
+export function saveMarathonPassport(passport) {
+  return saveDocumentMap(
+    PASSPORT_KEY,
+    "passport",
+    passport
+  );
 }
-
 
 // ============================================================
 // CERTIFICATES
 // ============================================================
 
-export async function
-loadMarathonCertificates() {
-  try {
-    const saved =
-      await AsyncStorage.getItem(
-        MARATHON_CERTIFICATES_KEY
-      );
-
-    return parseJSON(
-      saved,
-      {}
-    );
-  } catch (error) {
-    console.log(
-      "Load marathon certificates error:",
-      error
-    );
-
-    return {};
-  }
+export function loadMarathonCertificates() {
+  return settledRead(() =>
+    readMap(CERTIFICATES_KEY)
+  );
 }
 
-
-export async function
-saveMarathonCertificates(
+export function saveMarathonCertificates(
   certificates
 ) {
-  try {
-    const value =
-      certificates &&
-      typeof certificates ===
-        "object"
-        ? certificates
-        : {};
-
-    await AsyncStorage.setItem(
-      MARATHON_CERTIFICATES_KEY,
-      JSON.stringify(
-        value
-      )
-    );
-
-    return {
-      saved: true,
-      certificates:
-        value,
-    };
-  } catch (error) {
-    console.log(
-      "Save marathon certificates error:",
-      error
-    );
-
-    return {
-      saved: false,
-      error,
-    };
-  }
+  return saveDocumentMap(
+    CERTIFICATES_KEY,
+    "certificates",
+    certificates
+  );
 }
 
-
 // ============================================================
-// MARATHON MODE STATE
-//
-// Useful for UI / diagnostics.
-//
-// Step routing itself should use the dedicated Legathon routing
-// state created by legathonSession.js.
+// MARATHON MODE SNAPSHOT
 // ============================================================
 
-export async function
-getMarathonModeState() {
+export async function getMarathonModeState() {
   const active =
     await getActiveMarathon();
 
+  // This describes the selected marathon.
+  // The session and engine determine whether walking is active.
   return {
-    active:
-      Boolean(
-        active?.marathonId
-      ),
+    active: Boolean(active),
 
     marathonId:
-      active?.marathonId ||
-      null,
+      active?.marathonId || null,
 
     marathon:
-      active?.marathon ||
-      null,
+      active?.marathon || null,
 
     progress:
-      active?.progress ||
-      null,
+      active?.progress || null,
   };
 }
 
-
 // ============================================================
-// DEVELOPMENT RESET
+// EXPLICIT DATA RESET
 //
-// TESTING ONLY.
-//
-// Does NOT erase:
-// - Lifetime Steps
-// - normal Journey progress
-// - profile data
-// - WCoins
-//
+// Never call during ordinary activation or synchronization.
+// This does not reset session, engine, or wallet storage.
 // ============================================================
 
-export async function
-resetAllMarathonData() {
-  try {
-    await Promise.all([
-      AsyncStorage.removeItem(
-        MARATHON_PROGRESS_KEY
-      ),
-
-      AsyncStorage.removeItem(
-        ACTIVE_MARATHON_KEY
-      ),
-
-      AsyncStorage.removeItem(
-        MARATHON_REWARDS_KEY
-      ),
-
-      AsyncStorage.removeItem(
-        MARATHON_COMPLETION_ALERTS_KEY
-      ),
-
-      AsyncStorage.removeItem(
-        MARATHON_PASSPORT_KEY
-      ),
-
-      AsyncStorage.removeItem(
-        MARATHON_CERTIFICATES_KEY
-      ),
+export function resetAllMarathonData() {
+  return mutate(async () => {
+    await AsyncStorage.multiRemove([
+      PROGRESS_KEY,
+      ACTIVE_KEY,
+      REWARDS_KEY,
+      ALERTS_KEY,
+      PASSPORT_KEY,
+      CERTIFICATES_KEY,
     ]);
 
     return {
       reset: true,
     };
-  } catch (error) {
-    console.log(
-      "Reset marathon data error:",
-      error
-    );
-
-    return {
-      reset: false,
-      error,
-    };
-  }
+  }, "reset");
 }
