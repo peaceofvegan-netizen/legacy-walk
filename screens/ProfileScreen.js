@@ -977,14 +977,7 @@ export default function ProfileScreen({
                 </Text>
 
 
-                <Text
-                  style={
-                    styles.avatarIdentity
-                  }
-                >
-                  {selectedAvatarId ||
-                    "Legathon Avatar"}
-                </Text>
+               
 
 
                 <View

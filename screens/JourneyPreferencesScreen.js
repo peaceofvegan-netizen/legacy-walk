@@ -96,6 +96,7 @@ export default function JourneyPreferencesScreen({
   route,
   goBack,
   goToJourneys,
+  goToSummary,
 }) {
   const [interests, setInterests] = useState([]);
   const [goals, setGoals] = useState([]);
@@ -134,33 +135,62 @@ export default function JourneyPreferencesScreen({
     }
   };
 
-  const savePreferences = async () => {
-    const journeyPreferences = {
-      interests,
-      goals,
-      difficulty,
-      preferredLength,
-      hiddenCategories,
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-      await AsyncStorage.setItem(PREF_KEY, JSON.stringify(journeyPreferences));
-
-      Alert.alert(
-        "Preferences Saved",
-        "Your Legacy Walk recommendations will now be personalized."
-      );
-
-      if (fromOnboarding) {
-        navigation.navigate("PersonalizationSummary");
-      } else {
-        navigation.goBack();
-      }
-    } catch (error) {
-      Alert.alert("Save Error", "Unable to save preferences right now.");
-    }
+ const savePreferences = async () => {
+  const journeyPreferences = {
+    interests,
+    goals,
+    difficulty,
+    preferredLength,
+    hiddenCategories,
+    updatedAt: new Date().toISOString(),
   };
+
+  try {
+    await AsyncStorage.setItem(
+      PREF_KEY,
+      JSON.stringify(journeyPreferences)
+    );
+
+    Alert.alert(
+      "Preferences Saved",
+      "Your Legathon Walk recommendations will now be personalized.",
+      [
+        {
+          text: "OK",
+          onPress: () => {
+            if (
+              typeof goToSummary ===
+              "function"
+            ) {
+              goToSummary();
+            } else if (
+              navigation?.navigate
+            ) {
+              navigation.navigate(
+                "PersonalizationSummary"
+              );
+            } else if (
+              typeof goBack ===
+              "function"
+            ) {
+              goBack();
+            }
+          },
+        },
+      ]
+    );
+  } catch (error) {
+    console.log(
+      "Save preferences error:",
+      error
+    );
+
+    Alert.alert(
+      "Save Error",
+      "Unable to save preferences right now."
+    );
+  }
+}; 
 
   const resetPreferences = async () => {
     try {
@@ -255,7 +285,7 @@ export default function JourneyPreferencesScreen({
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.small}>PERSONALIZE</Text>
-      <Text style={styles.title}>Your Legacy</Text>
+      <Text style={styles.title}>Your Legathon</Text>
 
       <Text style={styles.subtitle}>
         Choose the journeys and experiences that inspire you. Legathon Walk

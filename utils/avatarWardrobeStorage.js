@@ -1031,66 +1031,96 @@ export async function syncAvatarSuitFromLifetimeSteps(
         lifetimeSteps
       );
 
-
-    const currentEquippedSuit =
+    const previousSuit =
       await getCurrentAvatarSuit();
 
-
-    const currentEquippedLevel =
+    const previousLevel =
       await getCurrentAvatarSuitLevel();
 
+    const unlockedSuits =
+      Array.isArray(
+        progression.unlockedSuits
+      )
+        ? progression.unlockedSuits
+        : ["default"];
+
+    const stillUnlocked =
+      unlockedSuits.includes(
+        previousSuit
+      );
+
+    let currentSuit =
+      previousSuit;
+
+    let currentLevel =
+      Number(previousLevel || 0);
+
+    let suitChanged = false;
+
+    // If lifetime steps were reset and the
+    // equipped suit is no longer unlocked,
+    // return the avatar to its default outfit.
+    if (!stillUnlocked) {
+      const resetResult =
+        await setCurrentAvatarSuit(
+          "default",
+          0
+        );
+
+      currentSuit =
+        resetResult?.suitId ||
+        "default";
+
+      currentLevel = 0;
+      suitChanged = true;
+    }
+
+    // Repair the old unlocked list so a suit
+    // cannot remain listed as unlocked after
+    // the qualifying steps have been reset.
+    const earnedTracksuits =
+      unlockedSuits.filter(
+        (suitId) =>
+          suitId !== "default"
+      );
+
+    await AsyncStorage.setItem(
+      "unlockedTracksuits",
+      JSON.stringify(
+        earnedTracksuits
+      )
+    );
 
     return {
       saved: true,
 
-      suitChanged: false,
+      suitChanged,
 
       levelIncreased:
         progression.currentSuitLevel >
-        Number(
-          currentEquippedLevel ||
-          0
-        ),
+        Number(previousLevel || 0),
 
-      previousSuit:
-        currentEquippedSuit,
+      previousSuit,
 
-      currentSuit:
-        currentEquippedSuit,
+      currentSuit,
 
       previousLevel:
-        Number(
-          currentEquippedLevel ||
-          0
-        ),
+        Number(previousLevel || 0),
 
-      currentLevel:
-        Number(
-          currentEquippedLevel ||
-          0
-        ),
+      currentLevel,
 
       progression,
 
       wardrobe: {
-        suitId:
-          currentEquippedSuit,
-
-        suitLevel:
-          Number(
-            currentEquippedLevel ||
-            0
-          ),
+        suitId: currentSuit,
+        suitLevel: currentLevel,
       },
     };
-
   } catch (error) {
-
     console.log(
       "Sync tracksuit progression error:",
       error
     );
-
 
     return {
       saved: false,
@@ -1108,7 +1138,6 @@ export async function syncAvatarSuitFromLifetimeSteps(
     };
   }
 }
-
 // ============================================================
 // DEFAULT EXPORT
 // ============================================================

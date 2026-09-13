@@ -39,7 +39,11 @@ import {
   getAvatarWardrobeState,
 } from "../utils/avatarWardrobeStorage";
 
+import {
 
+
+  syncAvatarSuitFromLifetimeSteps,
+} from "../utils/avatarWardrobeStorage";
 // ============================================================
 // LEGATHON WALK — AVATAR CENTER
 // ============================================================
@@ -281,7 +285,7 @@ function ActionButton({
 export default function AvatarCenterScreen({
   goBack,
   goToAvatarPicker,
-  goToRewards,
+  
 
   // ----------------------------------------------------------
   // Membership can be passed by App.js.
@@ -501,11 +505,34 @@ export default function AvatarCenterScreen({
           // WARDROBE
           // --------------------------------------------------
 
-          setEquippedSuit(
-            wardrobe?.suitId ||
-            "default"
-          );
+        // Do not treat missing or unreadable steps as a reset.
+const checkedSteps = Number(savedSteps);
 
+if (
+  savedSteps === null ||
+  String(savedSteps).trim() === "" ||
+  !Number.isFinite(checkedSteps) ||
+  checkedSteps < 0
+) {
+  throw new Error(
+    "Journey steps are unavailable. Outfit was not changed."
+  );
+}
+
+const validatedWardrobe =
+  await syncAvatarSuitFromLifetimeSteps(
+    checkedSteps
+  );
+
+if (!validatedWardrobe.saved) {
+  throw new Error(
+    "Unable to validate the equipped tracksuit."
+  );
+}
+
+setEquippedSuit(
+  validatedWardrobe.currentSuit
+);
 
           // --------------------------------------------------
           // AVATAR PROFILE
@@ -667,10 +694,34 @@ export default function AvatarCenterScreen({
               );
 
 
-              setEquippedSuit(
-                currentSuit ||
-                "default"
-              );
+             // Do not treat missing or unreadable steps as a reset.
+const checkedSteps = Number(savedSteps);
+
+if (
+  savedSteps === null ||
+  String(savedSteps).trim() === "" ||
+  !Number.isFinite(checkedSteps) ||
+  checkedSteps < 0
+) {
+  throw new Error(
+    "Journey steps are unavailable. Outfit was not changed."
+  );
+}
+
+const validatedWardrobe =
+  await syncAvatarSuitFromLifetimeSteps(
+    checkedSteps
+  );
+
+if (!validatedWardrobe.saved) {
+  throw new Error(
+    "Unable to validate the equipped tracksuit."
+  );
+}
+
+setEquippedSuit(
+  validatedWardrobe.currentSuit
+);
 
             } catch (error) {
 
@@ -1109,15 +1160,7 @@ export default function AvatarCenterScreen({
     );
 
 
-  const unlockedBySteps =
-    TRACKSUIT_TIERS.filter(
-      (suit) =>
-        getTracksuitProgress(
-          lifetimeSteps,
-          suit
-        ).unlocked
-    );
-
+ 
 
   const nextSuit =
     TRACKSUIT_TIERS.find(
@@ -1556,22 +1599,10 @@ export default function AvatarCenterScreen({
         />
 
 
-        <ActionButton
-          icon="🎁"
-          title="Rewards"
-          subtitle="View your Legathon rewards"
-          onPress={
-            goToRewards
-          }
-        />
+       
 
 
-        <ActionButton
-          icon="⭐"
-          title="Milestones"
-          subtitle={`${unlockedBySteps.length} of ${TRACKSUIT_TIERS.length} tracksuit milestones completed`}
-          onPress={() => {}}
-        />
+      
 
       </View>
 
@@ -1642,19 +1673,17 @@ export default function AvatarCenterScreen({
                 }
               >
 
-                <Image
-                  source={
-                    active &&
-                    resolvedAvatarImage
-                      ? resolvedAvatarImage
-                      : avatar.image
-                  }
-                  style={
-                    styles.avatarCardImage
-                  }
-                  resizeMode="contain"
-                />
-
+               <Image
+  source={
+    avatar.id === selectedAvatar?.id &&
+    resolvedAvatarImage
+      ? resolvedAvatarImage
+      : avatar.image
+  }
+  style={styles.avatarCardImage}
+  resizeMode="contain"
+/>
+               
 
                 <Text
                   style={
@@ -1664,8 +1693,7 @@ export default function AvatarCenterScreen({
                     1
                   }
                 >
-                  {avatar.label ||
-                    avatar.id}
+                 {avatar.label || `Avatar ${avatarOptions.indexOf(avatar) + 1}`}
                 </Text>
 
 
@@ -1749,8 +1777,9 @@ export default function AvatarCenterScreen({
 
 
           const equipped =
-            equippedSuit ===
-            suit.id;
+  access.allowed &&
+  progress.unlocked &&
+  equippedSuit === suit.id;
 
 
           let buttonLabel =

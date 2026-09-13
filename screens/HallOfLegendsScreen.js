@@ -1,720 +1,631 @@
-import React from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+
 import {
+  SafeAreaView,
+  ScrollView,
   View,
   Text,
-  ScrollView,
-  ImageBackground,
   TouchableOpacity,
+  RefreshControl,
   StyleSheet,
-  SafeAreaView,
 } from "react-native";
-import { translate } from "../i18n/i18n";
-const COLLAGE_BG = require("../assets/collage-background.png");
 
-const legends = [
-  {
-    rank: 1,
-    name: "Phillip",
-    title: "Master Explorer",
-    score: 8450,
-    miles: 642,
-    steps: "1,245,000",
-    badge: "👑",
-    verified: true,
-  },
-  {
-    rank: 2,
-    name: "Maya",
-    title: "Legacy Walker",
-    score: 7920,
-    miles: 590,
-    steps: "1,102,000",
-    badge: "🥇",
-    verified: true,
-  },
-  {
-    rank: 3,
-    name: "Dre",
-    title: "Explorer",
-    score: 6880,
-    miles: 510,
-    steps: "960,000",
-    badge: "🥈",
-    verified: true,
-  },
-];
+import AsyncStorage from
+  "@react-native-async-storage/async-storage";
 
-const monthlyWinners = [
-  { name: "Ava", route: "Great Wall", reward: "500 W Coins" },
-  { name: "Jordan", route: "Roman Empire", reward: "Gold Medal" },
-  { name: "Chris", route: "Selma Freedom Walk", reward: "Legacy Badge" },
-];
+import {
+  getJourneyLifetimeSteps,
+} from "../utils/stepTrackingEngine";
 
-const journeyChampions = [
-  { route: "Selma to Montgomery", champion: "Phillip", progress: "100%" },
-  { route: "Great Wall Trek", champion: "Maya", progress: "100%" },
-  { route: "Roman Empire", champion: "Dre", progress: "92%" },
-  { route: "Tokyo Nights", champion: "Ava", progress: "88%" },
-];
+import useLegathonPoints from
+  "../hooks/useLegathonPoints";
 
-const stateRankings = [
-  { state: "California", walkers: "12,450", leader: "Phillip" },
-  { state: "Nevada", walkers: "8,210", leader: "Maya" },
-  { state: "Texas", walkers: "7,880", leader: "Dre" },
-];
+function safeNumber(value) {
+  const parsed = Number(value ?? 0);
+
+  return Number.isFinite(parsed)
+    ? Math.max(0, parsed)
+    : 0;
+}
+
+function formatNumber(value) {
+  return Math.floor(
+    safeNumber(value)
+  ).toLocaleString();
+}
+
+async function loadLocalRecord() {
+  const [
+    displayName,
+    avatarProfileRaw,
+    completedRaw,
+    lifetimeSteps,
+  ] = await Promise.all([
+    AsyncStorage.getItem("displayName"),
+    AsyncStorage.getItem("avatarProfile"),
+    AsyncStorage.getItem("completedJourneys"),
+    getJourneyLifetimeSteps(),
+  ]);
+
+  let avatarProfile = {};
+
+  try {
+    avatarProfile = avatarProfileRaw
+      ? JSON.parse(avatarProfileRaw)
+      : {};
+  } catch {
+    avatarProfile = {};
+  }
+
+  return {
+    name:
+      displayName ||
+      avatarProfile?.name ||
+      "Legathon Walker",
+
+    steps: safeNumber(lifetimeSteps),
+
+    journeys: safeNumber(completedRaw),
+  };
+}
 
 export default function HallOfLegendsScreen({
- language = "en",
   goBack,
 }) {
+  const {
+    points,
+    rank,
+    loading,
+    error,
+    refresh,
+  } = useLegathonPoints();
+
+  const [record, setRecord] = useState({
+    name: "Legathon Walker",
+    steps: 0,
+    journeys: 0,
+  });
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const refreshAll = useCallback(async () => {
+    setRefreshing(true);
+
+    try {
+      const [, nextRecord] =
+        await Promise.all([
+          refresh(),
+          loadLocalRecord(),
+        ]);
+
+      setRecord(nextRecord);
+    } catch (refreshError) {
+      console.log(
+        "Hall of Legends refresh error:",
+        refreshError
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    loadLocalRecord()
+      .then(setRecord)
+      .catch((loadError) => {
+        console.log(
+          "Hall of Legends load error:",
+          loadError
+        );
+      });
+  }, []);
+
+  const progress = Math.max(
+    0,
+    Math.min(
+      100,
+      safeNumber(rank?.progress)
+    )
+  );
+
   return (
-    <ImageBackground
-      source={COLLAGE_BG}
-      style={styles.background}
-      imageStyle={styles.backgroundImage}
-    >
-      <View style={styles.overlay}>
-        <SafeAreaView style={styles.safe}>
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
+    <SafeAreaView style={styles.safe}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshAll}
+            tintColor="#F5C542"
+            colors={["#F5C542"]}
+          />
+        }
+      >
+        <View style={styles.topRow}>
+          {typeof goBack === "function" ? (
+            <TouchableOpacity
+              onPress={goBack}
+              style={styles.back}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Text style={styles.backText}>
+                ‹ Back
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View />
+          )}
+
+          <View style={styles.livePill}>
+            <Text style={styles.liveText}>
+              LIVE RECORD
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.kicker}>
+          HALL OF LEGENDS
+        </Text>
+
+        <Text style={styles.title}>
+          Your legacy is being built.
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Every verified reward adds to your
+          Legathon Points record.
+        </Text>
+
+        {error ? (
+          <Text
+            style={styles.error}
+            accessibilityRole="alert"
           >
-            {goBack && (
-              <TouchableOpacity style={styles.backButton} onPress={goBack}>
-                <Text style={styles.backText}>‹ Back</Text>
-              </TouchableOpacity>
-            )}
+            {error}
+          </Text>
+        ) : null}
 
-            <Text style={styles.kicker}>HALL OF LEGENDS</Text>
-            <Text style={styles.title}>Top Legathon Walkers</Text>
+        <View style={styles.heroCard}>
+          <Text style={styles.heroBadge}>
+            {rank?.badge || "🥾"}
+          </Text>
 
-            <Text style={styles.subtitle}>
-              Verified walkers ranked by steps, miles, journey completion,
-              passport stamps, streaks, and Legathon Score.
+          <Text style={styles.heroLabel}>
+            CURRENT RANK
+          </Text>
+
+          <Text style={styles.heroName}>
+            {rank?.currentRank || "New Walker"}
+          </Text>
+
+          <Text
+            style={styles.memberName}
+            numberOfLines={1}
+          >
+            {record.name}
+          </Text>
+
+          <Text
+            style={styles.points}
+            adjustsFontSizeToFit
+            numberOfLines={1}
+          >
+            {loading
+              ? "—"
+              : formatNumber(points)}
+          </Text>
+
+          <Text style={styles.pointsLabel}>
+            LEGATHON POINTS
+          </Text>
+
+          <View style={styles.progressTrack}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progress}%`,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.progressRow}>
+            <Text style={styles.progressText}>
+              {progress}% complete
             </Text>
 
-            <View style={styles.championCard}>
-              <Text style={styles.championCrown}>👑</Text>
-              <Text style={styles.championLabel}>CURRENT LEGEND</Text>
-              <Text style={styles.championName}>{legends[0].name}</Text>
-              <Text style={styles.championTitle}>{legends[0].title}</Text>
+            <Text style={styles.progressText}>
+              {rank?.nextRank === "MAX"
+                ? "Highest rank"
+                : `Next: ${
+                    rank?.nextRank ||
+                    "Explorer"
+                  }`}
+            </Text>
+          </View>
 
-              <View style={styles.championStats}>
-                <View style={styles.championStat}>
-                  <Text style={styles.championNumber}>
-                    {legends[0].score.toLocaleString()}
-                  </Text>
-                  <Text style={styles.championStatLabel}>Legathon Score</Text>
-                </View>
+          {rank?.nextRank !== "MAX" && (
+            <Text style={styles.remaining}>
+              {formatNumber(
+                rank?.pointsRemaining
+              )}{" "}
+              points remaining
+            </Text>
+          )}
+        </View>
 
-                <View style={styles.championStat}>
-                  <Text style={styles.championNumber}>{legends[0].miles}</Text>
-                  <Text style={styles.championStatLabel}>Miles</Text>
-                </View>
-              </View>
-            </View>
+        <View style={styles.statsRow}>
+          <StatCard
+            label="Journey Steps"
+            value={formatNumber(record.steps)}
+          />
 
-            <View style={styles.podiumRow}>
-              {legends.map((legend) => (
-                <View
-                  key={legend.rank}
-                  style={[
-                    styles.podiumCard,
-                    legend.rank === 1 && styles.podiumCardGold,
-                  ]}
-                >
-                  <Text style={styles.podiumBadge}>{legend.badge}</Text>
-                  <Text style={styles.podiumRank}>#{legend.rank}</Text>
-                  <Text style={styles.podiumName}>{legend.name}</Text>
-                  <Text style={styles.podiumTitle}>{legend.title}</Text>
-                  <Text style={styles.podiumScore}>
-                    {legend.score.toLocaleString()} LP
-                  </Text>
-                </View>
-              ))}
-            </View>
+          <StatCard
+            label="Miles"
+            value={(
+              record.steps / 2000
+            ).toFixed(1)}
+          />
+        </View>
 
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Lifetime Rankings</Text>
+        <View style={styles.wideCard}>
+          <Text style={styles.statLabel}>
+            COMPLETED JOURNEYS
+          </Text>
 
-              {legends.map((legend) => (
-                <View key={legend.rank} style={styles.legendRow}>
-                  <Text style={styles.legendRank}>#{legend.rank}</Text>
+          <Text style={styles.wideValue}>
+            {formatNumber(record.journeys)}
+          </Text>
+        </View>
 
-                  <View style={styles.legendInfo}>
-                    <View style={styles.legendNameRow}>
-                      <Text style={styles.legendName}>{legend.name}</Text>
-                      {legend.verified && (
-                        <Text style={styles.verified}>Verified Walk</Text>
-                      )}
-                    </View>
+        <View style={styles.communityCard}>
+          <Text style={styles.kicker}>
+            GLOBAL HALL
+          </Text>
 
-                    <Text style={styles.legendSub}>
-                      {legend.steps} steps • {legend.miles} miles
-                    </Text>
-                  </View>
+          <Text style={styles.sectionTitle}>
+            Community rankings
+          </Text>
 
-                  <Text style={styles.legendScore}>
-                    {legend.score.toLocaleString()}
-                  </Text>
-                </View>
-              ))}
-            </View>
+          <Text style={styles.subtitle}>
+            No shared member leaderboard is
+            connected yet. Global names and
+            positions will appear here after
+            member records are synced through
+            your database.
+          </Text>
 
-            <View style={styles.goldCard}>
-              <Text style={styles.goldLabel}>JOURNEY CHAMPIONS</Text>
-              <Text style={styles.sectionTitle}>Route Leaders</Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>
+              Your global position
+            </Text>
 
-              {journeyChampions.map((item) => (
-                <View key={item.route} style={styles.championRow}>
-                  <Text style={styles.routeIcon}>🏁</Text>
+            <Text style={styles.statusValue}>
+              Pending
+            </Text>
+          </View>
+        </View>
 
-                  <View style={styles.routeInfo}>
-                    <Text style={styles.routeTitle}>{item.route}</Text>
-                    <Text style={styles.routeSub}>Champion: {item.champion}</Text>
-                  </View>
-
-                  <Text style={styles.routeProgress}>{item.progress}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Monthly Winners</Text>
-
-              {monthlyWinners.map((winner) => (
-                <View key={winner.name} style={styles.winnerRow}>
-                  <Text style={styles.winnerIcon}>🏆</Text>
-
-                  <View style={styles.winnerInfo}>
-                    <Text style={styles.winnerName}>{winner.name}</Text>
-                    <Text style={styles.winnerRoute}>{winner.route}</Text>
-                  </View>
-
-                  <Text style={styles.winnerReward}>{winner.reward}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>State Rankings</Text>
-
-              {stateRankings.map((state) => (
-                <View key={state.state} style={styles.stateRow}>
-                  <View>
-                    <Text style={styles.stateName}>{state.state}</Text>
-                    <Text style={styles.stateSub}>
-                      {state.walkers} verified walkers
-                    </Text>
-                  </View>
-
-                  <Text style={styles.stateLeader}>{state.leader}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.rewardCard}>
-              <Text style={styles.rewardLabel}>LEGEND REWARDS</Text>
-              <Text style={styles.rewardTitle}>Monthly Champion Prize</Text>
-
-              <Text style={styles.rewardText}>
-                Top ranked verified walkers earn bonus W Coins, medals, passport
-                frames, exclusive journey access, and Hall of Legends placement.
-              </Text>
-
-              <View style={styles.rewardGrid}>
-                <Reward icon="🪙" text="W Coins" />
-                <Reward icon="🏅" text="Medals" />
-                <Reward icon="🛂" text="Passport Frame" />
-                <Reward icon="🌍" text="Exclusive Route" />
-              </View>
-            </View>
-
-            <View style={styles.fairPlayCard}>
-              <Text style={styles.fairPlayTitle}>Fair Play Verified</Text>
-              <Text style={styles.fairPlayText}>
-                Rankings are based on verified walking sessions, journey
-                progress, GPS checks, streaks, and activity consistency.
-              </Text>
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </View>
-    </ImageBackground>
+        <TouchableOpacity
+          style={[
+            styles.refreshButton,
+            refreshing &&
+              styles.refreshButtonDisabled,
+          ]}
+          onPress={refreshAll}
+          disabled={refreshing}
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled: refreshing,
+          }}
+        >
+          <Text style={styles.refreshText}>
+            {refreshing
+              ? "Refreshing…"
+              : "Refresh My Record"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function Reward({ icon, text }) {
+function StatCard({
+  label,
+  value,
+}) {
   return (
-    <View style={styles.rewardItem}>
-      <Text style={styles.rewardIcon}>{icon}</Text>
-      <Text style={styles.rewardItemText}>{text}</Text>
+    <View style={styles.statCard}>
+      <Text
+        style={styles.statValue}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+
+      <Text style={styles.statLabel}>
+        {label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    backgroundColor: "#020617",
-  },
-
-  backgroundImage: {
-    resizeMode: "cover",
-    opacity: 0.45,
-  },
-
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(2,4,10,0.78)",
-  },
-
   safe: {
     flex: 1,
+    backgroundColor: "#030812",
   },
 
   content: {
     padding: 22,
-    paddingBottom: 160,
+    paddingBottom: 145,
+    maxWidth: 700,
+    width: "100%",
+    alignSelf: "center",
   },
 
-  backButton: {
-    alignSelf: "flex-start",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 999,
-    backgroundColor: "rgba(8,18,37,0.88)",
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 28,
+  },
+
+  back: {
     borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.45)",
-    marginBottom: 24,
+    borderColor: "#8B7029",
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 19,
   },
 
   backText: {
-    color: "#D4AF37",
-    fontSize: 19,
+    color: "#F5C542",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  livePill: {
+    backgroundColor: "#102D28",
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+
+  liveText: {
+    color: "#81F1D0",
+    fontSize: 10,
+    letterSpacing: 1.3,
     fontWeight: "900",
   },
 
   kicker: {
-    color: "#D4AF37",
-    fontSize: 14,
+    color: "#F5C542",
+    fontSize: 12,
+    letterSpacing: 2.3,
     fontWeight: "900",
-    letterSpacing: 4,
-    marginBottom: 10,
+    marginBottom: 9,
   },
 
   title: {
     color: "#FFFFFF",
-    fontSize: 52,
+    fontSize: 38,
+    lineHeight: 43,
     fontWeight: "900",
-    lineHeight: 58,
-    marginBottom: 16,
+    marginBottom: 12,
   },
 
   subtitle: {
-    color: "#CBD5E1",
-    fontSize: 20,
-    fontWeight: "800",
-    lineHeight: 30,
-    marginBottom: 26,
+    color: "#A8B5C9",
+    fontSize: 15,
+    lineHeight: 23,
   },
 
-  championCard: {
-    backgroundColor: "rgba(212,175,55,0.12)",
-    borderRadius: 34,
-    padding: 26,
+  error: {
+    color: "#FFD0D0",
+    backgroundColor: "#351C28",
+    padding: 13,
+    borderRadius: 12,
+    marginTop: 18,
+  },
+
+  heroCard: {
+    backgroundColor: "#15191C",
+    borderWidth: 1.5,
+    borderColor: "#947725",
+    borderRadius: 30,
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "rgba(212,175,55,0.55)",
-    marginBottom: 24,
+    padding: 25,
+    marginTop: 25,
+    marginBottom: 16,
   },
 
-  championCrown: {
-    fontSize: 54,
-    marginBottom: 8,
+  heroBadge: {
+    fontSize: 44,
+    marginBottom: 7,
   },
 
-  championLabel: {
-    color: "#D4AF37",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 8,
-  },
-
-  championName: {
-    color: "#FFFFFF",
-    fontSize: 38,
-    fontWeight: "900",
-  },
-
-  championTitle: {
-    color: "#A7F3D0",
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 6,
-  },
-
-  championStats: {
-    flexDirection: "row",
-    gap: 14,
-    marginTop: 22,
-  },
-
-  championStat: {
-    minWidth: 130,
-    backgroundColor: "rgba(2,6,23,0.78)",
-    borderRadius: 24,
-    paddingVertical: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.28)",
-  },
-
-  championNumber: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "900",
-  },
-
-  championStatLabel: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-
-  podiumRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 24,
-  },
-
-  podiumCard: {
-    flex: 1,
-    minHeight: 170,
-    backgroundColor: "rgba(8,18,37,0.95)",
-    borderRadius: 26,
-    padding: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(167,243,208,0.22)",
-  },
-
-  podiumCardGold: {
-    borderColor: "#D4AF37",
-    backgroundColor: "rgba(212,175,55,0.12)",
-  },
-
-  podiumBadge: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-
-  podiumRank: {
-    color: "#D4AF37",
-    fontSize: 20,
-    fontWeight: "900",
-  },
-
-  podiumName: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-
-  podiumTitle: {
-    color: "#94A3B8",
+  heroLabel: {
+    color: "#F5C542",
     fontSize: 11,
+    letterSpacing: 2.2,
     fontWeight: "900",
+  },
+
+  heroName: {
+    color: "#FFFFFF",
+    fontSize: 31,
+    fontWeight: "900",
+    marginTop: 7,
     textAlign: "center",
+  },
+
+  memberName: {
+    color: "#81F1D0",
+    fontSize: 15,
+    fontWeight: "800",
     marginTop: 4,
+    maxWidth: "90%",
   },
 
-  podiumScore: {
-    color: "#A7F3D0",
-    fontSize: 13,
+  points: {
+    color: "#FFFFFF",
+    fontSize: 58,
     fontWeight: "900",
-    marginTop: 6,
+    marginTop: 22,
+    width: "100%",
+    textAlign: "center",
   },
 
-  sectionCard: {
-    backgroundColor: "rgba(8,18,37,0.94)",
-    borderRadius: 32,
-    padding: 22,
+  pointsLabel: {
+    color: "#F5C542",
+    fontSize: 11,
+    letterSpacing: 2,
+    fontWeight: "900",
+  },
+
+  progressTrack: {
+    width: "100%",
+    height: 10,
+    backgroundColor: "#29364A",
+    borderRadius: 5,
+    overflow: "hidden",
+    marginTop: 24,
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#F5C542",
+    borderRadius: 5,
+  },
+
+  progressRow: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
+
+  progressText: {
+    color: "#A8B5C9",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  remaining: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 13,
+  },
+
+  statsRow: {
+    flexDirection: "row",
+    marginHorizontal: -6,
+  },
+
+  statCard: {
+    flex: 1,
+    backgroundColor: "#0B1727",
     borderWidth: 1,
-    borderColor: "rgba(167,243,208,0.22)",
-    marginBottom: 24,
+    borderColor: "#263D59",
+    borderRadius: 22,
+    padding: 18,
+    marginHorizontal: 6,
+    marginBottom: 12,
+  },
+
+  statValue: {
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+
+  statLabel: {
+    color: "#91A1B8",
+    fontSize: 10,
+    letterSpacing: 1.2,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+
+  wideCard: {
+    backgroundColor: "#0B1727",
+    borderWidth: 1,
+    borderColor: "#263D59",
+    borderRadius: 22,
+    padding: 19,
+    marginBottom: 18,
+  },
+
+  wideValue: {
+    color: "#81F1D0",
+    fontSize: 28,
+    fontWeight: "900",
+    marginTop: 8,
+  },
+
+  communityCard: {
+    backgroundColor: "#0B1727",
+    borderWidth: 1,
+    borderColor: "#564923",
+    borderRadius: 26,
+    padding: 22,
+    marginBottom: 16,
   },
 
   sectionTitle: {
     color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "900",
-    marginBottom: 18,
-  },
-
-  legendRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(2,6,23,0.62)",
-    borderRadius: 22,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.16)",
-    marginBottom: 12,
-  },
-
-  legendRank: {
-    color: "#D4AF37",
     fontSize: 24,
     fontWeight: "900",
-    width: 54,
+    marginBottom: 9,
   },
 
-  legendInfo: {
-    flex: 1,
-  },
-
-  legendNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-
-  legendName: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    fontWeight: "900",
-  },
-
-  verified: {
-    color: "#020617",
-    backgroundColor: "#A7F3D0",
-    overflow: "hidden",
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 10,
-    fontWeight: "900",
-  },
-
-  legendSub: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 5,
-  },
-
-  legendScore: {
-    color: "#D4AF37",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
-  goldCard: {
-    backgroundColor: "rgba(212,175,55,0.1)",
-    borderRadius: 32,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.38)",
-    marginBottom: 24,
-  },
-
-  goldLabel: {
-    color: "#D4AF37",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 10,
-  },
-
-  championRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(2,6,23,0.72)",
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 12,
-  },
-
-  routeIcon: {
-    fontSize: 30,
-    width: 46,
-  },
-
-  routeInfo: {
-    flex: 1,
-  },
-
-  routeTitle: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-  },
-
-  routeSub: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-
-  routeProgress: {
-    color: "#D4AF37",
-    fontSize: 17,
-    fontWeight: "900",
-  },
-
-  winnerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(2,6,23,0.62)",
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 12,
-  },
-
-  winnerIcon: {
-    fontSize: 30,
-    width: 46,
-  },
-
-  winnerInfo: {
-    flex: 1,
-  },
-
-  winnerName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
-  winnerRoute: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-
-  winnerReward: {
-    color: "#A7F3D0",
-    fontSize: 13,
-    fontWeight: "900",
-    textAlign: "right",
-    maxWidth: 105,
-  },
-
-  stateRow: {
+  statusRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "rgba(2,6,23,0.62)",
-    borderRadius: 22,
-    padding: 16,
-    marginBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#263D59",
+    marginTop: 18,
+    paddingTop: 16,
   },
 
-  stateName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
+  statusLabel: {
+    color: "#C5D0E0",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
-  stateSub: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 4,
-  },
-
-  stateLeader: {
-    color: "#D4AF37",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-
-  rewardCard: {
-    backgroundColor: "rgba(212,175,55,0.12)",
-    borderRadius: 32,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.42)",
-    marginBottom: 24,
-  },
-
-  rewardLabel: {
-    color: "#D4AF37",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 3,
-    marginBottom: 10,
-  },
-
-  rewardTitle: {
-    color: "#FFFFFF",
-    fontSize: 32,
-    fontWeight: "900",
-    lineHeight: 38,
-  },
-
-  rewardText: {
-    color: "#CBD5E1",
-    fontSize: 18,
-    fontWeight: "800",
-    lineHeight: 28,
-    marginTop: 14,
-  },
-
-  rewardGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginTop: 20,
-  },
-
-  rewardItem: {
-    width: "47.8%",
-    backgroundColor: "rgba(2,6,23,0.72)",
-    borderRadius: 20,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-
-  rewardIcon: {
-    fontSize: 30,
-    marginBottom: 8,
-  },
-
-  rewardItemText: {
-    color: "#FFFFFF",
+  statusValue: {
+    color: "#F5C542",
     fontSize: 14,
     fontWeight: "900",
-    textAlign: "center",
   },
 
-  fairPlayCard: {
-    backgroundColor: "rgba(167,243,208,0.1)",
-    borderRadius: 32,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(167,243,208,0.35)",
-    marginBottom: 40,
+  refreshButton: {
+    backgroundColor: "#F5C542",
+    borderRadius: 18,
+    alignItems: "center",
+    paddingVertical: 17,
   },
 
-  fairPlayTitle: {
-    color: "#A7F3D0",
-    fontSize: 28,
+  refreshButtonDisabled: {
+    opacity: 0.65,
+  },
+
+  refreshText: {
+    color: "#06101D",
+    fontSize: 16,
     fontWeight: "900",
-    marginBottom: 12,
-  },
-
-  fairPlayText: {
-    color: "#CBD5E1",
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 26,
   },
 });

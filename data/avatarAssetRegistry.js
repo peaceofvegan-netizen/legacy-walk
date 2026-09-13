@@ -813,79 +813,35 @@ function normalizeValue(
 // NORMALIZE RACE
 // ============================================================
 
-export function normalizeAvatarRace(
-  value
-) {
-  const race =
-    normalizeValue(
-      value
-    );
+export function normalizeAvatarRace(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
 
+  const aliases = {
+    asian: "asian",
 
-  if (!race) {
-    return "";
-  }
+    black: "black",
+    african: "black",
+    "african american": "black",
+    "african-american": "black",
 
+    white: "caucasian",
+    caucasian: "caucasian",
 
-  if (
-    race.includes(
-      "asian"
-    )
-  ) {
-    return "asian";
-  }
+    hispanic: "hispanic",
+    spanish: "hispanic",
+    latino: "hispanic",
+    latina: "hispanic",
+  };
 
-
-  if (
-    race.includes(
-      "black"
-    ) ||
-    race.includes(
-      "african"
-    )
-  ) {
-    return "black";
-  }
-
-
-  if (
-    race.includes(
-      "white"
-    ) ||
-    race.includes(
-      "caucasian"
-    )
-  ) {
-    return "caucasian";
-  }
-
-
-  if (
-    race.includes(
-      "hispanic"
-    ) ||
-    race.includes(
-      "spanish"
-    ) ||
-    race.includes(
-      "latino"
-    ) ||
-    race.includes(
-      "latina"
-    )
-  ) {
-    return "hispanic";
-  }
-
-
-  return race;
+  return Object.prototype.hasOwnProperty.call(
+    aliases,
+    normalized
+  )
+    ? aliases[normalized]
+    : normalized;
 }
-
-
-// ============================================================
-// NORMALIZE GENDER
-// ============================================================
-
 export function normalizeAvatarGender(
   value
 ) {

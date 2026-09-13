@@ -94,11 +94,11 @@ export default function PersonalizationSummaryScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.small}>YOUR LEGACY PROFILE</Text>
+      <Text style={styles.small}>YOUR LEGATHON PROFILE</Text>
       <Text style={styles.title}>Personalized For You</Text>
 
       <Text style={styles.subtitle}>
-        Legacy Walk will recommend journeys based on your interests, goals, and
+        Legathon Walk will recommend journeys based on your interests, goals, and
         challenge level.
       </Text>
 
@@ -155,7 +155,7 @@ export default function PersonalizationSummaryScreen({
       </View>
 
       <TouchableOpacity style={styles.continueButton} onPress={handleStartLegacy}>
-        <Text style={styles.continueText}>Start My Legacy</Text>
+        <Text style={styles.continueText}>Start My Legathon</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.editButton} onPress={editPreferences}>

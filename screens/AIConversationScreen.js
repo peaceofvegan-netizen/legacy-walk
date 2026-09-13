@@ -1217,7 +1217,7 @@ const scrollToBottom = () => {
                 <Text
                   style={styles.coachName}
                 >
-                  Legacy AI Coach
+                  LegathonF AI Coach
                 </Text>
 
                 <Text

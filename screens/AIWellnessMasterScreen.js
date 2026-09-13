@@ -15,7 +15,7 @@ import {
   StyleSheet,
   Animated,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+
 import { AppState } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -252,7 +252,7 @@ const runAction = useCallback(
         getFirstStoredValue([
           "userProfile",
           "profile",
-          "legacyWalkProfile",
+          "legathonWalkProfile",
         ]),
 
         getFirstStoredValue([
@@ -340,7 +340,7 @@ const hydrationGoal = Math.max(
 
 const steps = Math.max(
   0,
-  Number(stepsValue) || 0
+  Number(savedTodaySteps) || 0
 );
 
       const stepGoal = Math.max(
@@ -468,7 +468,7 @@ const steps = Math.max(
         recovery,
         sleepHours,
 
-        hydration,
+        hydration: hydrationAmount,
         hydrationGoal,
 
         calories,
@@ -481,6 +481,7 @@ const steps = Math.max(
 
         journey: journeyTitle,
         journeyFull,
+        activeJourney: journey,
         journeyProgress,
         checkpoint,
 
@@ -819,7 +820,7 @@ const handleStartWalk = async () => {
 
   <Text style={styles.heroText}>
     Ready to coach your next walk, recovery, meals, hydration, and
-    Legacy Journey.
+    Legathon Journey.
   </Text>
 
   <View style={styles.orbWrap}>
@@ -1414,7 +1415,7 @@ function AIInsightCard({ title, message, confidence, trend, action, onPress }) {
       <View style={styles.insightHeader}>
         <View style={styles.aiBadge}>
           <Ionicons name="sparkles" size={18} color="#F7C948" />
-          <Text style={styles.aiBadgeText}>LEGACY AI</Text>
+          <Text style={styles.aiBadgeText}>LEGATHON AI</Text>
         </View>
 
         <View style={styles.confidenceBox}>
@@ -1478,7 +1479,7 @@ function ElitePreviewCard({ subscription, onUpgrade, onLearnMore }) {
     {
       icon: "map",
       title: "Journey Narrator",
-      description: "Historical storytelling during every Legacy Journey.",
+      description: "Historical storytelling during every Legathon Journey.",
     },
     {
       icon: "restaurant",

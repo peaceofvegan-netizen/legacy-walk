@@ -69,19 +69,40 @@ export async function processRewards(rewards = []) {
 async function unlockTrackSuit(id) {
   if (!id) return;
 
-  const stored =
-    JSON.parse(await AsyncStorage.getItem(KEYS.TRACKSUITS)) || [];
+  const saved =
+    await AsyncStorage.getItem(
+      KEYS.TRACKSUITS
+    );
+
+  let stored = [];
+
+  try {
+    stored = saved
+      ? JSON.parse(saved)
+      : [];
+  } catch {
+    stored = [];
+  }
+
+  if (!Array.isArray(stored)) {
+    stored = [];
+  }
 
   if (!stored.includes(id)) {
     stored.push(id);
+
     await AsyncStorage.setItem(
       KEYS.TRACKSUITS,
       JSON.stringify(stored)
     );
   }
 
-  await AsyncStorage.setItem("equippedTracksuit", id);
+  // Do not automatically equip the tracksuit.
+  // The user must select an unlocked suit
+  // from the Avatar Center.
 }
+
+ 
 
 async function unlockBadge(id) {
   if (!id) return;
