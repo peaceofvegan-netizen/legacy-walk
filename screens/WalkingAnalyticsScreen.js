@@ -30,7 +30,7 @@ const STEPS_PER_MILE = 2000;
 const CALORIES_PER_STEP = 0.04;
 
 const STORAGE_KEYS = {
-  WEEK: "weeklyStepData",
+  WEEK: "legathonWeeklyStepDataV2",
   JOURNEYS: "journeyProgressData",
   STREAK: "currentStreak",
   TODAY: "todaySteps",
@@ -122,27 +122,54 @@ function getCurrentDayIndex() {
     : day - 1;
 }
 
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getCurrentWeekId() {
+  const date = new Date();
+
+  const mondayOffset =
+    (date.getDay() + 6) % 7;
+
+  date.setHours(0, 0, 0, 0);
+
+  date.setDate(
+    date.getDate() - mondayOffset
+  );
+
+  return formatLocalDate(date);
+}
+
 function normalizeWeek(
   value,
   todaySteps
 ) {
+  const currentWeekId =
+    getCurrentWeekId();
+
   const savedWeek =
-    Array.isArray(value)
-      ? value
+    value?.weekId === currentWeekId &&
+    Array.isArray(value?.days)
+      ? value.days
       : [];
 
   const todayIndex =
     getCurrentDayIndex();
 
-  return EMPTY_WEEK.map(
+  const days = EMPTY_WEEK.map(
     (fallback, index) => {
-      const saved =
-        savedWeek[index];
-
-      const savedSteps =
-        safeInteger(
-          saved?.steps
-        );
+      const saved = savedWeek[index];
 
       return {
         day: fallback.day,
@@ -150,18 +177,17 @@ function normalizeWeek(
 
         steps:
           index === todayIndex
-            ? Math.max(
-                savedSteps,
-                safeInteger(
-                  todaySteps
-                )
-              )
-            : savedSteps,
+            ? safeInteger(todaySteps)
+            : safeInteger(saved?.steps),
       };
     }
   );
-}
 
+  return {
+    weekId: currentWeekId,
+    days,
+  };
+}
 function normalizeJourneys(value) {
   const source =
     Array.isArray(value)
@@ -353,18 +379,21 @@ export default function WalkingAnalyticsScreen({
               storedValues
             );
 
-          const resolvedToday =
-            Math.max(
-              safeInteger(
-                stepStats?.todaySteps
-              ),
+         const hasTrackedToday =
+  Number.isFinite(
+    Number(stepStats?.todaySteps)
+  );
 
-              safeInteger(
-                stored[
-                  STORAGE_KEYS.TODAY
-                ]
-              )
-            );
+const resolvedToday =
+  hasTrackedToday
+    ? safeInteger(
+        stepStats.todaySteps
+      )
+    : safeInteger(
+        stored[
+          STORAGE_KEYS.TODAY
+        ]
+      );
 
           const resolvedLifetime =
             Math.max(
@@ -436,12 +465,20 @@ export default function WalkingAnalyticsScreen({
               : DEFAULT_WEEKLY_GOAL
           );
 
-          setWeeklyData(
-            normalizeWeek(
-              savedWeek,
-              resolvedToday
-            )
-          );
+         const normalizedWeek =
+  normalizeWeek(
+    savedWeek,
+    resolvedToday
+  );
+
+setWeeklyData(
+  normalizedWeek.days
+);
+
+await AsyncStorage.setItem(
+  STORAGE_KEYS.WEEK,
+  JSON.stringify(normalizedWeek)
+);
 
           setJourneys(
             normalizeJourneys(
