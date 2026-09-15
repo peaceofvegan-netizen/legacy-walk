@@ -813,13 +813,13 @@ export default function WalkingFunctionScreen({
 
   goBack,
 
-  goHome,
+ 
 
-  goJourneys,
+  
 
-  goRewards,
 
-  goMore,
+
+ 
 }) {
 
 
@@ -2694,117 +2694,9 @@ export default function WalkingFunctionScreen({
       {/* BOTTOM NAV */}
       {/* =============================================== */}
 
-      <View
-        style={
-          styles.bottomNav
-        }
-      >
+   
 
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-
-          onPress={goHome}
-        >
-          <Text
-            style={
-              styles.navIcon
-            }
-          >
-            ⌂
-          </Text>
-
-          <Text
-            style={
-              styles.navText
-            }
-          >
-            Home
-          </Text>
-        </TouchableOpacity>
-
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-
-          onPress={
-            goJourneys
-          }
-        >
-          <Text
-            style={
-              styles.navIcon
-            }
-          >
-            ◈
-          </Text>
-
-          <Text
-            style={
-              styles.navText
-            }
-          >
-            Journeys
-          </Text>
-        </TouchableOpacity>
-
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-
-          onPress={
-            goRewards
-          }
-        >
-          <Text
-            style={
-              styles.navIcon
-            }
-          >
-            W
-          </Text>
-
-          <Text
-            style={
-              styles.navText
-            }
-          >
-            Rewards
-          </Text>
-        </TouchableOpacity>
-
-
-        <TouchableOpacity
-          style={
-            styles.navItem
-          }
-
-          onPress={goMore}
-        >
-          <Text
-            style={
-              styles.navIcon
-            }
-          >
-            •••
-          </Text>
-
-          <Text
-            style={
-              styles.navText
-            }
-          >
-            More
-          </Text>
-        </TouchableOpacity>
-
-      </View>
-
+        
     </SafeAreaView>
   );
 }

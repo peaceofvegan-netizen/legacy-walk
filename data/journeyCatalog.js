@@ -1,7 +1,6 @@
 import routeImages from "./routeImages";
+
 const STEPS_PER_MILE = 2000;
-
-
 
 export const MEMBERSHIP_TYPES = {
   FREE: "free",
@@ -25,6 +24,7 @@ export const LEGACY_RANKS = {
   LEGEND: "Legend",
   ELITE: "Elite",
 };
+
 export const CATEGORY_POINT_BONUSES = {
   "Black Legacy": 150,
   "Civil Rights": 150,
@@ -41,6 +41,7 @@ export const CATEGORY_POINT_BONUSES = {
   "Literary & Heroes": 120,
   "Global Legacy": 500,
 };
+
 export const JOURNEY_CATEGORIES = {
   ALL: "All",
   BLACK_LEGACY: "Black Legacy",
@@ -101,8 +102,10 @@ export function calculateLegacyPoints({
   category = "",
 }) {
   const walkingPoints = Math.round(Number(miles || 0) * 10);
-  const completionPoints = DIFFICULTY_POINTS[difficulty] || 400;
-  const categoryBonus = CATEGORY_POINT_BONUSES[category] || 0;
+  const completionPoints =
+    DIFFICULTY_POINTS[difficulty] || 400;
+  const categoryBonus =
+    CATEGORY_POINT_BONUSES[category] || 0;
 
   return walkingPoints + completionPoints + categoryBonus;
 }
@@ -119,6 +122,7 @@ export function calculateEstimatedTime(miles = 0) {
 
   return "Long-term journey";
 }
+
 const ROUTE_IMAGE_BY_ID = {
   // Ancient Civilizations
   "acropolis-athens": routeImages.acropolis,
@@ -152,7 +156,8 @@ const ROUTE_IMAGE_BY_ID = {
   "ellis-island": routeImages.ellisIsland,
   "gettysburg-battlefield": routeImages.gettysburgBattlefield,
   "lewis-and-clark": routeImages.lewisAndClark,
-  "lewis-clark-national-historic-trail": routeImages.lewisAndClark,
+  "lewis-clark-national-historic-trail":
+    routeImages.lewisAndClark,
   "liberty-trail": routeImages.libertyTrail,
   "oregon-trail": routeImages.oregonTrail,
   "pacific-coast-highway": routeImages.pacificCoastHighway,
@@ -163,7 +168,8 @@ const ROUTE_IMAGE_BY_ID = {
   "akashi-kaikyo-bridge": routeImages.akashiKaikyoBridge,
   "brooklyn-bridge": routeImages.brooklynBridge,
   "chapel-bridge": routeImages.chapelBridge,
-  "danyang-kunshan-grand-bridge": routeImages.danyangKunshanBridge,
+  "danyang-kunshan-grand-bridge":
+    routeImages.danyangKunshanBridge,
   "golden-gate-bridge": routeImages.goldenGateBridge,
   "magdeburg-water-bridge": routeImages.magdeburgWaterBridge,
   "millau-viaduct": routeImages.millauViaduct,
@@ -195,7 +201,8 @@ const ROUTE_IMAGE_BY_ID = {
   "venice-canals": routeImages.veniceCanals,
 
   // Africa and Global Heritage
-  "ghana-cape-coast-castle": routeImages.ghanaCapeCoastCastle,
+  "ghana-cape-coast-castle":
+    routeImages.ghanaCapeCoastCastle,
   "nelson-mandela-freedom-walk":
     routeImages.nelsonMandelaFreedomWalk,
   "silk-road": routeImages.silkRoad,
@@ -205,28 +212,118 @@ const ROUTE_IMAGE_BY_ID = {
   // Global and Awareness
   "around-the-world": routeImages.aroundTheWorld,
   "autism-awareness": routeImages.autismAwareness,
-  "breast-cancer-awareness": routeImages.breastCancerAwareness,
+  "breast-cancer-awareness":
+    routeImages.breastCancerAwareness,
   "cancer-awareness": routeImages.cancerAwareness,
 };
+
+// ============================================================
+// JOURNEY CARD IMAGES
+// ============================================================
+
+const CARD_IMAGE_BY_ID = {
+  "goree-island":
+    require("../assets/journeys/goree.png"),
+
+  "zanzibar-spice-route":
+    require("../assets/journeys/zanzibar.png"),
+
+  "ethiopian-highlands-heritage":
+    require("../assets/journeys/ethiopian.png"),
+
+  "dubai-modern-marvels":
+    require("../assets/journeys/dubai.png"),
+
+  "istanbul-crossroads":
+    require("../assets/journeys/istanbul.png"),
+
+  "london-landmarks":
+    require("../assets/journeys/london.png"),
+
+  "new-york-city":
+    require("../assets/journeys/newyork.png"),
+
+  "paris-landmarks":
+    require("../assets/journeys/paris.png"),
+
+  "rio-de-janeiro":
+    require("../assets/journeys/rio.png"),
+
+  "sydney-harbour":
+    require("../assets/journeys/sydney.png"),
+
+  "heart-health":
+    require("../assets/journeys/heartchallenge.png"),
+
+  "mental-health-awareness":
+    require("../assets/journeys/mentalhealth.png"),
+
+  "diabetes-awareness":
+    require("../assets/journeys/diabetes.png"),
+
+  "veterans-honor":
+    require("../assets/journeys/veteran.png"),
+
+  "gandhi-salt-march":
+    require("../assets/journeys/gandhi.png"),
+
+  "maya-angelou-legacy":
+    require("../assets/journeys/mayangelou.png"),
+
+  "malcolm-x-harlem":
+    require("../assets/journeys/malcomx.png"),
+
+  "martin-luther-king-memorial":
+    require("../assets/journeys/mlk.png"),
+
+  "maori-cultural-trail":
+    require("../assets/journeys/maori.png"),
+
+  "aboriginal-heritage-walk":
+    require("../assets/journeys/aboriginal.png"),
+
+  "trans-siberian-trek":
+    require("../assets/journeys/trans.png"),
+
+  "global-legacy-journey":
+    require("../assets/journeys/globallegacy.png"),
+};
+
 function createJourney(config) {
+  const journeyId = String(config.id || "");
   const miles = Number(config.miles || 0);
-  const difficulty = config.difficulty || DIFFICULTY.EASY;
-  const category = config.category || "Legacy Journey";
+  const difficulty =
+    config.difficulty || DIFFICULTY.EASY;
+  const category =
+    config.category || "Legacy Journey";
+
+  const cardImage =
+    config.image ||
+    CARD_IMAGE_BY_ID[journeyId] ||
+    null;
+
+  const routeImage =
+    config.routeImage ||
+    ROUTE_IMAGE_BY_ID[journeyId] ||
+    cardImage ||
+    null;
 
   return {
     ...config,
-routeImage:
-  config.routeImage ||
-  ROUTE_IMAGE_BY_ID[config.id] ||
-  null,
+    id: journeyId,
+    image: cardImage,
+    routeImage,
     miles,
     steps: calculateJourneySteps(miles),
 
     difficulty,
-    rank: config.rank || DIFFICULTY_RANK[difficulty],
+    rank:
+      config.rank ||
+      DIFFICULTY_RANK[difficulty],
 
     estimatedTime:
-      config.estimatedTime || calculateEstimatedTime(miles),
+      config.estimatedTime ||
+      calculateEstimatedTime(miles),
 
     rewardPoints:
       config.rewardPoints ||
@@ -242,19 +339,31 @@ routeImage:
       DIFFICULTY_XP.Easy,
 
     freeWCoins:
-      config.freeWCoins ?? calculatePremiumWCoins(miles),
+      config.freeWCoins ??
+      calculatePremiumWCoins(miles),
 
     premiumWCoins:
-      config.premiumWCoins ?? calculatePremiumWCoins(miles),
+      config.premiumWCoins ??
+      calculatePremiumWCoins(miles),
 
     eliteWCoins:
-      config.eliteWCoins ?? calculateEliteWCoins(miles),
+      config.eliteWCoins ??
+      calculateEliteWCoins(miles),
 
-    passportStamp: config.passportStamp ?? true,
-    journeyBadge: config.journeyBadge ?? true,
-    certificate: config.certificate ?? true,
-    checkpoints: config.checkpoints || 5,
-    premium: config.premium ?? false,
+    passportStamp:
+      config.passportStamp ?? true,
+
+    journeyBadge:
+      config.journeyBadge ?? true,
+
+    certificate:
+      config.certificate ?? true,
+
+    checkpoints:
+      config.checkpoints || 5,
+
+    premium:
+      config.premium ?? false,
   };
 }
 
@@ -356,8 +465,8 @@ const rawJourneys = [
     title: "Nile Civilization",
     subtitle:
       "Follow the river that sustained one of the world’s greatest civilizations.",
-    category: "Ancient Civilizations",
-    country: "Egypt",
+
+          country: "Egypt",
     location: "Nile Valley, Egypt",
     image: require("../assets/journeys/nile.png"),
     miles: 30,
@@ -403,10 +512,7 @@ const rawJourneys = [
     difficulty: DIFFICULTY.MODERATE,
   }),
 
-
-
-
- createJourney({
+  createJourney({
     id: "bodh-gaya",
     title: "Bodh Gaya",
     subtitle:
@@ -552,7 +658,7 @@ const rawJourneys = [
     difficulty: DIFFICULTY.EASY,
   }),
 
-    createJourney({
+  createJourney({
     id: "alamo-walk",
     title: "Alamo Walk",
     subtitle:
@@ -700,7 +806,7 @@ const rawJourneys = [
     difficulty: DIFFICULTY.ADVANCED,
   }),
 
-   createJourney({
+  createJourney({
     id: "akashi-kaikyo-bridge",
     title: "Akashi Kaikyō Bridge",
     subtitle:
@@ -757,7 +863,8 @@ const rawJourneys = [
     id: "golden-gate-bridge",
     title: "Golden Gate Bridge",
     subtitle:
-      "Walk across San Francisco’s legendary bridge and explore its architecture, history, and global influence.",
+
+          "Walk across San Francisco’s legendary bridge and explore its architecture, history, and global influence.",
     category: "Bridges & Engineering",
     country: "United States",
     location: "San Francisco, California",
@@ -805,7 +912,7 @@ const rawJourneys = [
     difficulty: DIFFICULTY.EASY,
   }),
 
-    createJourney({
+  createJourney({
     id: "amazon-rainforest",
     title: "Amazon Rainforest",
     subtitle:
@@ -977,8 +1084,6 @@ const rawJourneys = [
     difficulty: DIFFICULTY.MODERATE,
   }),
 
-   
-
   createJourney({
     id: "cape-coast-castle",
     title: "Cape Coast Castle",
@@ -1000,7 +1105,6 @@ const rawJourneys = [
     category: "African Heritage",
     country: "Senegal",
     location: "Dakar, Senegal",
-    
     miles: 8,
     difficulty: DIFFICULTY.EASY,
   }),
@@ -1052,7 +1156,6 @@ const rawJourneys = [
     category: "African Heritage",
     country: "Tanzania",
     location: "Zanzibar, Tanzania",
-   
     miles: 15,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1065,7 +1168,6 @@ const rawJourneys = [
     category: "African Heritage",
     country: "Ethiopia",
     location: "Ethiopian Highlands",
-  
     miles: 40,
     difficulty: DIFFICULTY.EXPERT,
   }),
@@ -1078,7 +1180,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "United Arab Emirates",
     location: "Dubai, UAE",
-    
     miles: 12,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1091,7 +1192,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "Turkey",
     location: "Istanbul, Turkey",
-    
     miles: 15,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1117,7 +1217,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "United Kingdom",
     location: "London, England",
-    
     miles: 10,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1130,7 +1229,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "United States",
     location: "New York City, New York",
-    
     miles: 20,
     difficulty: DIFFICULTY.ADVANCED,
   }),
@@ -1143,7 +1241,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "France",
     location: "Paris, France",
-    
     miles: 12,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1156,8 +1253,7 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "Brazil",
     location: "Rio de Janeiro, Brazil",
-    
-    miles: 18,
+        miles: 18,
     difficulty: DIFFICULTY.ADVANCED,
   }),
 
@@ -1195,7 +1291,6 @@ const rawJourneys = [
     category: "Cities & Cultural Heritage",
     country: "Australia",
     location: "Sydney, Australia",
-    
     miles: 12,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1225,96 +1320,92 @@ const rawJourneys = [
     miles: 10,
     difficulty: DIFFICULTY.MODERATE,
   }),
+
   createJourney({
-  id: "autism-awareness",
-  title: "Autism Awareness",
-  subtitle:
-    "Walk to promote autism acceptance, inclusion, and support for individuals and families worldwide.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
-  image: require("../assets/journeys/autism.png"),
-  miles: 12,
-  difficulty: DIFFICULTY.MODERATE,
-}),
+    id: "autism-awareness",
+    title: "Autism Awareness",
+    subtitle:
+      "Walk to promote autism acceptance, inclusion, and support for individuals and families worldwide.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    image: require("../assets/journeys/autism.png"),
+    miles: 12,
+    difficulty: DIFFICULTY.MODERATE,
+  }),
 
-createJourney({
-  id: "breast-cancer-awareness",
-  title: "Breast Cancer Awareness",
-  subtitle:
-    "Honor survivors, remember loved ones, and help raise awareness for early detection and research.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
-  image: require("../assets/journeys/breastcancer.png"),
-  miles: 15,
-  difficulty: DIFFICULTY.MODERATE,
-}),
+  createJourney({
+    id: "breast-cancer-awareness",
+    title: "Breast Cancer Awareness",
+    subtitle:
+      "Honor survivors, remember loved ones, and help raise awareness for early detection and research.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    image: require("../assets/journeys/breastcancer.png"),
+    miles: 15,
+    difficulty: DIFFICULTY.MODERATE,
+  }),
 
-createJourney({
-  id: "heart-health",
-  title: "Heart Health Challenge",
-  subtitle:
-    "Improve cardiovascular health while supporting heart disease awareness and prevention.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
-  
-  miles: 20,
-  difficulty: DIFFICULTY.ADVANCED,
-}),
+  createJourney({
+    id: "heart-health",
+    title: "Heart Health Challenge",
+    subtitle:
+      "Improve cardiovascular health while supporting heart disease awareness and prevention.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    miles: 20,
+    difficulty: DIFFICULTY.ADVANCED,
+  }),
 
-createJourney({
-  id: "mental-health-awareness",
-  title: "Mental Health Awareness",
-  subtitle:
-    "Walk to encourage emotional wellness, resilience, and open conversations about mental health.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
-  
-  miles: 15,
-  difficulty: DIFFICULTY.MODERATE,
-}),
+  createJourney({
+    id: "mental-health-awareness",
+    title: "Mental Health Awareness",
+    subtitle:
+      "Walk to encourage emotional wellness, resilience, and open conversations about mental health.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    miles: 15,
+    difficulty: DIFFICULTY.MODERATE,
+  }),
 
-createJourney({
-  id: "diabetes-awareness",
-  title: "Diabetes Awareness",
-  subtitle:
-    "Support healthy living while promoting diabetes education, prevention, and community awareness.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
+  createJourney({
+    id: "diabetes-awareness",
+    title: "Diabetes Awareness",
+    subtitle:
+      "Support healthy living while promoting diabetes education, prevention, and community awareness.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    miles: 18,
+    difficulty: DIFFICULTY.ADVANCED,
+  }),
 
-  miles: 18,
-  difficulty: DIFFICULTY.ADVANCED,
-}),
+  createJourney({
+    id: "veterans-honor",
+    title: "Veterans Honor Walk",
+    subtitle:
+      "Honor military veterans through a journey recognizing service, sacrifice, and national pride.",
+    category: "Awareness Journeys",
+    country: "United States",
+    location: "United States",
+    miles: 20,
+    difficulty: DIFFICULTY.ADVANCED,
+  }),
 
-createJourney({
-  id: "veterans-honor",
-  title: "Veterans Honor Walk",
-  subtitle:
-    "Honor military veterans through a journey recognizing service, sacrifice, and national pride.",
-  category: "Awareness Journeys",
-  country: "United States",
-  location: "United States",
-  
-  miles: 20,
-  difficulty: DIFFICULTY.ADVANCED,
-}),
-
-createJourney({
-  id: "world-peace",
-  title: "World Peace Walk",
-  subtitle:
-    "Celebrate unity, compassion, and cooperation through a global community walking experience.",
-  category: "Awareness Journeys",
-  country: "Global",
-  location: "Worldwide",
-  
-  miles: 25,
-  difficulty: DIFFICULTY.ADVANCED,
-}),
+  createJourney({
+    id: "world-peace",
+    title: "World Peace Walk",
+    subtitle:
+      "Celebrate unity, compassion, and cooperation through a global community walking experience.",
+    category: "Awareness Journeys",
+    country: "Global",
+    location: "Worldwide",
+    miles: 25,
+    difficulty: DIFFICULTY.ADVANCED,
+  }),
 
   createJourney({
     id: "gandhi-salt-march",
@@ -1324,7 +1415,6 @@ createJourney({
     category: "Historic Cultures",
     country: "India",
     location: "Ahmedabad to Dandi, India",
-    
     miles: 25,
     difficulty: DIFFICULTY.ADVANCED,
   }),
@@ -1337,7 +1427,6 @@ createJourney({
     category: "Historic Cultures",
     country: "United States",
     location: "United States",
-    
     miles: 12,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1350,7 +1439,6 @@ createJourney({
     category: "Historic Cultures",
     country: "United States",
     location: "Harlem, New York",
-   
     miles: 10,
     difficulty: DIFFICULTY.MODERATE,
   }),
@@ -1363,7 +1451,6 @@ createJourney({
     category: "Historic Cultures",
     country: "United States",
     location: "Washington, D.C.",
-    
     miles: 8,
     difficulty: DIFFICULTY.EASY,
   }),
@@ -1389,7 +1476,8 @@ createJourney({
     category: "Historic Cultures",
     country: "United States",
     location: "United States",
-    image: require("../assets/journeys/undergroundrailroad.png"),
+    image:
+      require("../assets/journeys/undergroundrailroad.png"),
     miles: 30,
     difficulty: DIFFICULTY.ADVANCED,
   }),
@@ -1415,7 +1503,6 @@ createJourney({
     category: "Historic Cultures",
     country: "New Zealand",
     location: "New Zealand",
-    
     miles: 18,
     difficulty: DIFFICULTY.ADVANCED,
   }),
@@ -1428,7 +1515,6 @@ createJourney({
     category: "Historic Cultures",
     country: "Australia",
     location: "Australia",
-    
     miles: 18,
     difficulty: DIFFICULTY.ADVANCED,
   }),
@@ -1455,7 +1541,6 @@ createJourney({
     category: "Global Journey",
     country: "Russia",
     location: "Russia",
-    
     miles: 100,
     difficulty: DIFFICULTY.LEGENDARY,
     premium: true,
@@ -1469,14 +1554,12 @@ createJourney({
     category: "Global Journey",
     country: "Global",
     location: "Worldwide",
-    
     miles: 150,
     difficulty: DIFFICULTY.LEGENDARY,
     premium: true,
     estimatedTime: "6–12 months",
   }),
 ];
-
 
 export const JOURNEY_CATALOG = rawJourneys;
 

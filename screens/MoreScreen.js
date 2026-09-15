@@ -1,4 +1,5 @@
 import React from "react";
+
 import {
   View,
   Text,
@@ -19,35 +20,23 @@ export default function MoreScreen({
   goToProfile,
   goToAvatarProfile,
   goToPassport,
-  goToCertificates,
 
- goToWalkingAnalytics,
-goToWalkingFunction,
+  goToWalkingAnalytics,
+  goToWalkingFunction,
+  goToJourneyPreferences,
 
-  
   goToAICoach,
-  goToGPSJourneyMap,
-  goToJourneyStory,
   goToLegathons,
 
   goToCommunity,
   goToLeaderboard,
   goToHallOfLegends,
-  goToDailyChallenges,
 
   goToPhysicalStore,
-
-  
   goToWCoinWallet,
   goToSubscription,
 
-  goToBreathing,
-  goToBreathingAnalytics,
- goToJourneyPreferences,
-  goToLanguage,
   goToSettings,
-  goToPrivacy,
-  goToAbout,
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -56,7 +45,9 @@ goToWalkingFunction,
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.kicker}>LEGATHON WALK</Text>
+        <Text style={styles.kicker}>
+          LEGATHON WALK
+        </Text>
 
         <Text style={styles.title}>
           {translate(language, "more")}
@@ -64,102 +55,230 @@ goToWalkingFunction,
 
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>
-            {translate(language, "YOUR LEGATHON HUB")}
+            YOUR LEGATHON HUB
           </Text>
 
           <Text style={styles.heroText}>
-            Access your profile, walking tools, community, marketplace,
-            wellness features, and app settings.
+            Access your profile, walking tools,
+            community, marketplace, wellness
+            features, and app settings.
           </Text>
         </View>
 
-        <Section title={translate(language, "legathon Identity")}>
-          <MenuItem icon="👤" title={translate(language, "profile")} onPress={goToProfile} />
-          <MenuItem icon="🧍" title={translate(language, "avatarProfile")} onPress={goToAvatarProfile} />
-          <MenuItem icon="🛂" title={translate(language, "passport")} onPress={goToPassport} />
-      
+        <Section
+          title="LEGATHON IDENTITY"
+        >
+          <MenuItem
+            icon="👤"
+            title={translate(
+              language,
+              "profile"
+            )}
+            onPress={goToProfile}
+          />
+
+          <MenuItem
+            icon="🧍"
+            title={translate(
+              language,
+              "avatarProfile"
+            )}
+            onPress={goToAvatarProfile}
+          />
+
+          <MenuItem
+            icon="🛂"
+            title={translate(
+              language,
+              "passport"
+            )}
+            onPress={goToPassport}
+          />
         </Section>
 
-  <Section title={translate(language, "walkTools")}>
+        <Section
+          title={translate(
+            language,
+            "walkTools"
+          )}
+        >
+          <MenuItem
+            icon="📊"
+            title={translate(
+              language,
+              "walkingAnalytics"
+            )}
+            onPress={goToWalkingAnalytics}
+          />
 
-  <MenuItem
-    icon="📊"
-    title={translate(language, "walkingAnalytics")}
-    onPress={goToWalkingAnalytics}
-  />
+          <MenuItem
+            icon="🚶"
+            title="Walking Pace & Function"
+            onPress={goToWalkingFunction}
+          />
 
-  <MenuItem
-    icon="🚶"
-    title="Walking Pace & Function"
-    onPress={goToWalkingFunction}
-  />
+          <MenuItem
+            icon="⚙️"
+            title="Journey Preferences"
+            onPress={
+              goToJourneyPreferences
+            }
+          />
 
-  <MenuItem
-    icon="⚙️"
-    title="Journey Preferences"
-    onPress={goToJourneyPreferences}
-  />
+          <MenuItem
+            icon="🧠"
+            title={translate(
+              language,
+              "aiCoach"
+            )}
+            onPress={goToAICoach}
+          />
 
-          <MenuItem icon="🧠" title={translate(language, "aiCoach")} onPress={goToAICoach} />
-          <MenuItem icon="🗺️" title={translate(language, "gpsJourneyMap")} onPress={goToGPSJourneyMap} />
-          <MenuItem icon="📖" title={translate(language, "journeyStory")} onPress={goToJourneyStory} />
-          <MenuItem icon="🏃" title={translate(language, "legathons")} onPress={goToLegathons} />
+          <MenuItem
+            icon="🏃"
+            title={translate(
+              language,
+              "legathons"
+            )}
+            onPress={goToLegathons}
+          />
         </Section>
 
-        <Section title={translate(language, "community")}>
-          <MenuItem icon="👥" title={translate(language, "community")} onPress={goToCommunity} />
-          <MenuItem icon="🏆" title={translate(language, "leaderboard")} onPress={goToLeaderboard} />
-          <MenuItem icon="👑" title={translate(language, "hallOfLegends")} onPress={goToHallOfLegends} />
-         
+        <Section
+          title={translate(
+            language,
+            "community"
+          )}
+        >
+          <MenuItem
+            icon="👥"
+            title={translate(
+              language,
+              "community"
+            )}
+            onPress={goToCommunity}
+          />
+
+          <MenuItem
+            icon="🏆"
+            title={translate(
+              language,
+              "leaderboard"
+            )}
+            onPress={goToLeaderboard}
+          />
+
+          <MenuItem
+            icon="👑"
+            title={translate(
+              language,
+              "hallOfLegends"
+            )}
+            onPress={goToHallOfLegends}
+          />
         </Section>
 
-        <Section title={translate(language, "storeWallet")}>
-          <MenuItem icon="🛍️" title={translate(language, "marketplace")} onPress={goToPhysicalStore} />
-          
-          
-          <MenuItem image={WCOIN} title={translate(language, "wCoinWallet")} onPress={goToWCoinWallet} />
-          <MenuItem icon="⭐" title={translate(language, "subscription")} onPress={goToSubscription} />
+        <Section
+          title={translate(
+            language,
+            "storeWallet"
+          )}
+        >
+          <MenuItem
+            icon="🛍️"
+            title={translate(
+              language,
+              "marketplace"
+            )}
+            onPress={goToPhysicalStore}
+          />
+
+          <MenuItem
+            image={WCOIN}
+            title={translate(
+              language,
+              "wCoinWallet"
+            )}
+            onPress={goToWCoinWallet}
+          />
+
+          <MenuItem
+            icon="⭐"
+            title={translate(
+              language,
+              "subscription"
+            )}
+            onPress={goToSubscription}
+          />
         </Section>
 
-        <Section title={translate(language, "wellness")}>
-          <MenuItem icon="🫁" title={translate(language, "breathingExercise")} onPress={goToBreathing} />
-          <MenuItem icon="📈" title={translate(language, "breathingAnalytics")} onPress={goToBreathingAnalytics} />
+        <Section
+          title={translate(
+            language,
+            "app"
+          )}
+        >
+          <MenuItem
+            icon="⚙️"
+            title={translate(
+              language,
+              "settings"
+            )}
+            onPress={goToSettings}
+          />
         </Section>
 
-        <Section title={translate(language, "app")}>
-  <MenuItem
-    icon="⚙️"
-    title={translate(language, "settings")}
-    onPress={goToSettings}
-  />
-</Section>
-
-        <View style={{ height: 130 }} />
+        <View style={styles.bottomSpace} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Section({ title, children }) {
+function Section({
+  title,
+  children,
+}) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={styles.sectionTitle}>
+        {title}
+      </Text>
+
       {children}
     </View>
   );
 }
 
-function MenuItem({ icon, image, title, onPress }) {
+function MenuItem({
+  icon,
+  image,
+  title,
+  onPress,
+}) {
   return (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
       {image ? (
-        <Image source={image} style={styles.menuImage} />
+        <Image
+          source={image}
+          style={styles.menuImage}
+        />
       ) : (
-        <Text style={styles.icon}>{icon}</Text>
+        <Text style={styles.icon}>
+          {icon}
+        </Text>
       )}
 
-      <Text style={styles.menuText}>{title}</Text>
-      <Text style={styles.arrow}>›</Text>
+      <Text style={styles.menuText}>
+        {title}
+      </Text>
+
+      <Text style={styles.arrow}>
+        ›
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -266,5 +385,9 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: "900",
     marginLeft: 12,
+  },
+
+  bottomSpace: {
+    height: 130,
   },
 });

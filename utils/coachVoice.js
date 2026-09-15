@@ -7,6 +7,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "../lib/supabase";
 
 let activePlayer = null;
+let activeStatusSubscription = null;
+let playbackGeneration = 0;
+
 const audioCache = new Map();
 
 function cleanText(text) {
@@ -17,33 +20,57 @@ function cleanText(text) {
     .trim();
 }
 
-export function stopCoachVoice() {
-  if (!activePlayer) return;
+function releaseActivePlayer() {
+  if (activeStatusSubscription) {
+    activeStatusSubscription.remove();
+    activeStatusSubscription = null;
+  }
+
+  if (!activePlayer) {
+    return;
+  }
 
   try {
     activePlayer.pause();
     activePlayer.release();
   } catch (error) {
-    console.log(
-      "Coach voice stop error:",
-      error
-    );
+    console.log("Coach voice stop error:", error);
   } finally {
     activePlayer = null;
   }
 }
 
+export function stopCoachVoice() {
+  playbackGeneration += 1;
+  releaseActivePlayer();
+}
+
+export function pauseCoachVoice() {
+  if (!activePlayer) {
+    return false;
+  }
+
+  activePlayer.pause();
+  return true;
+}
+
+export function resumeCoachVoice() {
+  if (!activePlayer) {
+    return false;
+  }
+
+  activePlayer.play();
+  return true;
+}
+
 async function getAudioFile(text) {
-  const cachedFile =
-    audioCache.get(text);
+  const cachedFile = audioCache.get(text);
 
   if (cachedFile) {
-    const info =
-      await FileSystem.getInfoAsync(
-        cachedFile
-      );
+    const fileInformation =
+      await FileSystem.getInfoAsync(cachedFile);
 
-    if (info.exists) {
+    if (fileInformation.exists) {
       return cachedFile;
     }
 
@@ -93,27 +120,88 @@ async function getAudioFile(text) {
 }
 
 export async function speakCoachVoice(
-  text
+  text,
+  options = {}
 ) {
   const naturalText = cleanText(text);
 
-  if (!naturalText) return;
+  if (!naturalText) {
+    return null;
+  }
 
   stopCoachVoice();
 
+  const currentGeneration =
+    playbackGeneration;
+
   await setAudioModeAsync({
     playsInSilentMode: true,
+    interruptionMode: "doNotMix",
   });
 
   const fileUri =
     await getAudioFile(naturalText);
 
+  if (
+    currentGeneration !== playbackGeneration
+  ) {
+    return null;
+  }
+
   const player =
     createAudioPlayer(fileUri);
 
-  player.volume = 1;
+ player.volume = 1;
 
   activePlayer = player;
 
+  activeStatusSubscription =
+    player.addListener(
+      "playbackStatusUpdate",
+      (status) => {
+        if (activePlayer !== player) {
+          return;
+        }
+
+        if (
+          typeof options.onStatus ===
+          "function"
+        ) {
+          options.onStatus(status);
+        }
+
+        if (status?.error) {
+          const playbackError =
+            new Error(status.error);
+
+          releaseActivePlayer();
+
+          if (
+            typeof options.onError ===
+            "function"
+          ) {
+            options.onError(
+              playbackError
+            );
+          }
+
+          return;
+        }
+
+        if (status?.didJustFinish) {
+          releaseActivePlayer();
+
+          if (
+            typeof options.onDone ===
+            "function"
+          ) {
+            options.onDone();
+          }
+        }
+      }
+    );
+
   player.play();
+
+  return player;
 }

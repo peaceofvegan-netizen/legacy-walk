@@ -54,13 +54,13 @@ const PASSPORT_IMAGES = {
     require("../assets/passports/rome.png"),
 
   wall:
-    require("../assets/passports/greatwall.png"),
+    require("../assets/passports/greatwallofchina.png"),
 
   tubman:
     require("../assets/passports/tubman.png"),
 
   mecca:
-    require("../assets/passports/mecca.png"),
+    require("../assets/passports/meccaroute.png"),
 
   tokyo:
     require("../assets/passports/tokyo.png"),

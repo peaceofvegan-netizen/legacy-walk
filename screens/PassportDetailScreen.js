@@ -11,9 +11,9 @@ import {
 
 const passportImages = {
   rome: require("../assets/passports/rome.png"),
-  wall: require("../assets/passports/greatwall.png"),
+  wall: require("../assets/passports/greatwallofchina.png"),
   tubman: require("../assets/passports/tubman.png"),
-  mecca: require("../assets/passports/mecca.png"),
+  mecca: require("../assets/passports/meccaroute.png"),
   tokyo: require("../assets/passports/tokyo.png"),
   trans: require("../assets/passports/trans.png"),
 };
