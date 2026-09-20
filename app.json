@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Legacy Walk",
-    "slug": "legacy-walk",
+    "name": "Legathon Walk",
+    "slug": "legathonwalk",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "legacywalk",
+    "scheme": "legathonwalk",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.legacywalk",
+      "bundleIdentifier": "net.legathonwalk.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Legacy Walk uses location to track walking journeys and route progress.",
-        "NSMotionUsageDescription": "Legacy Walk uses motion activity to count steps and track wellness progress.",
+        "NSLocationWhenInUseUsageDescription": "Legathon Walk uses location to track walking journeys and route progress.",
+        "NSMotionUsageDescription": "Legathon Walk uses motion activity to count steps and track wellness progress.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.yourcompany.legacywalk",
+      "package": "net.legathonwalk.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACTIVITY_RECOGNITION"
