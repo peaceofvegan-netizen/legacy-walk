@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Audio } from "expo-av";
+import { useState } from "react";
+import { useAudioPlayer } from "expo-audio";
 
 const SOUND_FILES = {
   Rain: require("../assets/sounds/rain.mp3"),
@@ -9,28 +9,35 @@ const SOUND_FILES = {
 };
 
 export function useAmbientAudio() {
-  const soundRef = useRef(null);
+  const player = useAudioPlayer(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMode, setCurrentMode] = useState(null);
 
   async function playSound(mode) {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
+      const source = SOUND_FILES[mode];
+
+      if (!source) {
+        console.log("Unknown ambient audio mode:", mode);
+        return;
       }
 
-      const { sound } = await Audio.Sound.createAsync(
-        SOUND_FILES[mode],
-        {
-          shouldPlay: true,
-          isLooping: true,
-          volume: 0.65,
-        }
-      );
+      player.pause();
 
-      soundRef.current = sound;
+      try {
+        await player.seekTo(0);
+      } catch (error) {
+        // Ignore seek errors when no previous source is loaded.
+      }
+
+      player.replace(source);
+
+      player.loop = true;
+      player.volume = 0.65;
+
+      player.play();
+
       setCurrentMode(mode);
       setIsPlaying(true);
     } catch (error) {
@@ -40,10 +47,12 @@ export function useAmbientAudio() {
 
   async function stopSound() {
     try {
-      if (soundRef.current) {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
+      player.pause();
+
+      try {
+        await player.seekTo(0);
+      } catch (error) {
+        // Ignore if the player has not loaded a source yet.
       }
 
       setIsPlaying(false);
@@ -60,14 +69,6 @@ export function useAmbientAudio() {
       await playSound(mode);
     }
   }
-
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
 
   return {
     isPlaying,

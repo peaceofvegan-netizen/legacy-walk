@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "scheme": "legathonwalk",
     "userInterfaceStyle": "dark",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.legathonwalk.app",
@@ -16,7 +15,6 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-
     "android": {
       "package": "net.legathonwalk.app",
       "permissions": [
@@ -24,17 +22,16 @@
         "ACTIVITY_RECOGNITION"
       ]
     },
-
     "extra": {
       "eas": {
         "projectId": "90ab6971-beb3-493e-90fc-b4fa5d093077"
       }
     },
-
     "plugins": [
       "expo-sharing",
       "expo-notifications",
-      "expo-video"
+      "expo-video",
+      "expo-audio"
     ]
   }
 }
