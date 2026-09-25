@@ -56,7 +56,7 @@ import PersonalizationSummaryScreen from "./screens/PersonalizationSummaryScreen
 
 import SubscriptionCheckoutScreen from "./screens/SubscriptionCheckoutScreen";
 import SubscriptionScreen from "./screens/SubscriptionScreen";
-
+import {restoreRevenueCatPurchases,} from "./services/revenuecat";
 import MealPlannerScreen from "./screens/MealPlannerScreen";
 import HallOfLegendsScreen from "./screens/HallOfLegendsScreen";
 import CertificateScreen from "./screens/CertificateScreen";
@@ -1022,24 +1022,53 @@ export default function App() {
       />
 
     ) : activeTab ===
-      "subscription" ? (
-      <SubscriptionScreen
-        language={language}
-        subscriptionPlan={
-          subscriptionPlan
-        }
-        setSubscriptionPlan={
-          setSubscriptionPlan
-        }
-        goBack={goMore}
-        goToPaywall={(plan) => {
-          setSelectedPlan(plan);
+  "subscription" ? (
 
-          setActiveTab(
-            "subscriptionCheckout"
-          );
-        }}
-      />
+  <SubscriptionScreen
+
+    language={
+      language
+    }
+
+    subscriptionPlan={
+      subscriptionPlan
+    }
+
+    setSubscriptionPlan={
+      setSubscriptionPlan
+    }
+
+    goBack={
+      goMore
+    }
+
+    goToPaywall={(
+      plan
+    ) => {
+
+      setSelectedPlan(
+        plan
+      );
+
+      setActiveTab(
+        "subscriptionCheckout"
+      );
+    }}
+
+    onRestorePurchases={
+      restoreRevenueCatPurchases
+    }
+
+    goToPrivacyPolicy={
+      () =>
+        setActiveTab(
+          "privacyPolicy"
+        )
+    }
+
+  />
+
+
 
     ) : activeTab ===
       "hallOfLegends" ? (

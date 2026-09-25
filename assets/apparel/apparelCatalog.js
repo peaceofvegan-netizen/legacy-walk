@@ -1,206 +1,36 @@
 // assets/apparel/apparelCatalog.js
 
 // ============================================================
-// LEGATHON WALK — APPAREL CATALOG
+// LEGATHON WALK — IN-APP MERCHANDISE CATALOG
+// ============================================================
+//
+// IN-APP STORE:
+//
+// • Hoodies
+// • T-Shirts
+// • Accessories
+//
+// Larger merchandise collections can remain on the website.
+//
+// ============================================================
+
+
+// ============================================================
+// STORE CATEGORIES
 // ============================================================
 
 export const APPAREL_CATEGORIES = [
-  "Mens",
-  "Womens",
-  "Accessories",
   "Hoodies",
   "T-Shirts",
-  "Joggers",
-  "Shorts",
-  "Tanks",
-  "Compression Shirts",
-  "Compression Pants",
-  "Biker Shorts",
-  "Sports Bras",
-  "Skirts",
-  "Track Jackets",
-  "Tracksuits",
-  "Bags",
+  "Accessories",
 ];
 
 
 // ============================================================
-// APPAREL CATALOG
+// MERCHANDISE CATALOG
 // ============================================================
 
 export const APPAREL_CATALOG = [
-
-  // ==========================================================
-  // ACCESSORIES
-  // ==========================================================
-
-  {
-    id: "dufflebag-black",
-
-    name: "Legathon Black Duffle Bag",
-
-    category: "Accessories",
-
-    productType: "Bags",
-
-    gender: "Unisex",
-
-    collection: "Legathon",
-
-    price: 69.99,
-
-    coins: 1200,
-
-    colors: [
-      "Black",
-    ],
-
-    sizes: [
-      "One Size",
-    ],
-
-    image: require(
-      "./accessories/dufflebag_black.png"
-    ),
-
-    imagesByColor: {
-      Black: require(
-        "./accessories/dufflebag_black.png"
-      ),
-    },
-
-    purchaseType:
-      "buy_redeem",
-
-    unlockSteps: 0,
-  },
-
-
-  {
-    id: "dufflebag-pink",
-
-    name: "Legathon Pink Duffle Bag",
-
-    category: "Accessories",
-
-    productType: "Bags",
-
-    gender: "Unisex",
-
-    collection: "Legathon",
-
-    price: 69.99,
-
-    coins: 1200,
-
-    colors: [
-      "Pink",
-    ],
-
-    sizes: [
-      "One Size",
-    ],
-
-    image: require(
-      "./accessories/dufflebag_pink.png"
-    ),
-
-    imagesByColor: {
-      Pink: require(
-        "./accessories/dufflebag_pink.png"
-      ),
-    },
-
-    purchaseType:
-      "buy_redeem",
-
-    unlockSteps: 0,
-  },
-
-
-  {
-    id: "fanny-black",
-
-    name: "Legathon Black Fanny Pack",
-
-    category: "Accessories",
-
-    productType: "Bags",
-
-    gender: "Unisex",
-
-    collection: "Legathon",
-
-    price: 39.99,
-
-    coins: 700,
-
-    colors: [
-      "Black",
-    ],
-
-    sizes: [
-      "One Size",
-    ],
-
-    image: require(
-      "./accessories/fanny_black.png"
-    ),
-
-    imagesByColor: {
-      Black: require(
-        "./accessories/fanny_black.png"
-      ),
-    },
-
-    purchaseType:
-      "buy_redeem",
-
-    unlockSteps: 0,
-  },
-
-
-  {
-    id: "fanny-pink",
-
-    name: "Legathon Pink Fanny Pack",
-
-    category: "Accessories",
-
-    productType: "Bags",
-
-    gender: "Unisex",
-
-    collection: "Legathon",
-
-    price: 39.99,
-
-    coins: 700,
-
-    colors: [
-      "Pink",
-    ],
-
-    sizes: [
-      "One Size",
-    ],
-
-    image: require(
-      "./accessories/fanny_pink.png"
-    ),
-
-    imagesByColor: {
-      Pink: require(
-        "./accessories/fanny_pink.png"
-      ),
-    },
-
-    purchaseType:
-      "buy_redeem",
-
-    unlockSteps: 0,
-  },
-
 
   // ==========================================================
   // MEN'S HOODIE
@@ -211,9 +41,9 @@ export const APPAREL_CATALOG = [
 
     name: "Men's Legathon Hoodie",
 
-    category: "Mens",
+    category: "Hoodies",
 
-    productType: "Hoodies",
+    productType: "Hoodie",
 
     gender: "Men",
 
@@ -224,10 +54,11 @@ export const APPAREL_CATALOG = [
     coins: 900,
 
     colors: [
-      "Black",
+      "Blue",
       "Green",
       "Red",
       "White",
+      "Yellow",
     ],
 
     sizes: [
@@ -238,15 +69,13 @@ export const APPAREL_CATALOG = [
       "2XL",
     ],
 
-    // Default store image
     image: require(
-      "./hoodies/hoodie_black_mens.png"
+      "./hoodies/hoodie_blue_mens.png"
     ),
 
-    // Image changes when color changes
     imagesByColor: {
-      Black: require(
-        "./hoodies/hoodie_black_mens.png"
+      Blue: require(
+        "./hoodies/hoodie_blue_mens.png"
       ),
 
       Green: require(
@@ -260,10 +89,13 @@ export const APPAREL_CATALOG = [
       White: require(
         "./hoodies/hoodie_white_mens.png"
       ),
+
+      Yellow: require(
+        "./hoodies/hoodie_yellow_mens.png"
+      ),
     },
 
-    purchaseType:
-      "buy_redeem",
+    purchaseType: "buy_redeem",
 
     unlockSteps: 0,
   },
@@ -278,9 +110,9 @@ export const APPAREL_CATALOG = [
 
     name: "Women's Legathon Hoodie",
 
-    category: "Womens",
+    category: "Hoodies",
 
-    productType: "Hoodies",
+    productType: "Hoodie",
 
     gender: "Women",
 
@@ -291,7 +123,6 @@ export const APPAREL_CATALOG = [
     coins: 900,
 
     colors: [
-      "Black",
       "Blue",
       "Green",
       "Red",
@@ -306,17 +137,11 @@ export const APPAREL_CATALOG = [
       "XL",
     ],
 
-    // Default store image
     image: require(
-      "./hoodies/hoodie_black_womens.png"
+      "./hoodies/hoodie_blue_womens.png"
     ),
 
-    // Image changes with selected color
     imagesByColor: {
-      Black: require(
-        "./hoodies/hoodie_black_womens.png"
-      ),
-
       Blue: require(
         "./hoodies/hoodie_blue_womens.png"
       ),
@@ -334,8 +159,7 @@ export const APPAREL_CATALOG = [
       ),
     },
 
-    purchaseType:
-      "buy_redeem",
+    purchaseType: "buy_redeem",
 
     unlockSteps: 0,
   },
@@ -346,13 +170,13 @@ export const APPAREL_CATALOG = [
   // ==========================================================
 
   {
-    id: "tshirt-black-mens",
+    id: "tshirt-mens",
 
     name: "Men's Legathon T-Shirt",
 
-    category: "Mens",
+    category: "T-Shirts",
 
-    productType: "T-Shirts",
+    productType: "T-Shirt",
 
     gender: "Men",
 
@@ -364,6 +188,10 @@ export const APPAREL_CATALOG = [
 
     colors: [
       "Black",
+      "Blue",
+      "Green",
+      "Red",
+      "White",
     ],
 
     sizes: [
@@ -382,10 +210,125 @@ export const APPAREL_CATALOG = [
       Black: require(
         "./men tshirts/tshirt_black_mens.png"
       ),
+
+      Blue: require(
+        "./men tshirts/tshirt_blue_mens.png"
+      ),
+
+      Green: require(
+        "./men tshirts/tshirt_green_mens.png"
+      ),
+
+      Red: require(
+        "./men tshirts/tshirt_red_mens.png"
+      ),
+
+      White: require(
+        "./men tshirts/tshirt_white_mens.png"
+      ),
     },
 
-    purchaseType:
-      "buy_redeem",
+    purchaseType: "buy_redeem",
+
+    unlockSteps: 0,
+  },
+
+
+  // ==========================================================
+  // DUFFLE BAG
+  // ==========================================================
+
+  {
+    id: "dufflebag",
+
+    name: "Legathon Duffle Bag",
+
+    category: "Accessories",
+
+    productType: "Duffle Bag",
+
+    gender: "Unisex",
+
+    collection: "Legathon",
+
+    price: 69.99,
+
+    coins: 1200,
+
+    colors: [
+      "Black",
+      "Pink",
+    ],
+
+    sizes: [
+      "One Size",
+    ],
+
+    image: require(
+      "./accessories/duffelbag_black.png"
+    ),
+
+    imagesByColor: {
+      Black: require(
+        "./accessories/duffelbag_black.png"
+      ),
+
+      Pink: require(
+        "./accessories/duffelbag_pink.png"
+      ),
+    },
+
+    purchaseType: "buy_redeem",
+
+    unlockSteps: 0,
+  },
+
+
+  // ==========================================================
+  // FANNY PACK
+  // ==========================================================
+
+  {
+    id: "fanny-pack",
+
+    name: "Legathon Fanny Pack",
+
+    category: "Accessories",
+
+    productType: "Fanny Pack",
+
+    gender: "Unisex",
+
+    collection: "Legathon",
+
+    price: 39.99,
+
+    coins: 700,
+
+    colors: [
+      "Black",
+      "Pink",
+    ],
+
+    sizes: [
+      "One Size",
+    ],
+
+    image: require(
+      "./accessories/fanny_black.png"
+    ),
+
+    imagesByColor: {
+      Black: require(
+        "./accessories/fanny_black.png"
+      ),
+
+      Pink: require(
+        "./accessories/fanny_pink.png"
+      ),
+    },
+
+    purchaseType: "buy_redeem",
 
     unlockSteps: 0,
   },
@@ -409,7 +352,7 @@ export function getApparelItemById(
 
 
 // ============================================================
-// GET MAIN CATEGORY
+// GET PRODUCTS BY CATEGORY
 // ============================================================
 
 export function getApparelByCategory(
@@ -424,7 +367,7 @@ export function getApparelByCategory(
 
 
 // ============================================================
-// GET PRODUCT TYPE
+// GET PRODUCTS BY TYPE
 // ============================================================
 
 export function getApparelByProductType(
@@ -439,23 +382,23 @@ export function getApparelByProductType(
 
 
 // ============================================================
-// MEN'S PRODUCTS
+// HOODIES
 // ============================================================
 
-export function getMensApparel() {
+export function getHoodies() {
   return getApparelByCategory(
-    "Mens"
+    "Hoodies"
   );
 }
 
 
 // ============================================================
-// WOMEN'S PRODUCTS
+// T-SHIRTS
 // ============================================================
 
-export function getWomensApparel() {
+export function getTShirts() {
   return getApparelByCategory(
-    "Womens"
+    "T-Shirts"
   );
 }
 

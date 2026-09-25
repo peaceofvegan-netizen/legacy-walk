@@ -207,17 +207,32 @@ export default function PhysicalMerchStoreScreen({
   // FILTER STORE
   // ==========================================================
 
-  const filteredItems =
-    useMemo(() => {
-      return APPAREL_CATALOG.filter(
-        (item) =>
-          item.category ===
-          activeCategory
-      );
-    }, [
-      activeCategory,
-    ]);
+  const filteredItems = useMemo(() => {
 
+  if (activeCategory === "Mens") {
+    return APPAREL_CATALOG.filter(
+      (item) =>
+        item.gender === "Men"
+    );
+  }
+
+  if (activeCategory === "Womens") {
+    return APPAREL_CATALOG.filter(
+      (item) =>
+        item.gender === "Women"
+    );
+  }
+
+  if (activeCategory === "Accessories") {
+    return APPAREL_CATALOG.filter(
+      (item) =>
+        item.category === "Accessories"
+    );
+  }
+
+  return [];
+
+}, [activeCategory]);
 
   // ==========================================================
   // OPEN PRODUCT
@@ -513,21 +528,13 @@ export default function PhysicalMerchStoreScreen({
         {/* COLLECTION TITLE */}
         {/* ================================================= */}
 
-        <Text
-          style={
-            styles.sectionTitle
-          }
-        >
-          {activeCategory ===
-          "Mens"
-            ? "Men's Collection"
-
-            : activeCategory ===
-              "Womens"
-              ? "Women's Collection"
-
-              : "Accessories"}
-        </Text>
+       <Text style={styles.sectionTitle}>
+  {activeCategory === "Mens"
+    ? "Men's Collection"
+    : activeCategory === "Womens"
+    ? "Women's Collection"
+    : "Accessories"}
+</Text>
 
 
         {/* ================================================= */}
