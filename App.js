@@ -1131,11 +1131,7 @@ export default function App() {
         goToMealPlanner={() =>
           setActiveTab("mealPlanner")
         }
-        goToVoiceCoach={() =>
-          setActiveTab(
-            "aiConversation"
-          )
-        }
+       
         goToAIConversation={() =>
           setActiveTab(
             "aiConversation"
@@ -1292,22 +1288,35 @@ export default function App() {
         }}
       />
 
-    ) : activeTab ===
-      "physicalMerch" ? (
-      <PhysicalMerchStoreScreen
-        language={language}
-        goBack={() =>
-          setActiveTab("wCoinWallet")
-        }
-        openItem={
-          openStoreItemDetail
-        }
-        goToPurchaseConfirmation={
-          goToPurchaseConfirmation
-        }
-        wCoinBalance={wCoinBalance}
-        spendWCoins={spendWCoins}
-      />
+  ) : activeTab ===
+  "physicalMerch" ? (
+  <PhysicalMerchStoreScreen
+    language={language}
+
+    goBack={() =>
+      setActiveTab("wCoinWallet")
+    }
+
+    openItem={
+      openStoreItemDetail
+    }
+
+    goToPurchaseConfirmation={
+      goToPurchaseConfirmation
+    }
+
+    wCoinBalance={
+      wCoinBalance
+    }
+
+    lifetimeSteps={
+      lifetimeSteps
+    }
+
+    spendWCoins={
+      spendWCoins
+    }
+  />
 
     ) : activeTab ===
       "storeItemDetail" ? (
@@ -1324,25 +1333,30 @@ export default function App() {
         }
       />
 
-    ) : activeTab ===
-      "purchaseConfirmation" ? (
-      <PurchaseConfirmationScreen
-        language={language}
-        item={selectedStoreItem}
-        goBack={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
-        }
-        goHome={() =>
-          setActiveTab("home")
-        }
-        goToInventory={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
-        }
-      />
+   ) : activeTab ===
+  "purchaseConfirmation" ? (
+<PurchaseConfirmationScreen
+  language={language}
+  item={selectedStoreItem}
+
+  userPlan={subscriptionPlan}
+  wCoinBalance={wCoinBalance}
+  spendWCoins={spendWCoins}
+
+  goBack={() =>
+    setActiveTab("physicalMerch")
+  }
+
+  goHome={() =>
+    setActiveTab("home")
+  }
+
+  goToInventory={() =>
+    setActiveTab("physicalMerch")
+  }
+/>
+  
+  
           ) : activeTab ===
       "journeyStory" ? (
       <JourneyStoryScreen

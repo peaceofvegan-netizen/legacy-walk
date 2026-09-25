@@ -17,7 +17,7 @@ import {
   Alert,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useWalkingSession } from "../hooks/useWalkingSession";
 
 import { useStepCounter } from "../hooks/useStepCounter";
 
@@ -806,492 +806,48 @@ const createWalkingInsight = ({
 // COMPONENT
 // ============================================================
 
-export default function WalkingFunctionScreen({
+ export default function WalkingFunctionScreen({
   walkHistory = [],
-
-  todaySteps = 0,
-
+  liveSteps = 0,
+  pedometerAvailable = false,
   goBack,
-
- 
-
-  
-
-
-
- 
 }) {
-
-
-  // ==========================================================
-  // LIVE PEDOMETER
-  // ==========================================================
-
   const {
-    steps: liveSteps,
-    miles: liveMiles,
-    isAvailable: pedometerAvailable,
-  } = useStepCounter();
-
-
-  const currentSteps =
-    safeNumber(liveSteps) > 0
-      ? safeNumber(liveSteps)
-      : safeNumber(todaySteps);
-
-
-  // ==========================================================
-  // SESSION STATE
-  // ==========================================================
-
-  const [
     sessionStatus,
-    setSessionStatus,
-  ] = useState("idle");
-
-  // idle | walking | paused
-
-
-  const [
+    sessionSteps,
     sessionSeconds,
-    setSessionSeconds,
-  ] = useState(0);
-
-
-  const [
     savedWalkHistory,
-    setSavedWalkHistory,
-  ] = useState([]);
-
-
-  const [
     historyLoaded,
-    setHistoryLoaded,
-  ] = useState(false);
-
-
-  const sessionStartStepsRef =
-    useRef(0);
-
-
-  const pauseStartStepsRef =
-    useRef(null);
-
-
-  const pausedStepOffsetRef =
-    useRef(0);
-
-
-  // ==========================================================
-  // LOAD HISTORY
-  // ==========================================================
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadHistory =
-      async () => {
-        try {
-          const stored =
-            await AsyncStorage.getItem(
-              WALK_HISTORY_STORAGE_KEY
-            );
-
-          if (!mounted) {
-            return;
-          }
-
-          if (stored) {
-            const parsed =
-              JSON.parse(stored);
-
-            setSavedWalkHistory(
-              Array.isArray(parsed)
-                ? parsed
-                : []
-            );
-          }
-        } catch (error) {
-          console.log(
-            "Walking Function history load error:",
-            error
-          );
-        } finally {
-          if (mounted) {
-            setHistoryLoaded(true);
-          }
-        }
-      };
-
-    loadHistory();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-
-  // ==========================================================
-  // SESSION TIMER
-  // ==========================================================
-
-  useEffect(() => {
-    if (
-      sessionStatus !==
-      "walking"
-    ) {
-      return;
-    }
-
-    const timer =
-      setInterval(() => {
-        setSessionSeconds(
-          (previous) =>
-            previous + 1
-        );
-      }, 1000);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [sessionStatus]);
-
-
-  // ==========================================================
-  // SESSION CALCULATIONS
-  // ==========================================================
-
-  const rawSessionSteps =
-    Math.max(
-      0,
-      currentSteps -
-      sessionStartStepsRef.current
-    );
-
-
-  const sessionSteps =
-    sessionStatus === "idle"
-      ? 0
-      : Math.max(
-          0,
-          rawSessionSteps -
-          pausedStepOffsetRef.current
-        );
-
+    sessionNotice,
+    startWalkingSession,
+    pauseWalkingSession,
+    resumeWalkingSession,
+    finishWalkingSession,
+  } = useWalkingSession(
+    liveSteps,
+    pedometerAvailable
+  );
 
   const sessionMiles =
-    sessionSteps /
-    STEPS_PER_MILE;
-
+    sessionSteps / STEPS_PER_MILE;
 
   const sessionMinutes =
     sessionSeconds / 60;
 
+  const livePace = calculatePace(
+    sessionMiles,
+    sessionMinutes
+  );
 
-  const livePace =
-    calculatePace(
-      sessionMiles,
-      sessionMinutes
-    );
-
-
-  const liveSpeed =
-    calculateSpeed(
-      sessionMiles,
-      sessionMinutes
-    );
-
+  const liveSpeed = calculateSpeed(
+    sessionMiles,
+    sessionMinutes
+  );
 
   const liveCadence =
     sessionMinutes > 0
-      ? sessionSteps /
-        sessionMinutes
+      ? sessionSteps / sessionMinutes
       : 0;
-
-
-  // ==========================================================
-  // START
-  // ==========================================================
-
-  const startWalkingSession =
-    () => {
-      sessionStartStepsRef.current =
-        currentSteps;
-
-      pausedStepOffsetRef.current =
-        0;
-
-      pauseStartStepsRef.current =
-        null;
-
-      setSessionSeconds(0);
-
-      setSessionStatus(
-        "walking"
-      );
-    };
-
-
-  // ==========================================================
-  // PAUSE
-  // ==========================================================
-
-  const pauseWalkingSession =
-    () => {
-      if (
-        sessionStatus !==
-        "walking"
-      ) {
-        return;
-      }
-
-      pauseStartStepsRef.current =
-        currentSteps;
-
-      setSessionStatus(
-        "paused"
-      );
-    };
-
-
-  // ==========================================================
-  // RESUME
-  // ==========================================================
-
-  const resumeWalkingSession =
-    () => {
-      if (
-        sessionStatus !==
-        "paused"
-      ) {
-        return;
-      }
-
-      if (
-        pauseStartStepsRef.current !==
-        null
-      ) {
-        const stepsWhilePaused =
-          Math.max(
-            0,
-            currentSteps -
-            pauseStartStepsRef.current
-          );
-
-        pausedStepOffsetRef.current +=
-          stepsWhilePaused;
-      }
-
-      pauseStartStepsRef.current =
-        null;
-
-      setSessionStatus(
-        "walking"
-      );
-    };
-
-
-  // ==========================================================
-  // RESET SESSION
-  // ==========================================================
-
-  const resetSession =
-    () => {
-      setSessionStatus(
-        "idle"
-      );
-
-      setSessionSeconds(0);
-
-      sessionStartStepsRef.current =
-        currentSteps;
-
-      pauseStartStepsRef.current =
-        null;
-
-      pausedStepOffsetRef.current =
-        0;
-    };
-
-
-  // ==========================================================
-  // FINISH + SAVE
-  // ==========================================================
-
-  const finishWalkingSession =
-    async () => {
-      if (
-        sessionStatus ===
-        "idle"
-      ) {
-        return;
-      }
-
-
-      let finalSessionSteps =
-        sessionSteps;
-
-
-      // If finishing while paused,
-      // exclude steps accumulated during pause.
-
-      if (
-        sessionStatus ===
-          "paused" &&
-        pauseStartStepsRef.current !==
-          null
-      ) {
-        const stepsDuringPause =
-          Math.max(
-            0,
-            currentSteps -
-            pauseStartStepsRef.current
-          );
-
-        finalSessionSteps =
-          Math.max(
-            0,
-            sessionSteps -
-            stepsDuringPause
-          );
-      }
-
-
-      const finalMiles =
-        finalSessionSteps /
-        STEPS_PER_MILE;
-
-
-      const finalMinutes =
-        sessionSeconds / 60;
-
-
-      if (
-        finalSessionSteps <
-          MIN_SAVE_STEPS ||
-        finalMiles <= 0 ||
-        finalMinutes <= 0
-      ) {
-        Alert.alert(
-          "Walk Too Short",
-          "Walk at least 100 steps before saving a Walking Function session."
-        );
-
-        return;
-      }
-
-
-      const finalPace =
-        calculatePace(
-          finalMiles,
-          finalMinutes
-        );
-
-
-      const finalSpeed =
-        calculateSpeed(
-          finalMiles,
-          finalMinutes
-        );
-
-
-      const finalCadence =
-        finalMinutes > 0
-          ? finalSessionSteps /
-            finalMinutes
-          : 0;
-
-
-      const completedWalk = {
-        id:
-          `walk_${Date.now()}`,
-
-        date:
-          new Date().toISOString(),
-
-        steps:
-          Math.round(
-            finalSessionSteps
-          ),
-
-        distanceMiles:
-          Number(
-            finalMiles.toFixed(
-              3
-            )
-          ),
-
-        durationMinutes:
-          Number(
-            finalMinutes.toFixed(
-              2
-            )
-          ),
-
-        pace:
-          Number(
-            finalPace.toFixed(
-              2
-            )
-          ),
-
-        speedMph:
-          Number(
-            finalSpeed.toFixed(
-              2
-            )
-          ),
-
-        cadence:
-          Math.round(
-            finalCadence
-          ),
-      };
-
-
-      try {
-        const updatedHistory = [
-          completedWalk,
-          ...savedWalkHistory,
-        ].slice(
-          0,
-          MAX_HISTORY_RECORDS
-        );
-
-
-        await AsyncStorage.setItem(
-          WALK_HISTORY_STORAGE_KEY,
-          JSON.stringify(
-            updatedHistory
-          )
-        );
-
-
-        setSavedWalkHistory(
-          updatedHistory
-        );
-
-
-        Alert.alert(
-          "Walk Saved",
-          "Your Walking Function session has been added to your personal pace history."
-        );
-
-
-        resetSession();
-
-      } catch (error) {
-        console.log(
-          "Walking Function save error:",
-          error
-        );
-
-        Alert.alert(
-          "Unable to Save",
-          "Legathon could not save this walking session."
-        );
-      }
-    };
 
 
   // ==========================================================
@@ -1719,7 +1275,11 @@ export default function WalkingFunctionScreen({
           consistency, endurance and
           walking trends over time.
         </Text>
-
+           <View style={styles.noticeCard}>
+  <Text style={styles.noticeText}>
+    {sessionNotice}
+  </Text>
+</View>
 
         {/* DEVICE STATUS */}
 

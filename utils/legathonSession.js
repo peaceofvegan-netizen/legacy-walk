@@ -1,7 +1,4 @@
-// utils/legathonSession.js
-
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   getActiveMarathon,
@@ -15,85 +12,54 @@ import {
   syncTodaySteps,
 } from "./stepTrackingEngine";
 
-// ============================================================
-// STORAGE
-// ============================================================
-
 const LEGATHON_SESSION_KEY =
   "LEGATHON_ACTIVE_SESSION_V1";
 
-// ============================================================
-// HELPERS
-// ============================================================
-
 const safeNumber = value => {
-  const parsed =
-    Number(value ?? 0);
+  const parsed = Number(value ?? 0);
 
   return Number.isFinite(parsed)
     ? parsed
     : 0;
 };
 
-const nowISO = () =>
-  new Date().toISOString();
+const nowISO = () => new Date().toISOString();
 
 const createEmptySession = () => ({
   active: false,
   marathonId: null,
-
   status: "idle",
-
   startedAt: null,
   resumedAt: null,
   pausedAt: null,
   completedAt: null,
-
   sessionSteps: 0,
-
-  // Journey does not own incoming steps
-  // while this value is true.
   ownsStepRouting: false,
-
   lastUpdated: null,
 });
 
-// ============================================================
-// LOAD SESSION
-// ============================================================
-
 export async function loadLegathonSession() {
   try {
-    const saved =
-      await AsyncStorage.getItem(
-        LEGATHON_SESSION_KEY
-      );
+    const saved = await AsyncStorage.getItem(
+      LEGATHON_SESSION_KEY
+    );
 
     if (!saved) {
       return createEmptySession();
     }
 
-    const parsed =
-      JSON.parse(saved);
+    const parsed = JSON.parse(saved);
 
     return {
       ...createEmptySession(),
       ...parsed,
-
-      active:
-        parsed?.active === true,
-
+      active: parsed?.active === true,
       ownsStepRouting:
-        parsed?.ownsStepRouting ===
-        true,
-
-      sessionSteps:
-        Math.max(
-          0,
-          safeNumber(
-            parsed?.sessionSteps
-          )
-        ),
+        parsed?.ownsStepRouting === true,
+      sessionSteps: Math.max(
+        0,
+        safeNumber(parsed?.sessionSteps)
+      ),
     };
   } catch (error) {
     console.log(
@@ -105,19 +71,11 @@ export async function loadLegathonSession() {
   }
 }
 
-// ============================================================
-// SAVE SESSION
-// ============================================================
-
-export async function saveLegathonSession(
-  session
-) {
+export async function saveLegathonSession(session) {
   const normalized = {
     ...createEmptySession(),
     ...session,
-
-    lastUpdated:
-      nowISO(),
+    lastUpdated: nowISO(),
   };
 
   await AsyncStorage.setItem(
@@ -128,13 +86,8 @@ export async function saveLegathonSession(
   return normalized;
 }
 
-// ============================================================
-// IS LEGATHON CONTROLLING STEPS?
-// ============================================================
-
 export async function isLegathonActive() {
-  const session =
-    await loadLegathonSession();
+  const session = await loadLegathonSession();
 
   return (
     session.active === true &&
@@ -144,27 +97,16 @@ export async function isLegathonActive() {
   );
 }
 
-// ============================================================
-// START LEGATHON
-// ============================================================
-
-export async function startLegathon(
-  marathonId
-) {
+export async function startLegathon(marathonId) {
   try {
     if (!marathonId) {
       return {
         started: false,
-        reason:
-          "invalid-marathon-id",
+        reason: "invalid-marathon-id",
       };
     }
 
-    // --------------------------------------------------------
-    // 1. Finish accounting for any physical steps recorded
-    // before Marathon mode begins.
-    // --------------------------------------------------------
-
+    // Account for steps before Marathon mode begins.
     try {
       await syncTodaySteps();
     } catch (syncError) {
@@ -174,95 +116,48 @@ export async function startLegathon(
       );
     }
 
-    // --------------------------------------------------------
-    // 2. Select and activate the requested marathon.
-    // --------------------------------------------------------
-
-    const result =
-      await setActiveMarathon(
-        marathonId
-      );
+    const result = await setActiveMarathon(
+      marathonId
+    );
 
     if (!result?.saved) {
       return {
         started: false,
-
         reason:
-          result?.reason ||
-          "activation-failed",
-
+          result?.reason || "activation-failed",
         result,
       };
     }
 
-    // --------------------------------------------------------
-    // 3. Establish a fresh physical-step baseline.
-    //
-    // Steps recorded before Marathon mode cannot enter the
-    // Marathon.
-    // --------------------------------------------------------
-
+    // The next physical reading establishes a fresh baseline.
     await resetStepRouterBaseline();
-
-    // --------------------------------------------------------
-    // 4. Give Marathon mode exclusive ownership of all new
-    // physical steps.
-    // --------------------------------------------------------
-
     await activateMarathonTracking();
 
-    const now =
-      nowISO();
+    const now = nowISO();
 
-    const session =
-      await saveLegathonSession({
-        active: true,
-
-        marathonId,
-
-        status: "active",
-
-        startedAt:
-          result?.progress
-            ?.startedAt ||
-          now,
-
-        resumedAt:
-          now,
-
-        pausedAt:
-          null,
-
-        completedAt:
-          null,
-
-        sessionSteps:
-          safeNumber(
-            result?.progress?.steps
-          ),
-
-        ownsStepRouting:
-          true,
-      });
+    const session = await saveLegathonSession({
+      active: true,
+      marathonId,
+      status: "active",
+      startedAt:
+        result?.progress?.startedAt || now,
+      resumedAt: now,
+      pausedAt: null,
+      completedAt: null,
+      sessionSteps: safeNumber(
+        result?.progress?.steps
+      ),
+      ownsStepRouting: true,
+    });
 
     return {
       started: true,
-
-      marathon:
-        result?.marathon ||
-        null,
-
-      progress:
-        result?.progress ||
-        null,
-
+      marathon: result?.marathon || null,
+      progress: result?.progress || null,
       session,
     };
   } catch (error) {
-    console.log(
-      "Start Legathon error:",
-      error
-    );
+    console.log("Start Legathon error:", error);
 
     return {
       started: false,
@@ -272,10 +167,6 @@ export async function startLegathon(
   }
 }
 
-// ============================================================
-// RESUME EXISTING LEGATHON
-// ============================================================
-
 export async function resumeLegathon() {
   try {
     const activeMarathon =
@@ -284,22 +175,17 @@ export async function resumeLegathon() {
     const marathonId =
       activeMarathon?.marathonId ??
       activeMarathon?.id ??
-      activeMarathon
-        ?.marathon?.id;
+      activeMarathon?.marathon?.id;
 
     if (!marathonId) {
       return {
         resumed: false,
-        reason:
-          "no-active-marathon",
+        reason: "no-active-marathon",
       };
     }
 
-    const previous =
-      await loadLegathonSession();
+    const previous = await loadLegathonSession();
 
-    // Account for physical steps accumulated while Marathon
-    // mode was paused and Journey mode owned the router.
     try {
       await syncTodaySteps();
     } catch (syncError) {
@@ -309,40 +195,25 @@ export async function resumeLegathon() {
       );
     }
 
-    // Ignore all earlier phone steps when Marathon mode resumes.
     await resetStepRouterBaseline();
-
     await activateMarathonTracking();
 
-    const session =
-      await saveLegathonSession({
-        ...previous,
-
-        active: true,
-
-        marathonId,
-
-        status: "active",
-
-        resumedAt:
-          nowISO(),
-
-        pausedAt:
-          null,
-
-        ownsStepRouting:
-          true,
-      });
+    const session = await saveLegathonSession({
+      ...previous,
+      active: true,
+      marathonId,
+      status: "active",
+      resumedAt: nowISO(),
+      pausedAt: null,
+      ownsStepRouting: true,
+    });
 
     return {
       resumed: true,
       session,
     };
   } catch (error) {
-    console.log(
-      "Resume Legathon error:",
-      error
-    );
+    console.log("Resume Legathon error:", error);
 
     return {
       resumed: false,
@@ -352,24 +223,17 @@ export async function resumeLegathon() {
   }
 }
 
-// ============================================================
-// PAUSE LEGATHON
-// ============================================================
-
 export async function pauseLegathon() {
   try {
-    const current =
-      await loadLegathonSession();
+    const current = await loadLegathonSession();
 
     if (!current.active) {
       return {
         paused: false,
-        reason:
-          "no-active-session",
+        reason: "no-active-session",
       };
     }
 
-    // Capture any new Marathon steps before ownership changes.
     try {
       await syncTodaySteps();
     } catch (syncError) {
@@ -379,24 +243,15 @@ export async function pauseLegathon() {
       );
     }
 
-    const session =
-      await saveLegathonSession({
-        ...current,
+    const session = await saveLegathonSession({
+      ...current,
+      active: false,
+      status: "paused",
+      pausedAt: nowISO(),
+      ownsStepRouting: false,
+    });
 
-        active: false,
-
-        status: "paused",
-
-        pausedAt:
-          nowISO(),
-
-        ownsStepRouting:
-          false,
-      });
-
-    // Journey begins with a clean physical-step baseline.
     await resetStepRouterBaseline();
-
     await activateJourneyTracking();
 
     return {
@@ -404,10 +259,7 @@ export async function pauseLegathon() {
       session,
     };
   } catch (error) {
-    console.log(
-      "Pause Legathon error:",
-      error
-    );
+    console.log("Pause Legathon error:", error);
 
     return {
       paused: false,
@@ -417,51 +269,32 @@ export async function pauseLegathon() {
   }
 }
 
-// ============================================================
-// COMPLETE LEGATHON SESSION
-// ============================================================
-
 export async function completeLegathonSession(
   marathonId
 ) {
   try {
-    const current =
-      await loadLegathonSession();
+    const current = await loadLegathonSession();
 
     if (
       marathonId &&
       current.marathonId &&
-      marathonId !==
-        current.marathonId
+      marathonId !== current.marathonId
     ) {
       return {
         completed: false,
-        reason:
-          "marathon-id-mismatch",
+        reason: "marathon-id-mismatch",
       };
     }
 
-    const now =
-      nowISO();
+    const session = await saveLegathonSession({
+      ...current,
+      active: false,
+      status: "completed",
+      completedAt: nowISO(),
+      ownsStepRouting: false,
+    });
 
-    const session =
-      await saveLegathonSession({
-        ...current,
-
-        active: false,
-
-        status: "completed",
-
-        completedAt:
-          now,
-
-        ownsStepRouting:
-          false,
-      });
-
-    // Marathon steps cannot leak into Journey progress.
     await resetStepRouterBaseline();
-
     await activateJourneyTracking();
 
     return {
@@ -482,16 +315,10 @@ export async function completeLegathonSession(
   }
 }
 
-// ============================================================
-// EXIT ACTIVE LEGATHON
-// ============================================================
-
 export async function exitLegathon() {
   try {
-    const current =
-      await loadLegathonSession();
+    const current = await loadLegathonSession();
 
-    // Capture the final Marathon delta before exiting.
     if (
       current.active === true &&
       current.status === "active"
@@ -506,24 +333,15 @@ export async function exitLegathon() {
       }
     }
 
-    const session =
-      await saveLegathonSession({
-        ...current,
+    const session = await saveLegathonSession({
+      ...current,
+      active: false,
+      status: "idle",
+      pausedAt: null,
+      ownsStepRouting: false,
+    });
 
-        active: false,
-
-        status: "idle",
-
-        pausedAt:
-          null,
-
-        ownsStepRouting:
-          false,
-      });
-
-    // Journey restarts from a clean sensor boundary.
     await resetStepRouterBaseline();
-
     await activateJourneyTracking();
 
     return {
@@ -531,10 +349,7 @@ export async function exitLegathon() {
       session,
     };
   } catch (error) {
-    console.log(
-      "Exit Legathon error:",
-      error
-    );
+    console.log("Exit Legathon error:", error);
 
     return {
       exited: false,
@@ -544,10 +359,6 @@ export async function exitLegathon() {
   }
 }
 
-// ============================================================
-// CLEAR SESSION
-// ============================================================
-
 export async function clearLegathonSession() {
   try {
     await AsyncStorage.removeItem(
@@ -555,7 +366,6 @@ export async function clearLegathonSession() {
     );
 
     await resetStepRouterBaseline();
-
     await activateJourneyTracking();
 
     return createEmptySession();

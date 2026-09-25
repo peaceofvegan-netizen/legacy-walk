@@ -130,7 +130,7 @@ export default function AIWellnessMasterScreen({
   goToNotifications,
   goToSubscription,
   goToAIConversation,
-  goToVoiceCoach,
+  
  
   goToHydration,
   goToRecovery,
@@ -696,12 +696,13 @@ const handleNotifications = () => {
   );
 };
 
-const handleVoiceCoach = () => {
+const handleTextCoach = () => {
   runAction(
-    goToVoiceCoach || goToAIConversation,
+    goToAIConversation,
     "aiConversation"
   );
 };
+
 const handleHydration = () => {
   runAction(
     goToHydration,
@@ -905,23 +906,28 @@ const handleStartWalk = async () => {
       "Your AI coach is ready to help with your next wellness goal."}
   </Text>
 
- <TouchableOpacity
-  style={styles.voiceButton}
+<TouchableOpacity
+  style={styles.textCoachButton}
   activeOpacity={0.85}
-  onPress={handleVoiceCoach}
+  onPress={handleTextCoach}
 >
-    <Ionicons name="mic" size={26} color="#020611" />
+  <Ionicons
+    name="chatbubble-ellipses"
+    size={26}
+    color="#020611"
+  />
 
-    <Text style={styles.voiceButtonText}>
-      Talk to Your Coach
-    </Text>
+  <Text style={styles.textCoachButtonText}>
+    Message Your Coach
+  </Text>
 
-    <Ionicons
-      name="arrow-forward"
-      size={21}
-      color="#020611"
-    />
-  </TouchableOpacity>
+  <Ionicons
+    name="arrow-forward"
+    size={21}
+    color="#020611"
+  />
+</TouchableOpacity>
+  
 
   
   <View style={styles.heroActions}>
@@ -1749,7 +1755,7 @@ aiStatusMessage: {
   maxWidth: 340,
 },
 
-voiceButton: {
+textCoachButton: {
   width: "100%",
   minHeight: 58,
   borderRadius: 29,
@@ -1761,7 +1767,7 @@ voiceButton: {
   justifyContent: "center",
 },
 
-voiceButtonText: {
+textCoachButtonText: {
   color: "#020611",
   fontSize: 16,
   fontWeight: "900",

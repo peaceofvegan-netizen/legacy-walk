@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import {
   View,
   Text,
@@ -6,12 +7,15 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  AppState,
   StyleSheet,
 } from "react-native";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Pedometer } from "expo-sensors";
+import { STEP_STATS_KEY } from "../utils/stepTrackingEngine";
 import Svg, { Circle } from "react-native-svg";
 
+import useJourneyProgress from "../hooks/useJourneyProgress";
 import useLegathonPoints from "../hooks/useLegathonPoints";
 import { avatarOptions } from "../data/avatarOptions";
 import { getCurrentAvatarVisual } from "../utils/avatarVisualResolver";
@@ -28,12 +32,7 @@ const DAILY_CALORIE_GOAL = 500;
 const LIFETIME_GOAL = 3000000;
 
 const STORAGE_KEYS = {
-  trackingDate: "legathonTrackingDate",
-  baseline: "legathonStepBaseline",
-  todaySteps: "todaySteps",
-  lifetimeSteps: "lifetimeSteps",
   avatarProfile: "avatarProfile",
-  activeJourney: "activeJourney",
 };
 
 function formatNumber(value) {
@@ -127,6 +126,8 @@ export default function WalkingDashboardScreen({
   goToLegathons,
 }) {
   const [todaySteps, setTodaySteps] = useState(0);
+  const [stepError, setStepError] = useState("");
+  const [stepsLoaded, setStepsLoaded] = useState(false);
   const [lifetimeSteps, setLifetimeSteps] = useState(0);
 
   const [userAvatar, setUserAvatar] = useState(
@@ -137,316 +138,177 @@ export default function WalkingDashboardScreen({
     "Legathon Walker"
   );
 
-  const [activeJourney, setActiveJourney] = useState(null);
+  const journeyDisplay = useJourneyProgress();
+  const activeJourney = journeyDisplay.activeJourney;
+  const collectionPercent = journeyDisplay.collectionPercent;
 
   const {
     points: legathonPoints,
     rank: legathonRank,
   } = useLegathonPoints();
 
+  // Display only: journey/marathon tracking owns all step writes.
+  // Never create a second baseline or add the phone total here.
   useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  useEffect(() => {
-    let subscription = null;
     let mounted = true;
+    let loading = false;
+    let foreground =
+      AppState.currentState !== "background" &&
+      AppState.currentState !== "inactive";
 
-    async function startPedometer() {
+    async function refresh() {
+      if (!mounted || !foreground || loading) return;
+
+      loading = true;
+
       try {
-        const available = await Pedometer.isAvailableAsync();
-
-        if (!available || !mounted) {
-          return;
-        }
-
-        const today = new Date().toDateString();
-        const startOfDay = new Date();
-
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const initialResult =
-          await Pedometer.getStepCountAsync(
-            startOfDay,
-            new Date()
-          );
-
-        const phoneStepsNow = Number(
-          initialResult?.steps || 0
+        const values = Object.fromEntries(
+          await AsyncStorage.multiGet([
+            STEP_STATS_KEY,
+            STORAGE_KEYS.avatarProfile,
+          ])
         );
 
-        let trackingDate = await AsyncStorage.getItem(
-          STORAGE_KEYS.trackingDate
-        );
+        if (!mounted) return;
 
-        let baseline = Number(
-          (await AsyncStorage.getItem(
-            STORAGE_KEYS.baseline
-          )) || 0
-        );
+        try {
+          const raw = values[STEP_STATS_KEY];
 
-        let savedToday = Number(
-          (await AsyncStorage.getItem(
-            STORAGE_KEYS.todaySteps
-          )) || 0
-        );
+          if (!raw) {
+            throw new Error(
+              "Open a journey or marathon to initialize tracking."
+            );
+          }
 
-        let savedLifetime = Number(
-          (await AsyncStorage.getItem(
-            STORAGE_KEYS.lifetimeSteps
-          )) || 0
-        );
+          const stats = JSON.parse(raw);
 
-        // First-time Legathon tracking setup.
-        // The phone's existing steps become the baseline.
-        if (!trackingDate) {
-          trackingDate = today;
-          baseline = phoneStepsNow;
-          savedToday = 0;
-          savedLifetime = 0;
+          if (
+            !stats ||
+            typeof stats !== "object" ||
+            Array.isArray(stats)
+          ) {
+            throw new Error(
+              "Saved step totals could not be read."
+            );
+          }
 
-          await AsyncStorage.multiSet([
-            [STORAGE_KEYS.trackingDate, today],
-            [STORAGE_KEYS.baseline, String(phoneStepsNow)],
-            [STORAGE_KEYS.todaySteps, "0"],
-            [STORAGE_KEYS.lifetimeSteps, "0"],
-          ]);
-        }
+          const readCount = value => {
+            const number = Number(value ?? 0);
 
-        // Reset daily steps at midnight.
-        // Lifetime steps continue accumulating.
-        if (trackingDate !== today) {
-          trackingDate = today;
-          baseline = phoneStepsNow;
-          savedToday = 0;
-
-          await AsyncStorage.multiSet([
-            [STORAGE_KEYS.trackingDate, today],
-            [STORAGE_KEYS.baseline, String(phoneStepsNow)],
-            [STORAGE_KEYS.todaySteps, "0"],
-          ]);
-        }
-
-        if (mounted) {
-          setTodaySteps(savedToday);
-          setLifetimeSteps(savedLifetime);
-        }
-
-        subscription = Pedometer.watchStepCount(
-          async () => {
-            try {
-              const currentDate =
-                new Date().toDateString();
-
-              const currentStartOfDay = new Date();
-              currentStartOfDay.setHours(0, 0, 0, 0);
-
-              const currentResult =
-                await Pedometer.getStepCountAsync(
-                  currentStartOfDay,
-                  new Date()
-                );
-
-              const currentPhoneSteps = Number(
-                currentResult?.steps || 0
-              );
-
-              let storedDate =
-                await AsyncStorage.getItem(
-                  STORAGE_KEYS.trackingDate
-                );
-
-              let storedBaseline = Number(
-                (await AsyncStorage.getItem(
-                  STORAGE_KEYS.baseline
-                )) || 0
-              );
-
-              let previousToday = Number(
-                (await AsyncStorage.getItem(
-                  STORAGE_KEYS.todaySteps
-                )) || 0
-              );
-
-              const currentLifetime = Number(
-                (await AsyncStorage.getItem(
-                  STORAGE_KEYS.lifetimeSteps
-                )) || 0
-              );
-
-              // Handle midnight while the app is open.
-              if (storedDate !== currentDate) {
-                storedDate = currentDate;
-                storedBaseline = currentPhoneSteps;
-                previousToday = 0;
-
-                await AsyncStorage.multiSet([
-                  [
-                    STORAGE_KEYS.trackingDate,
-                    currentDate,
-                  ],
-                  [
-                    STORAGE_KEYS.baseline,
-                    String(currentPhoneSteps),
-                  ],
-                  [STORAGE_KEYS.todaySteps, "0"],
-                ]);
-
-                if (mounted) {
-                  setTodaySteps(0);
-                }
-
-                return;
-              }
-
-              const updatedToday = Math.max(
-                currentPhoneSteps - storedBaseline,
-                0
-              );
-
-              const newSteps = Math.max(
-                updatedToday - previousToday,
-                0
-              );
-
-              if (newSteps <= 0) {
-                return;
-              }
-
-              const updatedLifetime =
-                currentLifetime + newSteps;
-
-              await AsyncStorage.multiSet([
-                [
-                  STORAGE_KEYS.todaySteps,
-                  String(updatedToday),
-                ],
-                [
-                  STORAGE_KEYS.lifetimeSteps,
-                  String(updatedLifetime),
-                ],
-              ]);
-
-              if (mounted) {
-                setTodaySteps(updatedToday);
-                setLifetimeSteps(updatedLifetime);
-              }
-            } catch (error) {
-              console.log(
-                "Live step update error:",
-                error
+            if (!Number.isFinite(number) || number < 0) {
+              throw new Error(
+                "Saved step totals are invalid."
               );
             }
+
+            return Math.floor(number);
+          };
+
+          const now = new Date();
+
+          const day =
+            `${now.getFullYear()}-` +
+            `${String(now.getMonth() + 1).padStart(2, "0")}-` +
+            `${String(now.getDate()).padStart(2, "0")}`;
+
+          const today =
+            stats.dateKey === day
+              ? readCount(stats.todaySteps)
+              : 0;
+
+          const journeyLifetime = readCount(
+            stats.journeyLifetimeSteps ??
+            stats.lifetimeSteps ??
+            stats.totalSteps
+          );
+
+          const marathonLifetime = readCount(
+            stats.marathonLifetimeSteps
+          );
+
+          setTodaySteps(today);
+          setLifetimeSteps(journeyLifetime + marathonLifetime);
+          setStepsLoaded(true);
+          setStepError("");
+        } catch (error) {
+          setStepError(
+            error.message || "Unable to refresh steps."
+          );
+        }
+
+        try {
+          const savedProfile = values[STORAGE_KEYS.avatarProfile];
+
+          if (savedProfile) {
+            const profile = JSON.parse(savedProfile);
+
+            setAvatarName(
+              profile?.name || "Legathon Walker"
+            );
+
+            const avatar = avatarOptions.find(
+              item => item.id === profile?.avatarId
+            );
+
+            if (avatar) {
+              const visual = await getCurrentAvatarVisual(
+                avatar.id
+              );
+
+              if (mounted) {
+                setUserAvatar(
+                  visual?.image || avatar.image || null
+                );
+              }
+            }
           }
-        );
+        } catch (error) {
+          console.log(
+            "Dashboard profile refresh error:",
+            error
+          );
+        }
       } catch (error) {
-        console.log("Pedometer error:", error);
+        if (mounted) {
+          setStepError(
+            "Unable to read saved steps. Your progress has not been changed."
+          );
+        }
+      } finally {
+        loading = false;
       }
     }
 
-    startPedometer();
+    void refresh();
+
+    const timer = setInterval(() => {
+      void refresh();
+    }, 1500);
+
+    const listener = AppState.addEventListener(
+      "change",
+      state => {
+        foreground = state === "active";
+
+        if (foreground) {
+          void refresh();
+        }
+      }
+    );
 
     return () => {
       mounted = false;
-
-      if (subscription) {
-        subscription.remove();
-      }
+      clearInterval(timer);
+      listener.remove();
     };
   }, []);
 
-  async function loadDashboard() {
-    try {
-      const today = new Date().toDateString();
-
-      const [
-        trackingDate,
-        savedTodayValue,
-        savedLifetimeValue,
-        savedProfile,
-        savedJourney,
-      ] = await AsyncStorage.multiGet([
-        STORAGE_KEYS.trackingDate,
-        STORAGE_KEYS.todaySteps,
-        STORAGE_KEYS.lifetimeSteps,
-        STORAGE_KEYS.avatarProfile,
-        STORAGE_KEYS.activeJourney,
-      ]).then((items) =>
-        items.map((item) => item[1])
-      );
-
-      let savedToday = Number(savedTodayValue || 0);
-      const savedLifetime = Number(
-        savedLifetimeValue || 0
-      );
-
-      if (trackingDate && trackingDate !== today) {
-        savedToday = 0;
-
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.todaySteps,
-          "0"
-        );
-      }
-
-      setTodaySteps(savedToday);
-      setLifetimeSteps(savedLifetime);
-
-      if (savedJourney) {
-        const parsedJourney = JSON.parse(savedJourney);
-
-        const journeyProgress = parsedJourney.completed
-          ? 100
-          : Math.min(
-              Math.max(
-                Number(parsedJourney.progress || 0),
-                0
-              ),
-              100
-            );
-
-        setActiveJourney({
-          ...parsedJourney,
-          progress: journeyProgress,
-        });
-      }
-
-      if (savedProfile) {
-        const profile = JSON.parse(savedProfile);
-
-        setAvatarName(
-          profile?.name || "Legathon Walker"
-        );
-
-        const matchingAvatar = avatarOptions.find(
-          (avatar) =>
-            avatar.id === profile?.avatarId
-        );
-
-        if (matchingAvatar) {
-          const visual =
-            await getCurrentAvatarVisual(
-              matchingAvatar.id
-            );
-
-          setUserAvatar(
-            visual?.image ||
-              matchingAvatar.image ||
-              null
-          );
-        }
-      }
-    } catch (error) {
-      console.log(
-        "Dashboard load error:",
-        error
-      );
-    }
-  }
-
   function openCurrentJourney() {
-    if (typeof goToGPSJourneyMap === "function") {
-      goToGPSJourneyMap();
+    if (
+      activeJourney &&
+      typeof goToGPSJourneyMap === "function"
+    ) {
+      goToGPSJourneyMap(activeJourney);
       return;
     }
 
@@ -457,16 +319,7 @@ export default function WalkingDashboardScreen({
 
   const miles = stepsToMiles(todaySteps);
   const calories = caloriesFromSteps(todaySteps);
-
-  const journeyProgress = activeJourney?.completed
-    ? 100
-    : Math.min(
-        Math.max(
-          Number(activeJourney?.progress || 0),
-          0
-        ),
-        100
-      );
+  const journeyProgress = activeJourney?.progress || 0;
 
   const metrics = [
     {
@@ -501,8 +354,7 @@ export default function WalkingDashboardScreen({
       label: "CALORIES",
       value: formatNumber(calories),
       goal: `${DAILY_CALORIE_GOAL} daily goal`,
-      progress:
-        calories / DAILY_CALORIE_GOAL,
+      progress: calories / DAILY_CALORIE_GOAL,
       color: "#FF9E45",
       icon: HEART_ICON,
     },
@@ -558,9 +410,7 @@ export default function WalkingDashboardScreen({
                   resizeMode="contain"
                 />
               ) : (
-                <Text style={styles.avatarFallback}>
-                  👟
-                </Text>
+                <Text style={styles.avatarFallback}>👟</Text>
               )}
             </View>
 
@@ -582,8 +432,7 @@ export default function WalkingDashboardScreen({
 
           <View style={styles.quoteCopy}>
             <Text style={styles.quoteText}>
-              Every step today builds the legacy of
-              tomorrow.
+              Every step today builds the legacy of tomorrow.
             </Text>
 
             <Text style={styles.quoteSignature}>
@@ -609,14 +458,24 @@ export default function WalkingDashboardScreen({
 
           <View style={styles.livePill}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>
-              LIVE
-            </Text>
+            <Text style={styles.liveText}>LIVE</Text>
           </View>
         </View>
 
+        {!!stepError && (
+          <Text
+            accessibilityRole="alert"
+            style={{
+              color: "#FFC747",
+              marginBottom: 12,
+            }}
+          >
+            {stepError}
+          </Text>
+        )}
+
         <View style={styles.metricsGrid}>
-          {metrics.map((metric) => (
+          {metrics.map(metric => (
             <View
               key={metric.key}
               style={styles.metricCard}
@@ -640,8 +499,7 @@ export default function WalkingDashboardScreen({
                   style={[
                     styles.metricAccent,
                     {
-                      backgroundColor:
-                        metric.color,
+                      backgroundColor: metric.color,
                     },
                   ]}
                 />
@@ -657,7 +515,7 @@ export default function WalkingDashboardScreen({
                 adjustsFontSizeToFit
                 minimumFontScale={0.65}
               >
-                {metric.value}
+                {stepsLoaded ? metric.value : "—"}
               </Text>
 
               <Text style={styles.metricGoal}>
@@ -669,9 +527,7 @@ export default function WalkingDashboardScreen({
 
         <View style={styles.pointsCard}>
           <View style={styles.pointsBadge}>
-            <Text style={styles.pointsStar}>
-              ★
-            </Text>
+            <Text style={styles.pointsStar}>★</Text>
           </View>
 
           <View style={styles.pointsMain}>
@@ -684,15 +540,12 @@ export default function WalkingDashboardScreen({
             </Text>
 
             <Text style={styles.pointsRank}>
-              {legathonRank?.currentRank ||
-                "New Walker"}
+              {legathonRank?.currentRank || "New Walker"}
             </Text>
           </View>
 
           <View style={styles.pointsNext}>
-            <Text style={styles.nextLabel}>
-              NEXT
-            </Text>
+            <Text style={styles.nextLabel}>NEXT</Text>
 
             <Text
               style={styles.nextRank}
@@ -702,13 +555,16 @@ export default function WalkingDashboardScreen({
             </Text>
 
             <Text style={styles.pointsRemaining}>
-              {formatNumber(
-                legathonRank?.pointsRemaining
-              )}{" "}
-              left
+              {formatNumber(legathonRank?.pointsRemaining)} left
             </Text>
           </View>
         </View>
+
+        {journeyDisplay.error ? (
+          <Text style={styles.metricGoal}>
+            {journeyDisplay.error}
+          </Text>
+        ) : null}
 
         <TouchableOpacity
           style={styles.progressCard}
@@ -716,7 +572,7 @@ export default function WalkingDashboardScreen({
           activeOpacity={0.85}
         >
           <ProgressRing
-            progress={journeyProgress / 100}
+            progress={collectionPercent / 100}
             size={64}
             strokeWidth={5}
             color="#4FFFD2"
@@ -738,12 +594,18 @@ export default function WalkingDashboardScreen({
               Your journey collection
             </Text>
 
+            <Text style={styles.metricGoal}>
+              {journeyDisplay.ready
+                ? `${journeyDisplay.completedCount} of ${journeyDisplay.totalCount} journeys at goal`
+                : "Loading saved progress…"}
+            </Text>
+
             <View style={styles.progressTrack}>
               <View
                 style={[
                   styles.progressFill,
                   {
-                    width: `${journeyProgress}%`,
+                    width: `${collectionPercent}%`,
                   },
                 ]}
               />
@@ -751,7 +613,9 @@ export default function WalkingDashboardScreen({
           </View>
 
           <Text style={styles.progressPercent}>
-            {Math.round(journeyProgress)}%
+            {journeyDisplay.ready
+              ? `${collectionPercent.toFixed(1)}%`
+              : "—"}
           </Text>
         </TouchableOpacity>
 
@@ -813,9 +677,7 @@ export default function WalkingDashboardScreen({
             Explore Legathon Marathons
           </Text>
 
-          <Text style={styles.buttonArrow}>
-            →
-          </Text>
+          <Text style={styles.buttonArrow}>→</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -823,503 +685,70 @@ export default function WalkingDashboardScreen({
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#020713",
-  },
-
-  goldGlow: {
-    position: "absolute",
-    top: -120,
-    right: -110,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: "rgba(246,200,74,0.10)",
-  },
-
-  aquaGlow: {
-    position: "absolute",
-    top: 470,
-    left: -140,
-    width: 290,
-    height: 290,
-    borderRadius: 145,
-    backgroundColor: "rgba(79,255,210,0.055)",
-  },
-
-  scrollView: {
-    flex: 1,
-    zIndex: 1,
-  },
-
-  content: {
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 150,
-  },
-
-  header: {
-    minHeight: 188,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  headerCopy: {
-    flex: 1,
-    paddingRight: 12,
-  },
-
-  headerEyebrow: {
-    color: "#79F5D1",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 3.2,
-    marginBottom: 8,
-  },
-
-  headerTitle: {
-    color: "#FFFFFF",
-    fontSize: 42,
-    lineHeight: 44,
-    fontWeight: "900",
-    letterSpacing: -1.3,
-  },
-
-  headerTitleGold: {
-    color: "#F6C84A",
-  },
-
-  headerSubtitle: {
-    color: "#8798B3",
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 10,
-  },
-
-  profileCard: {
-    width: 112,
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.28)",
-    backgroundColor: "rgba(8,22,42,0.86)",
-  },
-
-  avatarHalo: {
-    width: 92,
-    height: 94,
-    borderRadius: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-    borderWidth: 2,
-    borderColor: "#F6C84A",
-    backgroundColor: "#071326",
-  },
-
-  avatar: {
-    width: 90,
-    height: 90,
-  },
-
-  avatarFallback: {
-    fontSize: 34,
-  },
-
-  profileName: {
-    width: "100%",
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    textAlign: "center",
-    marginTop: 7,
-  },
-
-  profileAction: {
-    color: "#F6C84A",
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1.2,
-    marginTop: 3,
-  },
-
-  quoteCard: {
-    minHeight: 126,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 18,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.48)",
-    backgroundColor: "rgba(11,23,42,0.96)",
-    overflow: "hidden",
-  },
-
-  quoteMark: {
-    alignSelf: "flex-start",
-    color: "#F6C84A",
-    fontSize: 50,
-    lineHeight: 48,
-    fontWeight: "900",
-    marginRight: 12,
-  },
-
-  quoteCopy: {
-    flex: 1,
-    paddingRight: 10,
-  },
-
-  quoteText: {
-    color: "#F5F7FB",
-    fontSize: 17,
-    lineHeight: 25,
-    fontWeight: "800",
-  },
-
-  quoteSignature: {
-    color: "#79F5D1",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 2,
-    marginTop: 9,
-  },
-
-  crownBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.65)",
-    backgroundColor: "rgba(246,200,74,0.10)",
-  },
-
-  crown: {
-    color: "#F6C84A",
-    fontSize: 22,
-    fontWeight: "900",
-  },
-
-  sectionHeading: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginTop: 28,
-    marginBottom: 14,
-  },
-
-  sectionEyebrow: {
-    color: "#79F5D1",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 2.4,
-    marginBottom: 5,
-  },
-
-  sectionTitle: {
-    color: "#FFFFFF",
-    fontSize: 25,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-  },
-
-  livePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 99,
-    backgroundColor: "rgba(79,255,210,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(79,255,210,0.28)",
-  },
-
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 6,
-    backgroundColor: "#4FFFD2",
-  },
-
-  liveText: {
-    color: "#79F5D1",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-
-  metricsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-
-  metricCard: {
-    width: "48.5%",
-    minHeight: 190,
-    padding: 15,
-    marginBottom: 12,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#233C5E",
-    backgroundColor: "rgba(8,24,46,0.95)",
-  },
-
-  metricTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-
-  metricAccent: {
-    width: 22,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 4,
-  },
-
-  metricIcon: {
-    width: 29,
-    height: 29,
-  },
-
-  metricLabel: {
-    color: "#91A2BC",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.3,
-  },
-
-  metricValue: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    marginTop: 5,
-  },
-
-  metricGoal: {
-    color: "#71839D",
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 5,
-  },
-
-  pointsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-    marginTop: 4,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.55)",
-    backgroundColor: "rgba(27,23,15,0.96)",
-  },
-
-  pointsBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#F6C84A",
-    backgroundColor: "rgba(246,200,74,0.12)",
-    marginRight: 13,
-  },
-
-  pointsStar: {
-    color: "#F6C84A",
-    fontSize: 24,
-  },
-
-  pointsMain: {
-    flex: 1,
-  },
-
-  pointsLabel: {
-    color: "#F6C84A",
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-  },
-
-  pointsValue: {
-    color: "#FFFFFF",
-    fontSize: 27,
-    fontWeight: "900",
-    marginTop: 3,
-  },
-
-  pointsRank: {
-    color: "#AAB7CA",
-    fontSize: 11,
-    fontWeight: "800",
-    marginTop: 2,
-  },
-
-  pointsNext: {
-    maxWidth: 105,
-    alignItems: "flex-end",
-  },
-
-  nextLabel: {
-    color: "#7C8BA1",
-    fontSize: 8,
-    fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-
-  nextRank: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    textAlign: "right",
-    marginTop: 4,
-  },
-
-  pointsRemaining: {
-    color: "#95845A",
-    fontSize: 9,
-    fontWeight: "700",
-    textAlign: "right",
-    marginTop: 4,
-  },
-
-  progressCard: {
-    minHeight: 96,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    marginTop: 14,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(79,255,210,0.34)",
-    backgroundColor: "rgba(8,24,46,0.95)",
-  },
-
-  continueCard: {
-    borderColor: "rgba(246,200,74,0.42)",
-  },
-
-  progressIcon: {
-    width: 36,
-    height: 36,
-  },
-
-  progressCopy: {
-    flex: 1,
-    paddingHorizontal: 13,
-  },
-
-  progressAqua: {
-    color: "#79F5D1",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-
-  progressGold: {
-    color: "#F6C84A",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.5,
-  },
-
-  progressTitle: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-
-  progressTrack: {
-    height: 5,
-    borderRadius: 3,
-    overflow: "hidden",
-    backgroundColor: "#162D4A",
-    marginTop: 10,
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 3,
-    backgroundColor: "#4FFFD2",
-  },
-
-  progressPercent: {
-    minWidth: 46,
-    color: "#FFFFFF",
-    fontSize: 19,
-    fontWeight: "900",
-    textAlign: "right",
-  },
-
-  continueHint: {
-    color: "#7F90A9",
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 5,
-  },
-
-  arrowBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(246,200,74,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.45)",
-  },
-
-  arrow: {
-    color: "#F6C84A",
-    fontSize: 29,
-    lineHeight: 31,
-    fontWeight: "700",
-  },
-
-  legathonButton: {
-    minHeight: 84,
-    justifyContent: "center",
-    paddingVertical: 17,
-    paddingLeft: 20,
-    paddingRight: 58,
-    marginTop: 14,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(246,200,74,0.62)",
-    backgroundColor: "#F6C84A",
-  },
-
-  buttonEyebrow: {
-    color: "#5D470E",
-    fontSize: 9,
-    fontWeight: "900",
-    letterSpacing: 1.8,
-  },
-
-  buttonTitle: {
-    color: "#07101F",
-    fontSize: 18,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-
-  buttonArrow: {
-    position: "absolute",
-    right: 20,
-    color: "#07101F",
-    fontSize: 28,
-    fontWeight: "900",
-  },
+  screen: { flex: 1, backgroundColor: "#020713" },
+  goldGlow: { position: "absolute", top: -120, right: -110, width: 330, height: 330, borderRadius: 165, backgroundColor: "rgba(246,200,74,0.10)" },
+  aquaGlow: { position: "absolute", top: 470, left: -140, width: 290, height: 290, borderRadius: 145, backgroundColor: "rgba(79,255,210,0.055)" },
+  scrollView: { flex: 1, zIndex: 1 },
+  content: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 150 },
+  header: { minHeight: 188, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerCopy: { flex: 1, paddingRight: 12 },
+  headerEyebrow: { color: "#79F5D1", fontSize: 12, fontWeight: "900", letterSpacing: 3.2, marginBottom: 8 },
+  headerTitle: { color: "#FFFFFF", fontSize: 42, lineHeight: 44, fontWeight: "900", letterSpacing: -1.3 },
+  headerTitleGold: { color: "#F6C84A" },
+  headerSubtitle: { color: "#8798B3", fontSize: 14, fontWeight: "700", marginTop: 10 },
+  profileCard: { width: 112, alignItems: "center", paddingVertical: 8, paddingHorizontal: 6, borderRadius: 24, borderWidth: 1, borderColor: "rgba(246,200,74,0.28)", backgroundColor: "rgba(8,22,42,0.86)" },
+  avatarHalo: { width: 92, height: 94, borderRadius: 46, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 2, borderColor: "#F6C84A", backgroundColor: "#071326" },
+  avatar: { width: 90, height: 90 },
+  avatarFallback: { fontSize: 34 },
+  profileName: { width: "100%", color: "#FFFFFF", fontSize: 13, fontWeight: "900", textAlign: "center", marginTop: 7 },
+  profileAction: { color: "#F6C84A", fontSize: 8, fontWeight: "900", letterSpacing: 1.2, marginTop: 3 },
+  quoteCard: { minHeight: 126, flexDirection: "row", alignItems: "center", paddingVertical: 20, paddingHorizontal: 18, borderRadius: 24, borderWidth: 1, borderColor: "rgba(246,200,74,0.48)", backgroundColor: "rgba(11,23,42,0.96)", overflow: "hidden" },
+  quoteMark: { alignSelf: "flex-start", color: "#F6C84A", fontSize: 50, lineHeight: 48, fontWeight: "900", marginRight: 12 },
+  quoteCopy: { flex: 1, paddingRight: 10 },
+  quoteText: { color: "#F5F7FB", fontSize: 17, lineHeight: 25, fontWeight: "800" },
+  quoteSignature: { color: "#79F5D1", fontSize: 10, fontWeight: "900", letterSpacing: 2, marginTop: 9 },
+  crownBadge: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(246,200,74,0.65)", backgroundColor: "rgba(246,200,74,0.10)" },
+  crown: { color: "#F6C84A", fontSize: 22, fontWeight: "900" },
+  sectionHeading: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 28, marginBottom: 14 },
+  sectionEyebrow: { color: "#79F5D1", fontSize: 10, fontWeight: "900", letterSpacing: 2.4, marginBottom: 5 },
+  sectionTitle: { color: "#FFFFFF", fontSize: 25, fontWeight: "900", letterSpacing: -0.5 },
+  livePill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 11, paddingVertical: 7, borderRadius: 99, backgroundColor: "rgba(79,255,210,0.10)", borderWidth: 1, borderColor: "rgba(79,255,210,0.28)" },
+  liveDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6, backgroundColor: "#4FFFD2" },
+  liveText: { color: "#79F5D1", fontSize: 9, fontWeight: "900", letterSpacing: 1.4 },
+  metricsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  metricCard: { width: "48.5%", minHeight: 190, padding: 15, marginBottom: 12, borderRadius: 22, borderWidth: 1, borderColor: "#233C5E", backgroundColor: "rgba(8,24,46,0.95)" },
+  metricTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 },
+  metricAccent: { width: 22, height: 4, borderRadius: 2, marginTop: 4 },
+  metricIcon: { width: 29, height: 29 },
+  metricLabel: { color: "#91A2BC", fontSize: 10, fontWeight: "900", letterSpacing: 1.3 },
+  metricValue: { color: "#FFFFFF", fontSize: 28, fontWeight: "900", marginTop: 5 },
+  metricGoal: { color: "#71839D", fontSize: 10, fontWeight: "700", marginTop: 5 },
+  pointsCard: { flexDirection: "row", alignItems: "center", paddingVertical: 18, paddingHorizontal: 16, marginTop: 4, borderRadius: 22, borderWidth: 1, borderColor: "rgba(246,200,74,0.55)", backgroundColor: "rgba(27,23,15,0.96)" },
+  pointsBadge: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#F6C84A", backgroundColor: "rgba(246,200,74,0.12)", marginRight: 13 },
+  pointsStar: { color: "#F6C84A", fontSize: 24 },
+  pointsMain: { flex: 1 },
+  pointsLabel: { color: "#F6C84A", fontSize: 10, fontWeight: "900", letterSpacing: 1.4 },
+  pointsValue: { color: "#FFFFFF", fontSize: 27, fontWeight: "900", marginTop: 3 },
+  pointsRank: { color: "#AAB7CA", fontSize: 11, fontWeight: "800", marginTop: 2 },
+  pointsNext: { maxWidth: 105, alignItems: "flex-end" },
+  nextLabel: { color: "#7C8BA1", fontSize: 8, fontWeight: "900", letterSpacing: 1.5 },
+  nextRank: { color: "#FFFFFF", fontSize: 13, fontWeight: "900", textAlign: "right", marginTop: 4 },
+  pointsRemaining: { color: "#95845A", fontSize: 9, fontWeight: "700", textAlign: "right", marginTop: 4 },
+  progressCard: { minHeight: 96, flexDirection: "row", alignItems: "center", padding: 16, marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: "rgba(79,255,210,0.34)", backgroundColor: "rgba(8,24,46,0.95)" },
+  continueCard: { borderColor: "rgba(246,200,74,0.42)" },
+  progressIcon: { width: 36, height: 36 },
+  progressCopy: { flex: 1, paddingHorizontal: 13 },
+  progressAqua: { color: "#79F5D1", fontSize: 9, fontWeight: "900", letterSpacing: 1.5 },
+  progressGold: { color: "#F6C84A", fontSize: 9, fontWeight: "900", letterSpacing: 1.5 },
+  progressTitle: { color: "#FFFFFF", fontSize: 15, fontWeight: "900", marginTop: 4 },
+  progressTrack: { height: 5, borderRadius: 3, overflow: "hidden", backgroundColor: "#162D4A", marginTop: 10 },
+  progressFill: { height: "100%", borderRadius: 3, backgroundColor: "#4FFFD2" },
+  progressPercent: { minWidth: 46, color: "#FFFFFF", fontSize: 19, fontWeight: "900", textAlign: "right" },
+  continueHint: { color: "#7F90A9", fontSize: 10, fontWeight: "700", marginTop: 5 },
+  arrowBadge: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(246,200,74,0.12)", borderWidth: 1, borderColor: "rgba(246,200,74,0.45)" },
+  arrow: { color: "#F6C84A", fontSize: 29, lineHeight: 31, fontWeight: "700" },
+  legathonButton: { minHeight: 84, justifyContent: "center", paddingVertical: 17, paddingLeft: 20, paddingRight: 58, marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: "rgba(246,200,74,0.62)", backgroundColor: "#F6C84A" },
+  buttonEyebrow: { color: "#5D470E", fontSize: 9, fontWeight: "900", letterSpacing: 1.8 },
+  buttonTitle: { color: "#07101F", fontSize: 18, fontWeight: "900", marginTop: 4 },
+  buttonArrow: { position: "absolute", right: 20, color: "#07101F", fontSize: 28, fontWeight: "900" },
 });

@@ -1,3 +1,5 @@
+// screens/AIConversationScreen.js
+
 import React, {
   useEffect,
   useMemo,
@@ -19,7 +21,9 @@ import {
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
+
 import {
   Ionicons,
   MaterialCommunityIcons,
@@ -27,10 +31,39 @@ import {
 
 import { supabase } from "../lib/supabase";
 
-import {
-  speakCoachVoice,
-  stopCoachVoice,
-} from "../utils/coachVoice";
+
+// ============================================================
+// LEGATHON WALK — AI WELLNESS CONVERSATION
+// ============================================================
+//
+// TEXT-ONLY AI COACH
+//
+// Includes:
+//
+// • Written AI conversation
+// • Supabase AI Coach
+// • Local fallback coach
+// • Coach memory
+// • Quick coaching prompts
+// • Wellness context
+// • Journey context
+// • Recommended feature navigation
+// • Persistent conversation history
+//
+// Does NOT include:
+//
+// • AI voice
+// • Text-to-speech
+// • Voice recognition
+// • Microphone input
+// • Audio playback
+//
+// ============================================================
+
+
+// ============================================================
+// STORAGE
+// ============================================================
 
 const CONVERSATION_STORAGE_KEY =
   "legathonAIConversationMessages";
@@ -38,15 +71,30 @@ const CONVERSATION_STORAGE_KEY =
 const COACH_MEMORY_KEY =
   "legathonAICoachMemory";
 
+
+// ============================================================
+// STARTER MESSAGE
+// ============================================================
+
 const STARTER_MESSAGES = [
   {
     id: "welcome",
+
     sender: "coach",
+
     text:
-      "Welcome. I’m your Legathon AI Wellness Coach. I can help with walking, recovery, hydration, meals, sleep, breathing, and your active Legathon Journey.",
+      "Welcome. I’m your Legathon AI Wellness Coach. " +
+      "I can help with walking, recovery, hydration, meals, " +
+      "sleep, breathing, and your active Legathon Journey.",
+
     actionIntent: null,
   },
 ];
+
+
+// ============================================================
+// COACH MEMORY
+// ============================================================
 
 const INITIAL_MEMORY = {
   preferredWalkTime: "",
@@ -54,42 +102,54 @@ const INITIAL_MEMORY = {
   favoriteBreathing: "",
 };
 
+
+// ============================================================
+// QUICK COACHING
+// ============================================================
+
 const QUICK_PROMPTS = [
   {
     id: "walk",
     label: "Plan today’s walk",
     icon: "walk",
   },
+
   {
     id: "recovery",
     label: "Help me recover",
     icon: "heart",
   },
+
   {
     id: "meal",
     label: "Build a meal plan",
     icon: "restaurant",
   },
+
   {
     id: "hydration",
     label: "Check hydration",
     icon: "water",
   },
+
   {
     id: "sleep",
     label: "Improve sleep",
     icon: "moon",
   },
+
   {
     id: "stress",
     label: "Reduce stress",
     icon: "leaf",
   },
+
   {
     id: "journey",
     label: "Coach my journey",
     icon: "map",
   },
+
   {
     id: "progress",
     label: "Review progress",
@@ -97,16 +157,27 @@ const QUICK_PROMPTS = [
   },
 ];
 
+
+// ============================================================
+// NUMBER HELPER
+// ============================================================
+
 function safeNumber(
   value,
   fallback = 0
 ) {
-  const parsed = Number(value);
+  const parsed =
+    Number(value);
 
   return Number.isFinite(parsed)
     ? parsed
     : fallback;
 }
+
+
+// ============================================================
+// JSON HELPER
+// ============================================================
 
 function safelyParseJSON(
   value,
@@ -128,6 +199,11 @@ function safelyParseJSON(
   }
 }
 
+
+// ============================================================
+// GREETING
+// ============================================================
+
 function getDayGreeting() {
   const hour =
     new Date().getHours();
@@ -143,12 +219,22 @@ function getDayGreeting() {
   return "Good evening";
 }
 
+
+// ============================================================
+// NAVIGATION INTENT
+// ============================================================
+
 function detectNavigationIntent(
   text,
   wellness
 ) {
   const value =
-    String(text || "").toLowerCase();
+    String(
+      text || ""
+    ).toLowerCase();
+
+
+  // MEAL
 
   if (
     value.includes("meal planner") ||
@@ -158,12 +244,18 @@ function detectNavigationIntent(
     return "meal";
   }
 
+
+  // HYDRATION
+
   if (
     value.includes("hydration") ||
     value.includes("water")
   ) {
     return "hydration";
   }
+
+
+  // RECOVERY
 
   if (
     value.includes("recovery") ||
@@ -172,12 +264,18 @@ function detectNavigationIntent(
     return "recovery";
   }
 
+
+  // SLEEP
+
   if (
     value.includes("sleep") ||
     value.includes("tired")
   ) {
     return "sleep";
   }
+
+
+  // BREATHING
 
   if (
     value.includes("stress") ||
@@ -186,6 +284,9 @@ function detectNavigationIntent(
   ) {
     return "breathing";
   }
+
+
+  // JOURNEY
 
   if (
     value.includes("start walk") ||
@@ -199,15 +300,28 @@ function detectNavigationIntent(
       : "journeys";
   }
 
+
   return null;
 }
 
-function detectMemoryUpdate(text) {
+
+// ============================================================
+// MEMORY DETECTION
+// ============================================================
+
+function detectMemoryUpdate(
+  text
+) {
   const original =
-    String(text || "").trim();
+    String(
+      text || ""
+    ).trim();
 
   const lower =
     original.toLowerCase();
+
+
+  // WALK TIME
 
   if (
     lower.includes(
@@ -224,6 +338,9 @@ function detectMemoryUpdate(text) {
     };
   }
 
+
+  // MEAL PREFERENCE
+
   if (
     lower.includes(
       "my meal preference is"
@@ -238,6 +355,9 @@ function detectMemoryUpdate(text) {
           ?.trim() || "",
     };
   }
+
+
+  // BREATHING
 
   if (
     lower.includes(
@@ -254,46 +374,84 @@ function detectMemoryUpdate(text) {
     };
   }
 
+
   return null;
 }
+
+
+// ============================================================
+// LOCAL FALLBACK COACH
+// ============================================================
+//
+// Used if the remote Supabase AI Coach cannot be reached.
+//
+// ============================================================
 
 function createLocalCoachReply(
   message,
   context = {}
 ) {
   const value =
-    String(message || "").toLowerCase();
+    String(
+      message || ""
+    ).toLowerCase();
+
 
   const steps =
-    safeNumber(context.steps, 0);
+    safeNumber(
+      context.steps,
+      0
+    );
 
-  const stepGoal = Math.max(
-    1,
-    safeNumber(context.stepGoal, 7000)
-  );
+
+  const stepGoal =
+    Math.max(
+      1,
+      safeNumber(
+        context.stepGoal,
+        7000
+      )
+    );
+
 
   const hydration =
-    safeNumber(context.hydration, 0);
+    safeNumber(
+      context.hydration,
+      0
+    );
 
-  const hydrationGoal = Math.max(
-    1,
-    safeNumber(context.hydrationGoal, 100)
-  );
+
+  const hydrationGoal =
+    Math.max(
+      1,
+      safeNumber(
+        context.hydrationGoal,
+        100
+      )
+    );
+
 
   const recovery =
     context.recovery !== null &&
     context.recovery !== undefined
-      ? safeNumber(context.recovery)
+      ? safeNumber(
+          context.recovery
+        )
       : null;
+
 
   const sleepHours =
     context.sleepHours !== null &&
     context.sleepHours !== undefined
-      ? safeNumber(context.sleepHours)
+      ? safeNumber(
+          context.sleepHours
+        )
       : null;
+
 
   const journey =
     context.journey || "";
+
 
   const journeyProgress =
     safeNumber(
@@ -301,11 +459,14 @@ function createLocalCoachReply(
       0
     );
 
+
   const checkpoint =
     context.checkpoint || "";
 
+
   const coachMemory =
     context.coachMemory || {};
+
 
   const stepsRemaining =
     Math.max(
@@ -313,8 +474,15 @@ function createLocalCoachReply(
       0
     );
 
+
+  // ==========================================================
+  // PREFERRED WALK TIME
+  // ==========================================================
+
   if (
-    value.includes("when should i walk") &&
+    value.includes(
+      "when should i walk"
+    ) &&
     coachMemory.preferredWalkTime
   ) {
     return (
@@ -323,6 +491,11 @@ function createLocalCoachReply(
       `That remains a good time if your schedule and conditions allow.`
     );
   }
+
+
+  // ==========================================================
+  // WALKING
+  // ==========================================================
 
   if (
     value.includes("walk") ||
@@ -342,12 +515,16 @@ function createLocalCoachReply(
       );
     }
 
-    if (stepsRemaining === 0) {
+
+    if (
+      stepsRemaining === 0
+    ) {
       return (
         "You completed today’s step goal. " +
         "A short recovery walk is optional if you still feel well."
       );
     }
+
 
     return (
       `You are ${stepsRemaining.toLocaleString()} steps ` +
@@ -356,17 +533,27 @@ function createLocalCoachReply(
     );
   }
 
+
+  // ==========================================================
+  // RECOVERY
+  // ==========================================================
+
   if (
     value.includes("recover") ||
     value.includes("recovery")
   ) {
-    if (recovery !== null) {
+    if (
+      recovery !== null
+    ) {
       return (
         `Your current recovery score is ${Math.round(
           recovery
-        )}%. Prioritize hydration, protein, gentle movement, and quality sleep.`
+        )}%. ` +
+        "Prioritize hydration, protein, gentle movement, " +
+        "and quality sleep."
       );
     }
+
 
     return (
       "Recovery has not been recorded yet. " +
@@ -374,6 +561,11 @@ function createLocalCoachReply(
       "before choosing today’s walking intensity."
     );
   }
+
+
+  // ==========================================================
+  // MEALS
+  // ==========================================================
 
   if (
     value.includes("meal") ||
@@ -383,38 +575,79 @@ function createLocalCoachReply(
     const preference =
       coachMemory.mealPreference;
 
-    return preference
-      ? `Your saved meal preference is ${preference}. Build today’s meals around lean protein, vegetables, a quality carbohydrate, and healthy fat.`
-      : "Build your plate around lean protein, vegetables, a quality carbohydrate, and healthy fat. Open the Meal Planner for a complete daily plan.";
+
+    if (preference) {
+      return (
+        `Your saved meal preference is ${preference}. ` +
+        "Build today’s meals around lean protein, vegetables, " +
+        "a quality carbohydrate, and healthy fat."
+      );
+    }
+
+
+    return (
+      "Build your plate around lean protein, vegetables, " +
+      "a quality carbohydrate, and healthy fat. " +
+      "Open the Meal Planner for a complete daily plan."
+    );
   }
+
+
+  // ==========================================================
+  // HYDRATION
+  // ==========================================================
 
   if (
     value.includes("water") ||
     value.includes("hydration")
   ) {
-    const remaining = Math.max(
-      hydrationGoal - hydration,
-      0
-    );
+    const remaining =
+      Math.max(
+        hydrationGoal -
+          hydration,
+        0
+      );
 
-    return remaining > 0
-      ? `You have ${Math.round(
+
+    if (
+      remaining > 0
+    ) {
+      return (
+        `You have ${Math.round(
           remaining
-        )} ounces remaining toward today’s hydration goal. Drink gradually throughout the day.`
-      : "You reached today’s hydration goal. Continue drinking according to thirst, activity, and weather.";
+        )} ounces remaining toward today’s hydration goal. ` +
+        "Drink gradually throughout the day."
+      );
+    }
+
+
+    return (
+      "You reached today’s hydration goal. " +
+      "Continue drinking according to thirst, activity, and weather."
+    );
   }
+
+
+  // ==========================================================
+  // SLEEP
+  // ==========================================================
 
   if (
     value.includes("sleep") ||
     value.includes("tired")
   ) {
-    if (sleepHours !== null) {
+    if (
+      sleepHours !== null
+    ) {
       return (
         `You recorded ${sleepHours.toFixed(
           1
-        )} hours of sleep. Keep your bedtime consistent and reduce bright screens before bed tonight.`
+        )} hours of sleep. ` +
+        "Keep your bedtime consistent and reduce bright screens " +
+        "before bed tonight."
       );
     }
+
 
     return (
       "Sleep has not been recorded yet. " +
@@ -422,6 +655,11 @@ function createLocalCoachReply(
       "and a calm wind-down routine."
     );
   }
+
+
+  // ==========================================================
+  // STRESS / BREATHING
+  // ==========================================================
 
   if (
     value.includes("stress") ||
@@ -433,30 +671,53 @@ function createLocalCoachReply(
     ) {
       return (
         `Your favorite exercise is ${coachMemory.favoriteBreathing}. ` +
-        `Use it now for several slow rounds while keeping your shoulders relaxed.`
+        "Use it now for several slow rounds while keeping your " +
+        "shoulders relaxed."
       );
     }
 
+
     return (
       "Try four rounds of breathing: inhale for four seconds, " +
-      "hold for four, exhale for six, then pause briefly before repeating."
+      "hold for four, exhale for six, then pause briefly " +
+      "before repeating."
     );
   }
+
+
+  // ==========================================================
+  // JOURNEY
+  // ==========================================================
 
   if (
     value.includes("journey") ||
     value.includes("checkpoint")
   ) {
-    return journey
-      ? `Your active journey is ${journey}. You are ${Math.round(
+    if (journey) {
+      return (
+        `Your active journey is ${journey}. ` +
+        `You are ${Math.round(
           journeyProgress
-        )}% complete${
+        )}% complete` +
+        `${
           checkpoint
             ? ` at checkpoint ${checkpoint}`
             : ""
         }.`
-      : "You do not have an active journey yet. Open Journeys to choose one and begin GPS coaching.";
+      );
+    }
+
+
+    return (
+      "You do not have an active journey yet. " +
+      "Open Journeys to choose one and begin GPS coaching."
+    );
   }
+
+
+  // ==========================================================
+  // PROGRESS
+  // ==========================================================
 
   if (
     value.includes("progress") ||
@@ -464,8 +725,8 @@ function createLocalCoachReply(
   ) {
     return (
       `Today you have ${steps.toLocaleString()} steps toward your ` +
-      `${stepGoal.toLocaleString()}-step goal. Hydration is ` +
-      `${Math.round(
+      `${stepGoal.toLocaleString()}-step goal. ` +
+      `Hydration is ${Math.round(
         hydration
       )} of ${Math.round(
         hydrationGoal
@@ -480,12 +741,22 @@ function createLocalCoachReply(
     );
   }
 
+
+  // ==========================================================
+  // DEFAULT
+  // ==========================================================
+
   return (
     "I can help with walking, recovery, meals, hydration, " +
     "sleep, breathing, journey coaching, and progress reviews. " +
     "What would you like to improve today?"
   );
 }
+
+
+// ============================================================
+// MEMORY INPUT
+// ============================================================
 
 function MemoryInput({
   icon,
@@ -495,8 +766,16 @@ function MemoryInput({
   onChangeText,
 }) {
   return (
-    <View style={styles.memoryInputRow}>
-      <View style={styles.memoryIcon}>
+    <View
+      style={
+        styles.memoryInputRow
+      }
+    >
+      <View
+        style={
+          styles.memoryIcon
+        }
+      >
         <Ionicons
           name={icon}
           size={20}
@@ -504,112 +783,187 @@ function MemoryInput({
         />
       </View>
 
-      <View style={styles.memoryInputWrap}>
-        <Text style={styles.memoryLabel}>
+
+      <View
+        style={
+          styles.memoryInputWrap
+        }
+      >
+        <Text
+          style={
+            styles.memoryLabel
+          }
+        >
           {label}
         </Text>
 
+
         <TextInput
           value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
+          onChangeText={
+            onChangeText
+          }
+          placeholder={
+            placeholder
+          }
           placeholderTextColor="#687D96"
-          style={styles.memoryInput}
+          style={
+            styles.memoryInput
+          }
         />
       </View>
     </View>
   );
 }
 
+
+// ============================================================
+// MAIN SCREEN
+// ============================================================
+
 export default function AIConversationScreen({
   goBack,
+
   wellness = {},
+
   goToGPSJourneyMap,
+
   goToJourneys,
+
   goToMealPlanner,
+
   goToHydration,
+
   goToRecovery,
+
   goToSleep,
+
   goToBreathing,
 }) {
-  const [messages, setMessages] =
-    useState(STARTER_MESSAGES);
 
-  const [draft, setDraft] =
-    useState("");
+  // ==========================================================
+  // STATE
+  // ==========================================================
 
-  const [isTyping, setIsTyping] =
-    useState(false);
+  const [
+    messages,
+    setMessages,
+  ] = useState(
+    STARTER_MESSAGES
+  );
 
-  const [isListening, setIsListening] =
-    useState(false);
+
+  const [
+    draft,
+    setDraft,
+  ] = useState("");
+
+
+  const [
+    isTyping,
+    setIsTyping,
+  ] = useState(false);
+
 
   const [
     pendingAction,
     setPendingAction,
   ] = useState(null);
 
+
   const [
     showMemoryPanel,
     setShowMemoryPanel,
   ] = useState(false);
 
+
   const [
     coachMemory,
     setCoachMemory,
-  ] = useState(INITIAL_MEMORY);
+  ] = useState(
+    INITIAL_MEMORY
+  );
+
 
   const [
     memoryDraft,
     setMemoryDraft,
-  ] = useState(INITIAL_MEMORY);
+  ] = useState(
+    INITIAL_MEMORY
+  );
 
-  const scrollRef = useRef(null);
 
-  const canSend = useMemo(() => {
-    return (
-      draft.trim().length > 0 &&
-      !isTyping
-    );
-  }, [draft, isTyping]);
+  const scrollRef =
+    useRef(null);
+
+
+  // ==========================================================
+  // SEND AVAILABILITY
+  // ==========================================================
+
+  const canSend =
+    useMemo(() => {
+      return (
+        draft.trim().length >
+          0 &&
+        !isTyping
+      );
+    }, [
+      draft,
+      isTyping,
+    ]);
+
+
+  // ==========================================================
+  // WELLNESS CONTEXT
+  // ==========================================================
 
   const mergedWellness =
     useMemo(() => {
       return {
-        steps: safeNumber(
-          wellness?.steps,
-          0
-        ),
-
-        stepGoal: Math.max(
-          1,
+        steps:
           safeNumber(
-            wellness?.stepGoal,
-            7000
-          )
-        ),
+            wellness?.steps,
+            0
+          ),
 
-        hydration: safeNumber(
-          wellness?.hydration,
-          0
-        ),
+        stepGoal:
+          Math.max(
+            1,
 
-        hydrationGoal: Math.max(
-          1,
+            safeNumber(
+              wellness?.stepGoal,
+              7000
+            )
+          ),
+
+        hydration:
           safeNumber(
-            wellness?.hydrationGoal,
-            100
-          )
-        ),
+            wellness?.hydration,
+            0
+          ),
+
+        hydrationGoal:
+          Math.max(
+            1,
+
+            safeNumber(
+              wellness?.hydrationGoal,
+              100
+            )
+          ),
 
         recovery:
-          wellness?.recovery ?? null,
+          wellness?.recovery ??
+          null,
 
         sleepHours:
-          wellness?.sleepHours ?? null,
+          wellness?.sleepHours ??
+          null,
 
         journey:
-          wellness?.journey || "",
+          wellness?.journey ||
+          "",
 
         journeyProgress:
           safeNumber(
@@ -618,39 +972,80 @@ export default function AIConversationScreen({
           ),
 
         checkpoint:
-          wellness?.checkpoint || "",
+          wellness?.checkpoint ||
+          "",
 
         coachMemory,
       };
-    }, [wellness, coachMemory]);
-const scrollToBottom = () => {
-  requestAnimationFrame(() => {
-    scrollRef.current?.scrollToEnd?.({
-      animated: true,
-    });
-  });
-};
+    }, [
+      wellness,
+      coachMemory,
+    ]);
+
+
+  // ==========================================================
+  // SCROLL
+  // ==========================================================
+
+  const scrollToBottom =
+    () => {
+      requestAnimationFrame(
+        () => {
+          scrollRef.current
+            ?.scrollToEnd?.({
+              animated: true,
+            });
+        }
+      );
+    };
+
+
+  // ==========================================================
+  // REMOTE AI REQUEST
+  // ==========================================================
+
   const requestCoachReply =
-    async (message) => {
-      const { data, error } =
+    async (
+      message,
+      memoryContext
+    ) => {
+
+      const {
+        data,
+        error,
+      } =
         await supabase.functions.invoke(
           "legathon-ai-coach",
           {
             body: {
               message,
-              wellness:
-                mergedWellness,
-              coachMemory,
-              history: messages
-                .slice(-12)
-                .map((item) => ({
-                  sender:
-                    item.sender,
-                  text: item.text,
-                })),
+
+              wellness: {
+                ...mergedWellness,
+
+                coachMemory:
+                  memoryContext,
+              },
+
+              coachMemory:
+                memoryContext,
+
+              history:
+                messages
+                  .slice(-12)
+                  .map(
+                    (item) => ({
+                      sender:
+                        item.sender,
+
+                      text:
+                        item.text,
+                    })
+                  ),
             },
           }
         );
+
 
       if (error) {
         throw new Error(
@@ -659,6 +1054,7 @@ const scrollToBottom = () => {
         );
       }
 
+
       if (!data?.reply) {
         throw new Error(
           data?.error ||
@@ -666,155 +1062,223 @@ const scrollToBottom = () => {
         );
       }
 
-      return String(data.reply);
+
+      return String(
+        data.reply
+      );
     };
 
-useEffect(() => {
-  const loadConversation = async () => {
-    try {
-      const savedMessages =
-        await AsyncStorage.getItem(
-          CONVERSATION_STORAGE_KEY
-        );
 
-      const parsed = safelyParseJSON(
-        savedMessages,
-        null
-      );
+  // ==========================================================
+  // LOAD CONVERSATION
+  // ==========================================================
 
-      if (
-        Array.isArray(parsed) &&
-        parsed.length > 0
-      ) {
-        setMessages(parsed);
-      }
-    } catch (error) {
-      console.log(
-        "Coach conversation load error:",
-        error
-      );
-    }
-  };
+  useEffect(() => {
 
-  loadConversation();
-}, []);
+    const loadConversation =
+      async () => {
 
-useEffect(() => {
-  const loadMemory = async () => {
-    try {
-      const savedMemory =
-        await AsyncStorage.getItem(
-          COACH_MEMORY_KEY
-        );
+        try {
+          const savedMessages =
+            await AsyncStorage.getItem(
+              CONVERSATION_STORAGE_KEY
+            );
 
-      const parsed = safelyParseJSON(
-        savedMemory,
-        null
-      );
 
-      if (
-        parsed &&
-        typeof parsed === "object"
-      ) {
-        const nextMemory = {
-          ...INITIAL_MEMORY,
-          ...parsed,
-        };
+          const parsed =
+            safelyParseJSON(
+              savedMessages,
+              null
+            );
 
-        setCoachMemory(nextMemory);
-        setMemoryDraft(nextMemory);
-      }
-    } catch (error) {
-      console.log(
-        "Coach memory load error:",
-        error
-      );
-    }
-  };
 
-  loadMemory();
-}, []);
+          if (
+            Array.isArray(
+              parsed
+            ) &&
+            parsed.length > 0
+          ) {
+            setMessages(
+              parsed
+            );
+          }
 
-useEffect(() => {
-  const saveConversation = async () => {
-    try {
-      await AsyncStorage.setItem(
-        CONVERSATION_STORAGE_KEY,
-        JSON.stringify(messages)
-      );
-    } catch (error) {
-      console.log(
-        "Coach conversation save error:",
-        error
-      );
-    }
-  };
+        } catch (error) {
+          console.log(
+            "Coach conversation load error:",
+            error
+          );
+        }
+      };
 
-  saveConversation();
-}, [messages]);
 
-useEffect(() => {
-  scrollToBottom();
-}, [messages, isTyping]);
+    loadConversation();
 
-useEffect(() => {
-  return () => {
-    stopCoachVoice();
-  };
-}, []);
+  }, []);
 
-const speakCoachReply = async (text) => {
-  if (!text?.trim()) return;
 
-  console.log("Coach voice request started");
+  // ==========================================================
+  // LOAD MEMORY
+  // ==========================================================
 
-  try {
-    await speakCoachVoice(text);
+  useEffect(() => {
 
-    console.log(
-      "Coach audio playback started"
-    );
-  } catch (error) {
-    const message =
-      error?.message ||
-      String(error) ||
-      "Unknown voice error";
+    const loadMemory =
+      async () => {
 
-    console.log(
-      "COACH VOICE EXACT ERROR:",
-      message
-    );
+        try {
+          const savedMemory =
+            await AsyncStorage.getItem(
+              COACH_MEMORY_KEY
+            );
 
-    Alert.alert(
-      "Coach Voice Error",
-      message
-    );
-  }
-};
-      const saveCoachMemory =
-    async (updates) => {
+
+          const parsed =
+            safelyParseJSON(
+              savedMemory,
+              null
+            );
+
+
+          if (
+            parsed &&
+            typeof parsed ===
+              "object"
+          ) {
+            const nextMemory = {
+              ...INITIAL_MEMORY,
+
+              ...parsed,
+            };
+
+
+            setCoachMemory(
+              nextMemory
+            );
+
+
+            setMemoryDraft(
+              nextMemory
+            );
+          }
+
+        } catch (error) {
+          console.log(
+            "Coach memory load error:",
+            error
+          );
+        }
+      };
+
+
+    loadMemory();
+
+  }, []);
+
+
+  // ==========================================================
+  // SAVE CONVERSATION
+  // ==========================================================
+
+  useEffect(() => {
+
+    const saveConversation =
+      async () => {
+
+        try {
+          await AsyncStorage.setItem(
+            CONVERSATION_STORAGE_KEY,
+
+            JSON.stringify(
+              messages
+            )
+          );
+
+        } catch (error) {
+          console.log(
+            "Coach conversation save error:",
+            error
+          );
+        }
+      };
+
+
+    saveConversation();
+
+  }, [
+    messages,
+  ]);
+
+
+  // ==========================================================
+  // AUTO SCROLL
+  // ==========================================================
+
+  useEffect(() => {
+
+    scrollToBottom();
+
+  }, [
+    messages,
+    isTyping,
+  ]);
+
+
+  // ==========================================================
+  // SAVE COACH MEMORY
+  // ==========================================================
+
+  const saveCoachMemory =
+    async (
+      updates
+    ) => {
+
       try {
         const nextMemory = {
           ...coachMemory,
+
           ...updates,
         };
 
-        setCoachMemory(nextMemory);
+
+        setCoachMemory(
+          nextMemory
+        );
+
 
         await AsyncStorage.setItem(
           COACH_MEMORY_KEY,
-          JSON.stringify(nextMemory)
+
+          JSON.stringify(
+            nextMemory
+          )
         );
+
+
+        return nextMemory;
+
       } catch (error) {
         console.log(
           "Coach memory save error:",
           error
         );
+
+
+        return {
+          ...coachMemory,
+          ...updates,
+        };
       }
     };
 
+
+  // ==========================================================
+  // SAVE MEMORY PANEL
+  // ==========================================================
+
   const saveMemoryPanel =
     async () => {
+
       await saveCoachMemory({
         preferredWalkTime:
           memoryDraft
@@ -832,303 +1296,486 @@ const speakCoachReply = async (text) => {
             .trim(),
       });
 
-      setShowMemoryPanel(false);
+
+      setShowMemoryPanel(
+        false
+      );
     };
 
-  const clearCoachMemory = () => {
-    Alert.alert(
-      "Clear Coach Memory?",
-      "This removes the preferences your coach remembers.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Clear",
-          style: "destructive",
 
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem(
-                COACH_MEMORY_KEY
-              );
+  // ==========================================================
+  // CLEAR MEMORY
+  // ==========================================================
 
-              setCoachMemory(
-                INITIAL_MEMORY
-              );
+  const clearCoachMemory =
+    () => {
 
-              setMemoryDraft(
-                INITIAL_MEMORY
-              );
+      Alert.alert(
+        "Clear Coach Memory?",
 
-              setShowMemoryPanel(false);
-            } catch (error) {
-              console.log(
-                "Clear coach memory error:",
-                error
-              );
-            }
+        "This removes the preferences your coach remembers.",
+
+        [
+          {
+            text: "Cancel",
+
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
 
-  const clearConversation = () => {
-    Alert.alert(
-      "Start New Conversation?",
-      "This clears the current coach conversation.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Clear",
-          style: "destructive",
+          {
+            text: "Clear",
 
-          onPress: async () => {
-            try {
-              stopCoachVoice();
+            style:
+              "destructive",
 
-              await AsyncStorage.removeItem(
-                CONVERSATION_STORAGE_KEY
-              );
+            onPress:
+              async () => {
 
-              setMessages(
-                STARTER_MESSAGES
-              );
+                try {
+                  await AsyncStorage.removeItem(
+                    COACH_MEMORY_KEY
+                  );
 
-              setDraft("");
-              setIsTyping(false);
-              setPendingAction(null);
-            } catch (error) {
-              console.log(
-                "Clear conversation error:",
-                error
-              );
-            }
+
+                  setCoachMemory({
+                    ...INITIAL_MEMORY,
+                  });
+
+
+                  setMemoryDraft({
+                    ...INITIAL_MEMORY,
+                  });
+
+
+                  setShowMemoryPanel(
+                    false
+                  );
+
+                } catch (error) {
+                  console.log(
+                    "Clear coach memory error:",
+                    error
+                  );
+                }
+              },
           },
-        },
-      ]
-    );
-  };
-
-  const openDetectedScreen = (
-    intent
-  ) => {
-    stopCoachVoice();
-
-    switch (intent) {
-      case "meal":
-        goToMealPlanner?.();
-        return;
-
-      case "hydration":
-        goToHydration?.();
-        return;
-
-      case "recovery":
-        goToRecovery?.();
-        return;
-
-      case "sleep":
-        goToSleep?.();
-        return;
-
-      case "breathing":
-        goToBreathing?.();
-        return;
-
-      case "journeyMap":
-        goToGPSJourneyMap?.();
-        return;
-
-      case "journeys":
-        goToJourneys?.();
-        return;
-
-      default:
-        return;
-    }
-  };
-
-  const sendMessage = async (
-    text = draft
-  ) => {
-    const cleaned =
-      String(text || "").trim();
-
-    if (
-      !cleaned ||
-      isTyping ||
-      cleaned.length > 2000
-    ) {
-      return;
-    }
-
-    const memoryUpdate =
-      detectMemoryUpdate(cleaned);
-
-    if (memoryUpdate) {
-      await saveCoachMemory(
-        memoryUpdate
+        ]
       );
-    }
-
-    const navigationIntent =
-      detectNavigationIntent(
-        cleaned,
-        mergedWellness
-      );
-
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      sender: "user",
-      text: cleaned,
-      actionIntent: null,
     };
 
-    setMessages((current) => [
-      ...current,
-      userMessage,
-    ]);
 
-    setDraft("");
-    setIsTyping(true);
-    stopCoachVoice();
+  // ==========================================================
+  // CLEAR CONVERSATION
+  // ==========================================================
 
-    try {
-      let replyText;
+  const clearConversation =
+    () => {
 
-      try {
-        replyText =
-          await requestCoachReply(
-            cleaned
-          );
-      } catch (remoteError) {
-        console.log(
-          "Remote AI unavailable. Using local coach:",
-          remoteError
-        );
+      Alert.alert(
+        "Start New Conversation?",
 
-        replyText =
-          createLocalCoachReply(
-            cleaned,
-            mergedWellness
-          );
+        "This clears the current coach conversation.",
+
+        [
+          {
+            text: "Cancel",
+
+            style: "cancel",
+          },
+
+          {
+            text: "Clear",
+
+            style:
+              "destructive",
+
+            onPress:
+              async () => {
+
+                try {
+                  await AsyncStorage.removeItem(
+                    CONVERSATION_STORAGE_KEY
+                  );
+
+
+                  setMessages([
+                    ...STARTER_MESSAGES,
+                  ]);
+
+
+                  setDraft("");
+
+
+                  setIsTyping(
+                    false
+                  );
+
+
+                  setPendingAction(
+                    null
+                  );
+
+                } catch (error) {
+                  console.log(
+                    "Clear conversation error:",
+                    error
+                  );
+                }
+              },
+          },
+        ]
+      );
+    };
+
+
+  // ==========================================================
+  // OPEN RECOMMENDED FEATURE
+  // ==========================================================
+
+  const openDetectedScreen =
+    (
+      intent
+    ) => {
+
+      switch (intent) {
+
+        case "meal":
+          goToMealPlanner?.();
+          return;
+
+
+        case "hydration":
+          goToHydration?.();
+          return;
+
+
+        case "recovery":
+          goToRecovery?.();
+          return;
+
+
+        case "sleep":
+          goToSleep?.();
+          return;
+
+
+        case "breathing":
+          goToBreathing?.();
+          return;
+
+
+        case "journeyMap":
+          goToGPSJourneyMap?.();
+          return;
+
+
+        case "journeys":
+          goToJourneys?.();
+          return;
+
+
+        default:
+          return;
+      }
+    };
+
+
+  // ==========================================================
+  // SEND MESSAGE
+  // ==========================================================
+
+  const sendMessage =
+    async (
+      text = draft
+    ) => {
+
+      const cleaned =
+        String(
+          text || ""
+        ).trim();
+
+
+      if (
+        !cleaned ||
+        isTyping ||
+        cleaned.length > 2000
+      ) {
+        return;
       }
 
-      const coachMessage = {
-        id: `coach-${Date.now()}`,
-        sender: "coach",
-        text: replyText,
-        actionIntent:
-          navigationIntent,
+
+      // ========================================================
+      // MEMORY UPDATE
+      // ========================================================
+
+      const memoryUpdate =
+        detectMemoryUpdate(
+          cleaned
+        );
+
+
+      let activeMemory = {
+        ...coachMemory,
       };
 
-      setMessages((current) => [
-        ...current,
-        coachMessage,
-      ]);
 
-      if (navigationIntent) {
-        setPendingAction(
-          navigationIntent
-        );
+      if (
+        memoryUpdate
+      ) {
+        activeMemory =
+          await saveCoachMemory(
+            memoryUpdate
+          );
       }
 
-      await speakCoachReply(
-        replyText
-      );
-    } catch (error) {
-      console.log(
-        "Coach response error:",
-        error
+
+      // ========================================================
+      // NAVIGATION INTENT
+      // ========================================================
+
+      const contextForMessage = {
+        ...mergedWellness,
+
+        coachMemory:
+          activeMemory,
+      };
+
+
+      const navigationIntent =
+        detectNavigationIntent(
+          cleaned,
+          contextForMessage
+        );
+
+
+      // ========================================================
+      // USER MESSAGE
+      // ========================================================
+
+      const userMessage = {
+        id:
+          `user-${Date.now()}`,
+
+        sender:
+          "user",
+
+        text:
+          cleaned,
+
+        actionIntent:
+          null,
+      };
+
+
+      setMessages(
+        (current) => [
+          ...current,
+
+          userMessage,
+        ]
       );
 
-      setMessages((current) => [
-        ...current,
-        {
+
+      setDraft("");
+
+
+      setIsTyping(
+        true
+      );
+
+
+      // ========================================================
+      // AI RESPONSE
+      // ========================================================
+
+      try {
+        let replyText;
+
+
+        try {
+          replyText =
+            await requestCoachReply(
+              cleaned,
+              activeMemory
+            );
+
+        } catch (
+          remoteError
+        ) {
+          console.log(
+            "Remote AI unavailable. Using local coach:",
+            remoteError
+          );
+
+
+          replyText =
+            createLocalCoachReply(
+              cleaned,
+              contextForMessage
+            );
+        }
+
+
+        // ======================================================
+        // TEXT-ONLY COACH MESSAGE
+        // ======================================================
+
+        const coachMessage = {
           id:
-            `coach-error-` +
-            `${Date.now()}`,
+            `coach-${Date.now()}`,
 
-          sender: "coach",
+          sender:
+            "coach",
 
           text:
-            "I could not prepare that response. Please try again.",
+            replyText,
 
-          actionIntent: null,
-        },
-      ]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
+          actionIntent:
+            navigationIntent,
+        };
 
-  const handleQuickPrompt = (
-    prompt
-  ) => {
-    if (isTyping) {
-      return;
-    }
 
-    sendMessage(prompt.label);
-  };
+        setMessages(
+          (current) => [
+            ...current,
 
-  const toggleListening = () => {
-    setIsListening(
-      (current) => {
-        const next = !current;
+            coachMessage,
+          ]
+        );
 
-        if (next) {
-          setDraft(
-            "Voice recognition requires a development build."
+
+        if (
+          navigationIntent
+        ) {
+          setPendingAction(
+            navigationIntent
           );
         }
 
-        return next;
+
+      } catch (error) {
+        console.log(
+          "Coach response error:",
+          error
+        );
+
+
+        setMessages(
+          (current) => [
+            ...current,
+
+            {
+              id:
+                `coach-error-${Date.now()}`,
+
+              sender:
+                "coach",
+
+              text:
+                "I could not prepare that response. Please try again.",
+
+              actionIntent:
+                null,
+            },
+          ]
+        );
+
+      } finally {
+        setIsTyping(
+          false
+        );
       }
-    );
-  };
+    };
 
-  const openMemoryPanel = () => {
-    setMemoryDraft({
-      preferredWalkTime:
-        coachMemory
-          .preferredWalkTime || "",
 
-      mealPreference:
-        coachMemory
-          .mealPreference || "",
+  // ==========================================================
+  // QUICK PROMPT
+  // ==========================================================
 
-      favoriteBreathing:
-        coachMemory
-          .favoriteBreathing || "",
-    });
+  const handleQuickPrompt =
+    (
+      prompt
+    ) => {
 
-    setShowMemoryPanel(true);
-  };
+      if (
+        isTyping
+      ) {
+        return;
+      }
 
-  const handleBack = () => {
-    stopCoachVoice();
-    goBack?.();
-  };
+
+      sendMessage(
+        prompt.label
+      );
+    };
+
+
+  // ==========================================================
+  // MEMORY PANEL
+  // ==========================================================
+
+  const openMemoryPanel =
+    () => {
+
+      setMemoryDraft({
+        preferredWalkTime:
+          coachMemory
+            .preferredWalkTime ||
+          "",
+
+        mealPreference:
+          coachMemory
+            .mealPreference ||
+          "",
+
+        favoriteBreathing:
+          coachMemory
+            .favoriteBreathing ||
+          "",
+      });
+
+
+      setShowMemoryPanel(
+        true
+      );
+    };
+
+
+  // ==========================================================
+  // BACK
+  // ==========================================================
+
+  const handleBack =
+    () => {
+
+      goBack?.();
+    };
+
+
+  // ==========================================================
+  // UI
+  // ==========================================================
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView
+      style={
+        styles.safe
+      }
+    >
       <LinearGradient
         colors={[
           "#020611",
           "#071A33",
           "#020611",
         ]}
-        style={styles.container}
+        style={
+          styles.container
+        }
       >
         <KeyboardAvoidingView
-          style={styles.container}
+          style={
+            styles.container
+          }
           behavior={
             Platform.OS === "ios"
               ? "padding"
@@ -1140,11 +1787,26 @@ const speakCoachReply = async (text) => {
               : 0
           }
         >
-          <View style={styles.header}>
+
+          {/* =============================================== */}
+          {/* HEADER */}
+          {/* =============================================== */}
+
+          <View
+            style={
+              styles.header
+            }
+          >
             <TouchableOpacity
-              style={styles.headerButton}
-              onPress={handleBack}
-              activeOpacity={0.8}
+              style={
+                styles.headerButton
+              }
+              onPress={
+                handleBack
+              }
+              activeOpacity={
+                0.8
+              }
             >
               <Ionicons
                 name="chevron-back"
@@ -1153,22 +1815,40 @@ const speakCoachReply = async (text) => {
               />
             </TouchableOpacity>
 
+
             <View
-              style={styles.headerCenter}
+              style={
+                styles.headerCenter
+              }
             >
-              <Text style={styles.eyebrow}>
+              <Text
+                style={
+                  styles.eyebrow
+                }
+              >
                 LEGATHON AI WELLNESS
               </Text>
 
-              <Text style={styles.title}>
+              <Text
+                style={
+                  styles.title
+                }
+              >
                 Your Coach
               </Text>
             </View>
 
+
             <TouchableOpacity
-              style={styles.headerButton}
-              onPress={openMemoryPanel}
-              activeOpacity={0.8}
+              style={
+                styles.headerButton
+              }
+              onPress={
+                openMemoryPanel
+              }
+              activeOpacity={
+                0.8
+              }
             >
               <MaterialCommunityIcons
                 name="brain"
@@ -1178,9 +1858,18 @@ const speakCoachReply = async (text) => {
             </TouchableOpacity>
           </View>
 
+
+          {/* =============================================== */}
+          {/* CONVERSATION */}
+          {/* =============================================== */}
+
           <ScrollView
-            ref={scrollRef}
-            style={styles.screenScroll}
+            ref={
+              scrollRef
+            }
+            style={
+              styles.screenScroll
+            }
             contentContainerStyle={
               styles.screenScrollContent
             }
@@ -1192,14 +1881,27 @@ const speakCoachReply = async (text) => {
               scrollToBottom
             }
           >
+
+            {/* ============================================= */}
+            {/* MEMORY */}
+            {/* ============================================= */}
+
             {showMemoryPanel && (
               <View
-                style={styles.memoryPanel}
+                style={
+                  styles.memoryPanel
+                }
               >
                 <View
-                  style={styles.memoryHeader}
+                  style={
+                    styles.memoryHeader
+                  }
                 >
-                  <View style={{ flex: 1 }}>
+                  <View
+                    style={{
+                      flex: 1,
+                    }}
+                  >
                     <Text
                       style={
                         styles.memoryEyebrow
@@ -1213,10 +1915,10 @@ const speakCoachReply = async (text) => {
                         styles.memoryTitle
                       }
                     >
-                      What Your Coach
-                      Remembers
+                      What Your Coach Remembers
                     </Text>
                   </View>
+
 
                   <TouchableOpacity
                     style={
@@ -1235,6 +1937,7 @@ const speakCoachReply = async (text) => {
                     />
                   </TouchableOpacity>
                 </View>
+
 
                 <MemoryInput
                   icon="time-outline"
@@ -1258,6 +1961,7 @@ const speakCoachReply = async (text) => {
                   }
                 />
 
+
                 <MemoryInput
                   icon="restaurant-outline"
                   label="Meal Preference"
@@ -1279,6 +1983,7 @@ const speakCoachReply = async (text) => {
                     )
                   }
                 />
+
 
                 <MemoryInput
                   icon="leaf-outline"
@@ -1302,6 +2007,7 @@ const speakCoachReply = async (text) => {
                   }
                 />
 
+
                 <TouchableOpacity
                   style={
                     styles.saveMemoryButton
@@ -1324,6 +2030,7 @@ const speakCoachReply = async (text) => {
                     Save Coach Memory
                   </Text>
                 </TouchableOpacity>
+
 
                 <TouchableOpacity
                   style={
@@ -1350,11 +2057,20 @@ const speakCoachReply = async (text) => {
               </View>
             )}
 
+
+            {/* ============================================= */}
+            {/* COACH STATUS */}
+            {/* ============================================= */}
+
             <View
-              style={styles.coachStatus}
+              style={
+                styles.coachStatus
+              }
             >
               <View
-                style={styles.coachOrb}
+                style={
+                  styles.coachOrb
+                }
               >
                 <MaterialCommunityIcons
                   name="brain"
@@ -1363,19 +2079,24 @@ const speakCoachReply = async (text) => {
                 />
               </View>
 
+
               <View
                 style={
                   styles.coachStatusText
                 }
               >
                 <Text
-                  style={styles.coachName}
+                  style={
+                    styles.coachName
+                  }
                 >
                   Legathon AI Coach
                 </Text>
 
                 <Text
-                  style={styles.coachReady}
+                  style={
+                    styles.coachReady
+                  }
                 >
                   {isTyping
                     ? "Preparing your response"
@@ -1383,8 +2104,11 @@ const speakCoachReply = async (text) => {
                 </Text>
               </View>
 
+
               <TouchableOpacity
-                style={styles.resetButton}
+                style={
+                  styles.resetButton
+                }
                 onPress={
                   clearConversation
                 }
@@ -1397,16 +2121,29 @@ const speakCoachReply = async (text) => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.messages}>
+
+            {/* ============================================= */}
+            {/* MESSAGE LIST */}
+            {/* ============================================= */}
+
+            <View
+              style={
+                styles.messages
+              }
+            >
               {messages.map(
                 (message) => {
+
                   const isUser =
                     message.sender ===
                     "user";
 
+
                   return (
                     <View
-                      key={message.id}
+                      key={
+                        message.id
+                      }
                       style={[
                         styles.messageRow,
 
@@ -1415,6 +2152,7 @@ const speakCoachReply = async (text) => {
                           : styles.coachMessageRow,
                       ]}
                     >
+
                       {!isUser && (
                         <View
                           style={
@@ -1428,6 +2166,7 @@ const speakCoachReply = async (text) => {
                           />
                         </View>
                       )}
+
 
                       <View
                         style={[
@@ -1449,8 +2188,10 @@ const speakCoachReply = async (text) => {
                           {message.text}
                         </Text>
 
+
                         {!isUser &&
                           message.actionIntent && (
+
                             <TouchableOpacity
                               style={
                                 styles.actionButton
@@ -1482,6 +2223,11 @@ const speakCoachReply = async (text) => {
                 }
               )}
 
+
+              {/* =========================================== */}
+              {/* TYPING */}
+              {/* =========================================== */}
+
               {isTyping && (
                 <View
                   style={[
@@ -1501,6 +2247,7 @@ const speakCoachReply = async (text) => {
                     />
                   </View>
 
+
                   <View
                     style={[
                       styles.messageBubble,
@@ -1518,6 +2265,11 @@ const speakCoachReply = async (text) => {
                 </View>
               )}
             </View>
+
+
+            {/* ============================================= */}
+            {/* PENDING ACTION */}
+            {/* ============================================= */}
 
             {pendingAction && (
               <TouchableOpacity
@@ -1546,11 +2298,19 @@ const speakCoachReply = async (text) => {
               </TouchableOpacity>
             )}
 
+
+            {/* ============================================= */}
+            {/* QUICK COACHING */}
+            {/* ============================================= */}
+
             <Text
-              style={styles.quickTitle}
+              style={
+                styles.quickTitle
+              }
             >
               QUICK COACHING
             </Text>
+
 
             <ScrollView
               horizontal
@@ -1563,8 +2323,11 @@ const speakCoachReply = async (text) => {
             >
               {QUICK_PROMPTS.map(
                 (prompt) => (
+
                   <TouchableOpacity
-                    key={prompt.id}
+                    key={
+                      prompt.id
+                    }
                     style={
                       styles.quickPrompt
                     }
@@ -1573,11 +2336,17 @@ const speakCoachReply = async (text) => {
                         prompt
                       )
                     }
-                    disabled={isTyping}
-                    activeOpacity={0.8}
+                    disabled={
+                      isTyping
+                    }
+                    activeOpacity={
+                      0.8
+                    }
                   >
                     <Ionicons
-                      name={prompt.icon}
+                      name={
+                        prompt.icon
+                      }
                       size={19}
                       color="#42F58D"
                     />
@@ -1594,48 +2363,69 @@ const speakCoachReply = async (text) => {
               )}
             </ScrollView>
 
-            <View style={{ height: 24 }} />
+
+            <View
+              style={{
+                height: 24,
+              }}
+            />
           </ScrollView>
 
-          <View style={styles.composerArea}>
-            <View style={styles.composer}>
-              <TouchableOpacity
-                style={[
-                  styles.micButton,
 
-                  isListening &&
-                    styles.micButtonActive,
-                ]}
-                onPress={toggleListening}
-              >
-                <Ionicons
-                  name={
-                    isListening
-                      ? "mic"
-                      : "mic-outline"
-                  }
-                  size={25}
-                  color="#42F58D"
-                />
-              </TouchableOpacity>
+          {/* =============================================== */}
+          {/* TEXT-ONLY COMPOSER */}
+          {/* =============================================== */}
+
+          <View
+            style={
+              styles.composerArea
+            }
+          >
+            <View
+              style={
+                styles.composer
+              }
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={23}
+                color="#42F58D"
+                style={
+                  styles.chatIcon
+                }
+              />
+
 
               <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Ask your coach…"
+                value={
+                  draft
+                }
+                onChangeText={
+                  setDraft
+                }
+                placeholder="Type a message to your coach…"
                 placeholderTextColor="#71859D"
-                style={styles.input}
+                style={
+                  styles.input
+                }
                 multiline
-                maxLength={2000}
-                editable={!isTyping}
+                maxLength={
+                  2000
+                }
+                editable={
+                  !isTyping
+                }
                 returnKeyType="send"
                 blurOnSubmit
                 onSubmitEditing={() => {
-                  if (canSend) {
+                  if (
+                    canSend
+                  ) {
                     sendMessage();
                   }
                 }}
               />
+
 
               <TouchableOpacity
                 style={[
@@ -1647,7 +2437,9 @@ const speakCoachReply = async (text) => {
                 onPress={() =>
                   sendMessage()
                 }
-                disabled={!canSend}
+                disabled={
+                  !canSend
+                }
               >
                 <Ionicons
                   name="arrow-up"
@@ -1657,11 +2449,14 @@ const speakCoachReply = async (text) => {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.disclaimer}>
-              Legathon AI provides general
-              wellness guidance and does not
-              replace professional medical
-              care.
+
+            <Text
+              style={
+                styles.disclaimer
+              }
+            >
+              Legathon AI provides general wellness guidance and does not
+              replace professional medical care.
             </Text>
           </View>
         </KeyboardAvoidingView>
@@ -1669,435 +2464,972 @@ const speakCoachReply = async (text) => {
     </SafeAreaView>
   );
 }
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#020611",
-  },
 
-  container: {
-    flex: 1,
-  },
 
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#173656",
-  },
+// ============================================================
+// STYLES
+// ============================================================
 
-  headerButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0B223A",
-    borderWidth: 1,
-    borderColor: "#24527A",
-  },
+const styles =
+  StyleSheet.create({
 
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 10,
-  },
+    // ========================================================
+    // SCREEN
+    // ========================================================
 
-  eyebrow: {
-    color: "#E5B52E",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 2.4,
-    textAlign: "center",
-  },
+    safe: {
+      flex: 1,
 
-  title: {
-    color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "900",
-    marginTop: 3,
-  },
+      backgroundColor:
+        "#020611",
+    },
 
-  screenScroll: {
-    flex: 1,
-  },
 
-  screenScrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 20,
-  },
+    container: {
+      flex: 1,
+    },
 
-  coachStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#081C31",
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "#28577E",
-    padding: 16,
-    marginBottom: 20,
-  },
 
-  coachOrb: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#083045",
-    borderWidth: 1,
-    borderColor: "#14617A",
-  },
+    // ========================================================
+    // HEADER
+    // ========================================================
 
-  coachStatusText: {
-    flex: 1,
-    marginLeft: 13,
-  },
+    header: {
+      flexDirection:
+        "row",
 
-  coachName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
+      alignItems:
+        "center",
 
-  coachReady: {
-    color: "#91A9C5",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 4,
-  },
+      paddingHorizontal:
+        18,
 
-  resetButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#102A45",
-  },
+      paddingTop:
+        10,
 
-  memoryPanel: {
-    backgroundColor: "#07182B",
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: "#315B84",
-    padding: 18,
-    marginBottom: 20,
-  },
+      paddingBottom:
+        14,
 
-  memoryHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
+      borderBottomWidth:
+        1,
 
-  memoryEyebrow: {
-    color: "#42F58D",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 2.5,
-  },
+      borderBottomColor:
+        "#173656",
+    },
 
-  memoryTitle: {
-    color: "#FFFFFF",
-    fontSize: 23,
-    fontWeight: "900",
-    marginTop: 5,
-  },
 
-  memoryCloseButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#132B45",
-  },
+    headerButton: {
+      width: 48,
 
-  memoryInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0A2037",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#234C71",
-    padding: 12,
-    marginBottom: 12,
-  },
+      height: 48,
 
-  memoryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#073245",
-    marginRight: 12,
-  },
+      borderRadius:
+        24,
 
-  memoryInputWrap: {
-    flex: 1,
-  },
+      alignItems:
+        "center",
 
-  memoryLabel: {
-    color: "#9EB5CE",
-    fontSize: 12,
-    fontWeight: "800",
-    marginBottom: 4,
-  },
+      justifyContent:
+        "center",
 
-  memoryInput: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    paddingVertical: 3,
-  },
+      backgroundColor:
+        "#0B223A",
 
-  saveMemoryButton: {
-    minHeight: 52,
-    borderRadius: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#42F58D",
-    marginTop: 5,
-  },
+      borderWidth:
+        1,
 
-  saveMemoryText: {
-    color: "#02111F",
-    fontSize: 16,
-    fontWeight: "900",
-    marginLeft: 8,
-  },
+      borderColor:
+        "#24527A",
+    },
 
-  clearMemoryButton: {
-    minHeight: 50,
-    borderRadius: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#24121D",
-    borderWidth: 1,
-    borderColor: "#71313E",
-    marginTop: 10,
-  },
 
-  clearMemoryText: {
-    color: "#FF7585",
-    fontSize: 15,
-    fontWeight: "900",
-    marginLeft: 8,
-  },
+    headerCenter: {
+      flex: 1,
 
-  messages: {
-    width: "100%",
-  },
+      alignItems:
+        "center",
 
-  messageRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "flex-end",
-    marginBottom: 16,
-  },
+      paddingHorizontal:
+        10,
+    },
 
-  coachMessageRow: {
-    justifyContent: "flex-start",
-  },
 
-  userMessageRow: {
-    justifyContent: "flex-end",
-  },
+    eyebrow: {
+      color:
+        "#E5B52E",
 
-  messageAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#073044",
-    marginRight: 10,
-    marginBottom: 4,
-  },
+      fontSize:
+        11,
 
-  messageBubble: {
-    maxWidth: "82%",
-    borderRadius: 23,
-    paddingHorizontal: 17,
-    paddingVertical: 15,
-  },
+      fontWeight:
+        "900",
 
-  coachBubble: {
-    backgroundColor: "#0B2641",
-    borderWidth: 1,
-    borderColor: "#2A5D86",
-    borderBottomLeftRadius: 7,
-  },
+      letterSpacing:
+        2.4,
 
-  userBubble: {
-    backgroundColor: "#FFC746",
-    borderBottomRightRadius: 7,
-  },
+      textAlign:
+        "center",
+    },
 
-  messageText: {
-    color: "#DCEBFF",
-    fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 24,
-  },
 
-  userMessageText: {
-    color: "#02111F",
-    fontWeight: "800",
-  },
+    title: {
+      color:
+        "#FFFFFF",
 
-  typingText: {
-    color: "#91A9C5",
-    fontSize: 15,
-    fontWeight: "800",
-    fontStyle: "italic",
-  },
+      fontSize:
+        28,
 
-  actionButton: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFC746",
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    marginTop: 13,
-  },
+      fontWeight:
+        "900",
 
-  actionButtonText: {
-    color: "#02111F",
-    fontSize: 14,
-    fontWeight: "900",
-    marginRight: 8,
-  },
+      marginTop:
+        3,
+    },
 
-  pendingActionButton: {
-    minHeight: 56,
-    borderRadius: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFC746",
-    marginTop: 4,
-    marginBottom: 22,
-  },
 
-  pendingActionText: {
-    color: "#02111F",
-    fontSize: 16,
-    fontWeight: "900",
-    marginRight: 9,
-  },
+    // ========================================================
+    // SCROLL
+    // ========================================================
 
-  quickTitle: {
-    color: "#91A9C5",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 2.5,
-    marginTop: 8,
-    marginBottom: 12,
-  },
+    screenScroll: {
+      flex: 1,
+    },
 
-  quickPromptRow: {
-    paddingRight: 18,
-  },
 
-  quickPrompt: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0A2138",
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#2A577E",
-    paddingHorizontal: 16,
-    marginRight: 10,
-  },
+    screenScrollContent: {
+      paddingHorizontal:
+        18,
 
-  quickPromptText: {
-    color: "#C7D9EE",
-    fontSize: 14,
-    fontWeight: "800",
-    marginLeft: 8,
-  },
+      paddingTop:
+        18,
 
-  composerArea: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom:
-      Platform.OS === "ios"
-        ? 12
-        : 10,
-    backgroundColor: "#03101F",
-    borderTopWidth: 1,
-    borderTopColor: "#183B5D",
-  },
+      paddingBottom:
+        20,
+    },
 
-  composer: {
-    minHeight: 62,
-    maxHeight: 130,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#091F35",
-    borderRadius: 31,
-    borderWidth: 1,
-    borderColor: "#2A577E",
-    paddingHorizontal: 8,
-  },
 
-  micButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#093047",
-  },
+    // ========================================================
+    // COACH STATUS
+    // ========================================================
 
-  micButtonActive: {
-    backgroundColor: "#174C51",
-    borderWidth: 1,
-    borderColor: "#42F58D",
-  },
+    coachStatus: {
+      flexDirection:
+        "row",
 
-  input: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    lineHeight: 22,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
+      alignItems:
+        "center",
 
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFC746",
-  },
+      backgroundColor:
+        "#081C31",
 
-  sendButtonDisabled: {
-    opacity: 0.35,
-  },
+      borderRadius:
+        24,
 
-  disclaimer: {
-    color: "#6F849E",
-    fontSize: 11,
-    fontWeight: "700",
-    lineHeight: 16,
-    textAlign: "center",
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-});
+      borderWidth:
+        1,
+
+      borderColor:
+        "#28577E",
+
+      padding:
+        16,
+
+      marginBottom:
+        20,
+    },
+
+
+    coachOrb: {
+      width:
+        58,
+
+      height:
+        58,
+
+      borderRadius:
+        29,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#083045",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#14617A",
+    },
+
+
+    coachStatusText: {
+      flex:
+        1,
+
+      marginLeft:
+        13,
+    },
+
+
+    coachName: {
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        18,
+
+      fontWeight:
+        "900",
+    },
+
+
+    coachReady: {
+      color:
+        "#91A9C5",
+
+      fontSize:
+        13,
+
+      fontWeight:
+        "700",
+
+      marginTop:
+        4,
+    },
+
+
+    resetButton: {
+      width:
+        42,
+
+      height:
+        42,
+
+      borderRadius:
+        21,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#102A45",
+    },
+
+
+    // ========================================================
+    // MEMORY PANEL
+    // ========================================================
+
+    memoryPanel: {
+      backgroundColor:
+        "#07182B",
+
+      borderRadius:
+        26,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#315B84",
+
+      padding:
+        18,
+
+      marginBottom:
+        20,
+    },
+
+
+    memoryHeader: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "flex-start",
+
+      marginBottom:
+        16,
+    },
+
+
+    memoryEyebrow: {
+      color:
+        "#42F58D",
+
+      fontSize:
+        11,
+
+      fontWeight:
+        "900",
+
+      letterSpacing:
+        2.5,
+    },
+
+
+    memoryTitle: {
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        23,
+
+      fontWeight:
+        "900",
+
+      marginTop:
+        5,
+    },
+
+
+    memoryCloseButton: {
+      width:
+        38,
+
+      height:
+        38,
+
+      borderRadius:
+        19,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#132B45",
+    },
+
+
+    memoryInputRow: {
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "#0A2037",
+
+      borderRadius:
+        18,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#234C71",
+
+      padding:
+        12,
+
+      marginBottom:
+        12,
+    },
+
+
+    memoryIcon: {
+      width:
+        42,
+
+      height:
+        42,
+
+      borderRadius:
+        14,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#073245",
+
+      marginRight:
+        12,
+    },
+
+
+    memoryInputWrap: {
+      flex:
+        1,
+    },
+
+
+    memoryLabel: {
+      color:
+        "#9EB5CE",
+
+      fontSize:
+        12,
+
+      fontWeight:
+        "800",
+
+      marginBottom:
+        4,
+    },
+
+
+    memoryInput: {
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "700",
+
+      paddingVertical:
+        3,
+    },
+
+
+    saveMemoryButton: {
+      minHeight:
+        52,
+
+      borderRadius:
+        18,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#42F58D",
+
+      marginTop:
+        5,
+    },
+
+
+    saveMemoryText: {
+      color:
+        "#02111F",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "900",
+
+      marginLeft:
+        8,
+    },
+
+
+    clearMemoryButton: {
+      minHeight:
+        50,
+
+      borderRadius:
+        18,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#24121D",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#71313E",
+
+      marginTop:
+        10,
+    },
+
+
+    clearMemoryText: {
+      color:
+        "#FF7585",
+
+      fontSize:
+        15,
+
+      fontWeight:
+        "900",
+
+      marginLeft:
+        8,
+    },
+
+
+    // ========================================================
+    // MESSAGES
+    // ========================================================
+
+    messages: {
+      width:
+        "100%",
+    },
+
+
+    messageRow: {
+      width:
+        "100%",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "flex-end",
+
+      marginBottom:
+        16,
+    },
+
+
+    coachMessageRow: {
+      justifyContent:
+        "flex-start",
+    },
+
+
+    userMessageRow: {
+      justifyContent:
+        "flex-end",
+    },
+
+
+    messageAvatar: {
+      width:
+        42,
+
+      height:
+        42,
+
+      borderRadius:
+        21,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#073044",
+
+      marginRight:
+        10,
+
+      marginBottom:
+        4,
+    },
+
+
+    messageBubble: {
+      maxWidth:
+        "82%",
+
+      borderRadius:
+        23,
+
+      paddingHorizontal:
+        17,
+
+      paddingVertical:
+        15,
+    },
+
+
+    coachBubble: {
+      backgroundColor:
+        "#0B2641",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#2A5D86",
+
+      borderBottomLeftRadius:
+        7,
+    },
+
+
+    userBubble: {
+      backgroundColor:
+        "#FFC746",
+
+      borderBottomRightRadius:
+        7,
+    },
+
+
+    messageText: {
+      color:
+        "#DCEBFF",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "600",
+
+      lineHeight:
+        24,
+    },
+
+
+    userMessageText: {
+      color:
+        "#02111F",
+
+      fontWeight:
+        "800",
+    },
+
+
+    typingText: {
+      color:
+        "#91A9C5",
+
+      fontSize:
+        15,
+
+      fontWeight:
+        "800",
+
+      fontStyle:
+        "italic",
+    },
+
+
+    // ========================================================
+    // MESSAGE ACTION
+    // ========================================================
+
+    actionButton: {
+      alignSelf:
+        "flex-start",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "#FFC746",
+
+      borderRadius:
+        999,
+
+      paddingHorizontal:
+        16,
+
+      paddingVertical:
+        11,
+
+      marginTop:
+        13,
+    },
+
+
+    actionButtonText: {
+      color:
+        "#02111F",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "900",
+
+      marginRight:
+        8,
+    },
+
+
+    // ========================================================
+    // RECOMMENDED ACTION
+    // ========================================================
+
+    pendingActionButton: {
+      minHeight:
+        56,
+
+      borderRadius:
+        20,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#FFC746",
+
+      marginTop:
+        4,
+
+      marginBottom:
+        22,
+    },
+
+
+    pendingActionText: {
+      color:
+        "#02111F",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "900",
+
+      marginRight:
+        9,
+    },
+
+
+    // ========================================================
+    // QUICK COACHING
+    // ========================================================
+
+    quickTitle: {
+      color:
+        "#91A9C5",
+
+      fontSize:
+        12,
+
+      fontWeight:
+        "900",
+
+      letterSpacing:
+        2.5,
+
+      marginTop:
+        8,
+
+      marginBottom:
+        12,
+    },
+
+
+    quickPromptRow: {
+      paddingRight:
+        18,
+    },
+
+
+    quickPrompt: {
+      minHeight:
+        48,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "#0A2138",
+
+      borderRadius:
+        999,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#2A577E",
+
+      paddingHorizontal:
+        16,
+
+      marginRight:
+        10,
+    },
+
+
+    quickPromptText: {
+      color:
+        "#C7D9EE",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "800",
+
+      marginLeft:
+        8,
+    },
+
+
+    // ========================================================
+    // TEXT COMPOSER
+    // ========================================================
+
+    composerArea: {
+      paddingHorizontal:
+        16,
+
+      paddingTop:
+        10,
+
+      paddingBottom:
+        Platform.OS === "ios"
+          ? 12
+          : 10,
+
+      backgroundColor:
+        "#03101F",
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "#183B5D",
+    },
+
+
+    composer: {
+      minHeight:
+        62,
+
+      maxHeight:
+        130,
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "#091F35",
+
+      borderRadius:
+        31,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#2A577E",
+
+      paddingHorizontal:
+        8,
+    },
+
+
+    chatIcon: {
+      marginLeft:
+        8,
+    },
+
+
+    input: {
+      flex:
+        1,
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        22,
+
+      paddingHorizontal:
+        12,
+
+      paddingVertical:
+        11,
+    },
+
+
+    sendButton: {
+      width:
+        48,
+
+      height:
+        48,
+
+      borderRadius:
+        24,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      backgroundColor:
+        "#FFC746",
+    },
+
+
+    sendButtonDisabled: {
+      opacity:
+        0.35,
+    },
+
+
+    // ========================================================
+    // DISCLAIMER
+    // ========================================================
+
+    disclaimer: {
+      color:
+        "#6F849E",
+
+      fontSize:
+        11,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        16,
+
+      textAlign:
+        "center",
+
+      paddingHorizontal:
+        20,
+
+      marginTop:
+        8,
+    },
+  });

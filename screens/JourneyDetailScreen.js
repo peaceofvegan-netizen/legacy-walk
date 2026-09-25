@@ -495,7 +495,7 @@ const handleStartJourney = async () => {
 
             <View style={styles.headerCenter}>
               <Text style={styles.headerEyebrow}>
-                LEGACY WALK
+                LEGATHON WALK
               </Text>
 
               <Text style={styles.headerTitle}>
@@ -531,23 +531,7 @@ const handleStartJourney = async () => {
 
               <AccessBadge accessLevel={accessLevel} />
 
-              <View style={styles.heroContent}>
-                <Text style={styles.categoryText}>
-                  {String(
-                    journey?.category || "Legathon Journey"
-                  ).toUpperCase()}
-                </Text>
-
-                <Text style={styles.journeyTitle}>
-                  {journey?.title || "Legathon Journey"}
-                </Text>
-
-                <Text style={styles.locationText}>
-                  {journey?.location ||
-                    journey?.country ||
-                    "Worldwide"}
-                </Text>
-              </View>
+         
             </View>
 
             <View style={styles.statsGrid}>

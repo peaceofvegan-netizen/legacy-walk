@@ -1,108 +1,279 @@
-import { useEffect, useRef, useState } from "react";
-import { Pedometer } from "expo-sensors";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Pedometer,
+} from "expo-sensors";
+
+
+// ============================================================
+// LEGATHON WALK — LIVE STEP COUNTER
+// ============================================================
+//
+// RESPONSIBILITY:
+//
+// • Check Motion / Pedometer permission
+// • Check pedometer availability
+// • Listen for foreground live steps
+// • Provide live step data
+//
+// DOES NOT:
+//
+// • Start or stop walking sessions
+// • Calculate session duration
+// • Save walking history
+// • Calculate Walking Function Score
+// • Award WCoins
+// • Award points
+//
+// Session management belongs in:
+// useWalkingSession.js
+//
+// ============================================================
+
+
+const STEPS_PER_MILE = 2000;
+
 
 export function useStepCounter() {
-  const [steps, setSteps] = useState(0);
-  const [isAvailable, setIsAvailable] = useState(false);
-  const [walkingSeconds, setWalkingSeconds] = useState(0);
 
-  const sessionStartRef = useRef(null);
-  const lastStepsRef = useRef(0);
+  const [steps, setSteps] =
+    useState(0);
+
+  const [isAvailable, setIsAvailable] =
+    useState(false);
+
+  const [permissionGranted, setPermissionGranted] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState(null);
+
+
+  const subscriptionRef =
+    useRef(null);
+
+  const mountedRef =
+    useRef(true);
+
+
+  // ==========================================================
+  // START PEDOMETER
+  // ==========================================================
 
   useEffect(() => {
-    let subscription = null;
-    let timer = null;
-    let mounted = true;
 
-    async function startPedometer() {
+    mountedRef.current = true;
+
+
+    async function initializePedometer() {
+
       try {
-        const available = await Pedometer.isAvailableAsync();
 
-        if (!mounted) return;
+        setLoading(true);
+        setError(null);
 
-        setIsAvailable(available);
 
-        if (!available) {
-          console.log("Pedometer is not available.");
+        // ======================================================
+        // CHECK PERMISSION
+        // ======================================================
+
+        let permission =
+          await Pedometer.getPermissionsAsync();
+
+
+        if (!mountedRef.current) {
           return;
         }
 
-        sessionStartRef.current = Date.now();
 
-        subscription = Pedometer.watchStepCount((result) => {
-          const liveSteps = Number(result?.steps || 0);
+        // Request permission when necessary.
 
-          lastStepsRef.current = liveSteps;
-          setSteps(liveSteps);
-        });
+        if (!permission.granted) {
 
-        timer = setInterval(() => {
-          if (!sessionStartRef.current) return;
+          permission =
+            await Pedometer.requestPermissionsAsync();
+        }
 
-          const elapsedSeconds = Math.floor(
-            (Date.now() - sessionStartRef.current) / 1000
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+
+        if (!permission.granted) {
+
+          setPermissionGranted(false);
+          setIsAvailable(false);
+
+          setError(
+            "Motion access is required to count steps."
           );
 
-          setWalkingSeconds(elapsedSeconds);
-        }, 1000);
-      } catch (error) {
-        console.log("Pedometer start error:", error);
-        setIsAvailable(false);
+          return;
+        }
+
+
+        setPermissionGranted(true);
+
+
+        // ======================================================
+        // CHECK SENSOR AVAILABILITY
+        // ======================================================
+
+        const available =
+          await Pedometer.isAvailableAsync();
+
+
+        if (!mountedRef.current) {
+          return;
+        }
+
+
+        setIsAvailable(available);
+
+
+        if (!available) {
+
+          setError(
+            "Pedometer is not available on this device."
+          );
+
+          return;
+        }
+
+
+        // ======================================================
+        // LIVE STEP SUBSCRIPTION
+        // ======================================================
+
+        subscriptionRef.current =
+          Pedometer.watchStepCount(
+            (result) => {
+
+              if (!mountedRef.current) {
+                return;
+              }
+
+
+              const liveSteps =
+                Math.max(
+                  0,
+                  Number(
+                    result?.steps || 0
+                  )
+                );
+
+
+              setSteps(liveSteps);
+            }
+          );
+
+
+      } catch (err) {
+
+        console.log(
+          "Legathon pedometer error:",
+          err
+        );
+
+
+        if (mountedRef.current) {
+
+          setIsAvailable(false);
+
+          setError(
+            err?.message ||
+              "Unable to start the step counter."
+          );
+        }
+
+      } finally {
+
+        if (mountedRef.current) {
+          setLoading(false);
+        }
       }
     }
 
-    startPedometer();
+
+    initializePedometer();
+
+
+    // ==========================================================
+    // CLEANUP
+    // ==========================================================
 
     return () => {
-      mounted = false;
 
-      if (subscription) {
-        subscription.remove();
-      }
+      mountedRef.current = false;
 
-      if (timer) {
-        clearInterval(timer);
+
+      if (
+        subscriptionRef.current
+      ) {
+
+        subscriptionRef.current.remove();
+
+        subscriptionRef.current =
+          null;
       }
     };
+
   }, []);
 
-  // Legathon currently uses approximately 2,000 steps = 1 mile.
-  const miles = steps / 2000;
 
-  const walkingMinutes = walkingSeconds / 60;
+  // ==========================================================
+  // BASIC LIVE DISTANCE
+  // ==========================================================
 
-  // Minutes required to walk one mile.
-  const paceMinutesPerMile =
-    miles > 0 && walkingMinutes > 0
-      ? walkingMinutes / miles
-      : 0;
+  const miles =
+    steps / STEPS_PER_MILE;
 
-  // Miles per hour.
-  const speedMph =
-    walkingSeconds > 0
-      ? miles / (walkingSeconds / 3600)
-      : 0;
 
-  // Steps per minute.
-  const cadence =
-    walkingMinutes > 0
-      ? steps / walkingMinutes
-      : 0;
+  // ==========================================================
+  // RESET LOCAL LIVE COUNTER
+  // ==========================================================
+  //
+  // NOTE:
+  // This resets Legathon's displayed live value.
+  // It does NOT reset the phone's hardware pedometer.
+  //
+  // ==========================================================
 
-  const calories = Math.round(steps * 0.04);
+  const resetSteps = () => {
+
+    setSteps(0);
+  };
+
+
+  // ==========================================================
+  // RETURN
+  // ==========================================================
 
   return {
+
     steps,
+
+    miles:
+      Number(
+        miles.toFixed(2)
+      ),
+
     isAvailable,
 
-    miles: Number(miles.toFixed(2)),
-    calories,
+    permissionGranted,
 
-    walkingSeconds,
-    walkingMinutes: Number(walkingMinutes.toFixed(1)),
+    loading,
 
-    paceMinutesPerMile: Number(paceMinutesPerMile.toFixed(2)),
-    speedMph: Number(speedMph.toFixed(2)),
-    cadence: Math.round(cadence),
+    error,
+
+    resetSteps,
   };
 }

@@ -1,7 +1,4 @@
 import React from "react";
-import { awardPointsOnce } from "../utils/rewardPointsSystem";
-import { addLegacyPoints } from "../utils/legacyPointsManager";
-import { addPoints } from "../utils/legacyPointsManager";
 
 import {
   View,
@@ -13,18 +10,26 @@ import {
   TouchableOpacity,
   Alert,
   Share,
+  AppState,
 } from "react-native";
 
-import { addRegularJourneySteps } from "../utils/stepTrackingEngine";
-import * as Location from "expo-location";
 import { Pedometer } from "expo-sensors";
+import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import {
+  addRegularJourneySteps,
+  activateJourneyTracking,
+} from "../utils/stepTrackingEngine";
 
 import {
   completeJourneyProgress,
   resetJourneyProgress,
   updateJourneySteps,
 } from "../utils/journeyProgress";
+
+import { awardPointsOnce } from "../utils/rewardPointsSystem";
+import { addPoints } from "../utils/legacyPointsManager";
 
 import journeyMaps from "../data/journeyMaps";
 
@@ -37,212 +42,750 @@ import JOURNEY_REWARDS, {
   completeJourneyReward,
 } from "../utils/journeyRewards";
 
-import {
-  addWCoins,
-  getWCoins,
-} from "../utils/wcoinStorage";
-
 const SHOE_ICON = require("../assets/apparel/w-shoe.png");
 
-function getDistanceMiles(a, b) {
-  const R = 3958.8;
-  const dLat =
-    ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLon =
-    ((b.longitude - a.longitude) * Math.PI) / 180;
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
+const PROGRESS_KEY = "LEGACY_WALK_JOURNEY_PROGRESS";
 
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(dLon / 2) ** 2;
+// Foreground walking filter.
+//
+// GPS cannot identify every slow-moving vehicle.
+// Unknown or stale GPS is deliberately rejected.
+// Indoor steps may be missed.
+//
+// Speeds are meters per second:
+// 2.5 m/s ≈ 5.6 mph
+// 4.0 m/s ≈ 8.9 mph
 
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+export function createWalkingGate(clock = Date.now) {
+  let lastFix = 0;
+  let slowSince = null;
+  let previous = null;
+  let generation = 0;
+  let driving = false;
+  let latestSlow = false;
 
-export default function GPSJourneyMapScreen({
-  route,
-  journey,
-  selectedJourney,
-  activeJourney,
-  goBack,
-  goToDetail,
-  goToStory,
-  goToCertificate,
-  goToWallet,
-  awardJourneyRewards,
-}) {
-  const [savedJourney, setSavedJourney] =
-    React.useState(null);
+  function invalidate() {
+    generation += 1;
+    slowSince = null;
+    latestSlow = false;
+  }
 
-  const [currentLocation, setCurrentLocation] =
-    React.useState(null);
+  function status() {
+    const now = clock();
 
-  const [steps, setSteps] =
-    React.useState(0);
+    if (!lastFix || now - lastFix > 10000) {
+      return "Waiting for reliable GPS";
+    }
 
-  const [secondsActive, setSecondsActive] =
-    React.useState(0);
+    if (driving) {
+      return "Vehicle-speed movement — steps paused";
+    }
 
-  const [isTracking, setIsTracking] =
-    React.useState(true);
+    if (
+      !latestSlow ||
+      slowSince === null ||
+      now - slowSince < 20000
+    ) {
+      return "Verifying walking speed";
+    }
 
-  const [hasCompleted, setHasCompleted] =
-    React.useState(false);
+    return "Walking verified";
+  }
 
-  const [lastSavedAt, setLastSavedAt] =
-    React.useState(null);
+  function update(fix) {
+    const now = clock();
+    const coords = fix?.coords;
+    const time = Number(fix?.timestamp);
 
-  const [
-    lastRewardedCheckpoint,
-    setLastRewardedCheckpoint,
-  ] = React.useState(1);
+    if (
+      !coords ||
+      !Number.isFinite(time) ||
+      now - time > 10000 ||
+      time > now + 1000 ||
+      !Number.isFinite(coords.accuracy) ||
+      coords.accuracy > 30 ||
+      coords.accuracy < 0 ||
+      !Number.isFinite(coords.latitude) ||
+      !Number.isFinite(coords.longitude)
+    ) {
+      invalidate();
+      lastFix = 0;
+      previous = null;
+      return;
+    }
 
-  const [sessionId] =
-    React.useState(`${Date.now()}`);
+    if (previous && time <= previous.timestamp) {
+      return;
+    }
 
-  const [passportStamps, setPassportStamps] =
-    React.useState([]);
+    if (lastFix && time - lastFix > 10000) {
+      invalidate();
+    }
 
-  const [
-    shownStoryCheckpoints,
-    setShownStoryCheckpoints,
-  ] = React.useState([]);
+    let derivedSpeed = null;
 
-  const lastStepEventRef =
-    React.useRef(0);
+    if (previous) {
+      const seconds = (time - previous.timestamp) / 1000;
 
-  const journeyStepBaseRef =
-    React.useRef(null);
+      if (seconds >= 1 && seconds <= 10) {
+        const radians = Math.PI / 180;
 
-  const rawJourney =
-    journey ||
-    selectedJourney ||
-    activeJourney ||
-    route?.params?.journey ||
-    route?.params?.selectedJourney ||
-    null;
+        const latitudeDifference =
+          (coords.latitude - previous.coords.latitude) * radians;
 
-  const currentJourney =
-    rawJourney &&
-    typeof rawJourney === "object"
-      ? rawJourney
-      : rawJourney
-        ? {
-            id: String(rawJourney),
-            title: String(rawJourney),
-          }
+        const longitudeDifference =
+          (coords.longitude - previous.coords.longitude) * radians;
+
+        const haversine =
+          Math.sin(latitudeDifference / 2) ** 2 +
+          Math.cos(coords.latitude * radians) *
+            Math.cos(previous.coords.latitude * radians) *
+            Math.sin(longitudeDifference / 2) ** 2;
+
+        const distance =
+          6371000 *
+          2 *
+          Math.asin(Math.sqrt(Math.min(1, haversine)));
+
+        // Subtract reported uncertainty to reduce GPS-drift errors.
+        derivedSpeed =
+          Math.max(
+            0,
+            distance -
+              coords.accuracy -
+              previous.coords.accuracy
+          ) / seconds;
+      }
+    }
+
+    previous = fix;
+    lastFix = time;
+
+    const reportedSpeed =
+      Number.isFinite(coords.speed) && coords.speed >= 0
+        ? coords.speed
         : null;
 
-  const journeyId =
-    currentJourney?.id ||
-    currentJourney?.journeyId ||
-    currentJourney?.routeKey ||
-    currentJourney?.slug ||
-    route?.params?.journeyId ||
-    route?.params?.id ||
-    "";
+    const speed =
+      reportedSpeed === null
+        ? derivedSpeed
+        : Math.max(reportedSpeed, derivedSpeed ?? 0);
 
-  const normalizedJourneyId =
-    String(journeyId)
-      .trim()
-      .toLowerCase()
-      .replace(/[_\s]+/g, "-")
-      .replace(/[^a-z0-9-]/g, "")
-      .replace(/-+/g, "-");
+    if (speed === null || speed > 2.5) {
+      invalidate();
+
+      if (speed !== null && speed >= 4) {
+        driving = true;
+      }
+
+      return;
+    }
+
+    latestSlow = true;
+
+    if (slowSince === null) {
+      slowSince = time;
+    }
+
+    if (time - slowSince >= 20000) {
+      driving = false;
+    }
+  }
+
+  function ticket() {
+    // A stale interval breaks the uninterrupted verification window.
+    if (clock() - lastFix > 10000) {
+      invalidate();
+    }
+
+    return status() === "Walking verified"
+      ? generation
+      : null;
+  }
+
+  return {
+    update,
+    status,
+    ticket,
+  };
+}
+
+// Serialize journey operations across screen remounts.
+// A newly opened journey waits for the previous journey's saves.
+
+let journeyWork = Promise.resolve();
+
+function enqueueJourneyWork(operation) {
+  const result = journeyWork.then(operation);
+
+  journeyWork = result.catch(() => {});
+
+  return result;
+}
+
+function normalizeId(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-");
+}
+
+function nonnegative(value, fallback = 0) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0
+    ? number
+    : fallback;
+}
+
+function firstPositive(...values) {
+  return (
+    values
+      .map(Number)
+      .find(
+        value =>
+          Number.isFinite(value) &&
+          value > 0
+      ) || 0
+  );
+}
+
+function parseObject(raw) {
+  if (!raw) {
+    return {};
+  }
+
+  const value = JSON.parse(raw);
+
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw new Error("Saved journey data is invalid.");
+  }
+
+  return value;
+}
+
+function checkpointFor(steps, goal) {
+  return steps >= goal
+    ? 5
+    : Math.min(
+        4,
+        1 + Math.floor((steps / goal) * 4)
+      );
+}
+
+// Each journey gets a separate component instance.
+// This prevents one journey's state from appearing in another.
+
+export default function GPSJourneyMapScreen(props) {
+  const raw =
+    props.journey ||
+    props.selectedJourney ||
+    props.activeJourney ||
+    props.route?.params?.journey ||
+    props.route?.params?.selectedJourney;
+
+  const data =
+    raw && typeof raw === "object"
+      ? raw
+      : raw
+        ? {
+            id: String(raw),
+            title: String(raw),
+          }
+        : {};
+
+  const id = String(
+    data.id ||
+      data.journeyId ||
+      data.routeKey ||
+      data.slug ||
+      props.route?.params?.journeyId ||
+      props.route?.params?.id ||
+      ""
+  );
+
+  const reward =
+    JOURNEY_REWARDS[normalizeId(id)] ||
+    JOURNEY_REWARDS[id] ||
+    {};
+
+  const goal = firstPositive(
+    data.totalSteps,
+    data.requiredSteps,
+    data.stepGoal,
+    data.targetSteps,
+    reward.totalSteps,
+    firstPositive(
+      data.distanceMiles,
+      reward.distanceMiles
+    ) * 2000
+  );
+
+  if (!id || !goal) {
+    return (
+      <View style={[styles.container, styles.content]}>
+        <Text style={styles.title}>
+          Journey unavailable
+        </Text>
+
+        <Text style={styles.subtitle}>
+          This journey needs an ID and a step goal before
+          tracking can start.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() =>
+            props.goBack
+              ? props.goBack()
+              : props.navigation?.goBack()
+          }
+        >
+          <Text style={styles.secondaryText}>
+            Back
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <JourneySession
+      key={`${id}:${goal}`}
+      {...props}
+      initialJourney={{
+        ...reward,
+        ...data,
+        id,
+        totalSteps: Math.floor(goal),
+      }}
+    />
+  );
+}
+
+function JourneySession({
+  initialJourney,
+  goBack,
+  goToStory,
+  navigation,
+}) {
+  const [currentJourney] = React.useState(initialJourney);
+
+  const id = currentJourney.id;
+  const normalizedJourneyId = normalizeId(id);
+  const totalSteps = currentJourney.totalSteps;
 
   const journeyReward =
     JOURNEY_REWARDS[normalizedJourneyId] ||
-    null;
+    JOURNEY_REWARDS[id];
 
-  const routeTitle =
-    currentJourney?.title ||
-    "Legathon Journey";
+  const storyKey = `shownJourneyStories:${id}`;
 
-  const storyTriggerStorageKey =
-    React.useMemo(() => {
-      const activeJourneyId =
-        currentJourney?.id ||
-        currentJourney?.journeyId ||
-        currentJourney?.slug ||
-        "default";
+  const [sessionId] = React.useState(() =>
+    String(Date.now())
+  );
 
-      return `shownJourneyStories:${activeJourneyId}`;
-    }, [
-      currentJourney?.id,
-      currentJourney?.journeyId,
-      currentJourney?.slug,
+  const [view, setView] = React.useState(null);
+  const [loadError, setLoadError] = React.useState("");
+  const [saveError, setSaveError] = React.useState("");
+  const [sensorError, setSensorError] = React.useState("");
+  const [lastSavedAt, setLastSavedAt] = React.useState(null);
+
+  const [walkingStatus, setWalkingStatus] =
+    React.useState("Waiting for reliable GPS");
+
+  const [sensorReady, setSensorReady] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+
+  const [focused, setFocused] = React.useState(
+    () => navigation?.isFocused?.() ?? true
+  );
+
+  const [appState, setAppState] = React.useState(
+    AppState.currentState || "active"
+  );
+
+  const snapshot = React.useRef(null);
+  const mounted = React.useRef(false);
+  const busyRef = React.useRef(false);
+  const trackingRef = React.useRef(false);
+  const subscriptionRef = React.useRef(null);
+  const allowNavigation = React.useRef(false);
+  const errorRef = React.useRef("");
+
+  function publish() {
+    if (mounted.current && snapshot.current) {
+      setView({ ...snapshot.current });
+    }
+  }
+
+  function stopSensor() {
+    trackingRef.current = false;
+
+    subscriptionRef.current?.remove();
+    subscriptionRef.current = null;
+
+    if (mounted.current) {
+      setSensorReady(false);
+    }
+  }
+
+  function reportSaveError(error) {
+    console.error("Journey save failed:", error);
+
+    errorRef.current =
+      "Progress could not be fully saved. Tap Save and Exit to retry.";
+
+    if (mounted.current) {
+      setSaveError(errorRef.current);
+
+      if (snapshot.current) {
+        snapshot.current.isTracking = false;
+      }
+
+      stopSensor();
+      publish();
+    }
+  }
+
+  // Called only within the serialized journey queue.
+  // Never save a default zero before restoration finishes.
+
+  async function persistNow() {
+    if (!snapshot.current) {
+      return;
+    }
+
+    const state = { ...snapshot.current };
+
+    const percent = Math.min(
+      100,
+      (state.steps / totalSteps) * 100
+    );
+
+    const active = {
+      ...currentJourney,
+      sessionId,
+      steps: state.steps,
+      secondsActive: state.secondsActive,
+      progress: percent,
+      journeyProgress: percent,
+      progressPercent: percent,
+      currentCheckpoint: checkpointFor(
+        state.steps,
+        totalSteps
+      ),
+      completed: state.hasCompleted,
+      isTracking: state.isTracking,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    await AsyncStorage.multiSet([
+      [
+        `journeyStats_${id}`,
+        JSON.stringify({
+          ...state,
+          schemaVersion: 2,
+        }),
+      ],
+      [
+        `activeJourney_${id}`,
+        JSON.stringify(active),
+      ],
+      [
+        `journeyProgress_${id}`,
+        JSON.stringify(active),
+      ],
+      [
+        "activeJourney",
+        JSON.stringify(active),
+      ],
+      [
+        "lastStartedJourney",
+        JSON.stringify(active),
+      ],
+      [
+        "resumeJourneyId",
+        id,
+      ],
+      [
+        storyKey,
+        JSON.stringify(state.shownStories),
+      ],
+      [
+        `lastRewardedCheckpoint_${id}`,
+        String(state.lastRewardedCheckpoint),
+      ],
     ]);
 
-  const [startingSteps, setStartingSteps] =
-    React.useState(0);
+    await updateJourneySteps(
+      currentJourney,
+      state.steps,
+      {
+        calories: Math.round(state.steps * 0.04),
+        walkingTimeMinutes: state.secondsActive / 60,
+      }
+    );
 
-  const totalSteps =
-    Number(
-      currentJourney?.totalSteps ||
-      currentJourney?.requiredSteps ||
-      currentJourney?.stepGoal ||
-      currentJourney?.targetSteps
-    ) || 125000;
+    const raw = await AsyncStorage.getItem(
+      "journeyProgressData"
+    );
 
-  const routeKey =
-    currentJourney?.routeKey ||
-    currentJourney?.id ||
-    currentJourney?.title
-      ?.toLowerCase()
-      .replaceAll(" ", "") ||
-    null;
+    const existing = raw ? JSON.parse(raw) : [];
 
-  const routeImage =
-    getRouteImage?.(routeKey) ||
-    ROUTE_IMAGES?.[routeKey] ||
-    currentJourney?.routeImage ||
-    currentJourney?.image ||
-    ROUTE_IMAGES?.selma;
+    if (!Array.isArray(existing)) {
+      throw new Error("Journey list data is invalid.");
+    }
+
+    const entry = {
+      id,
+      title: currentJourney.title || "Legathon Journey",
+      progress: percent,
+    };
+
+    const found = existing.some(
+      item => String(item?.id) === id
+    );
+
+    const updatedList = found
+      ? existing.map(item =>
+          String(item?.id) === id
+            ? { ...item, ...entry }
+            : item
+        )
+      : [...existing, entry];
+
+    await AsyncStorage.setItem(
+      "journeyProgressData",
+      JSON.stringify(updatedList)
+    );
+
+    // Do not overwrite daily or lifetime totals with
+    // this journey's cumulative total.
+
+    errorRef.current = "";
+
+    if (mounted.current) {
+      setSaveError("");
+      setLastSavedAt(new Date());
+    }
+  }
+
+  function save() {
+    return enqueueJourneyWork(persistNow);
+  }
+
+  // Restore this journey before starting any sensor.
+
+  React.useEffect(() => {
+    mounted.current = true;
+
+    let cancelled = false;
+
+    enqueueJourneyWork(async () => {
+      const values = Object.fromEntries(
+        await AsyncStorage.multiGet([
+          `journeyStats_${id}`,
+          `journeyCompleted_${id}`,
+          `journeyRewarded_${id}`,
+          `lastRewardedCheckpoint_${id}`,
+          storyKey,
+          PROGRESS_KEY,
+        ])
+      );
+
+      const rawStats = values[`journeyStats_${id}`];
+      const stats = parseObject(rawStats);
+      const database = parseObject(values[PROGRESS_KEY]);
+      const legacy = database[normalizedJourneyId] || {};
+
+      const restoredSteps = Number(
+        rawStats != null
+          ? stats.steps ?? 0
+          : legacy.stepsCompleted ?? 0
+      );
+
+      const restoredSeconds = Number(
+        rawStats != null
+          ? stats.secondsActive ?? 0
+          : (legacy.walkingTimeMinutes ?? 0) * 60
+      );
+
+      if (
+        !Number.isFinite(restoredSteps) ||
+        restoredSteps < 0 ||
+        !Number.isFinite(restoredSeconds) ||
+        restoredSeconds < 0
+      ) {
+        throw new Error(
+          "Saved progress has invalid steps or time; it was not overwritten."
+        );
+      }
+
+      const stories =
+        stats.shownStories ??
+        (
+          values[storyKey]
+            ? JSON.parse(values[storyKey])
+            : []
+        );
+
+      if (!Array.isArray(stories)) {
+        throw new Error(
+          "Saved story progress is invalid."
+        );
+      }
+
+      const claimed =
+        values[`journeyCompleted_${id}`] === "true" ||
+        values[`journeyRewarded_${id}`] === "true" ||
+        Boolean(legacy.rewardsClaimed);
+
+      if (cancelled) {
+        return;
+      }
+
+      snapshot.current = {
+        steps: Math.min(
+          totalSteps,
+          Math.floor(restoredSteps)
+        ),
+        secondsActive: Math.floor(restoredSeconds),
+        hasCompleted: stats.hasCompleted ?? claimed,
+        rewardsClaimed: claimed,
+        isTracking: stats.isTracking ?? !claimed,
+        lastRewardedCheckpoint: Math.max(
+          1,
+          nonnegative(
+            stats.lastRewardedCheckpoint ??
+              values[`lastRewardedCheckpoint_${id}`],
+            1
+          )
+        ),
+        shownStories: stories
+          .map(Number)
+          .filter(number => number >= 1 && number <= 5),
+      };
+
+      if (snapshot.current.steps >= totalSteps) {
+        snapshot.current.isTracking = false;
+      }
+
+      publish();
+      setLoadError("");
+    }).catch(error => {
+      console.error(
+        "Journey restoration failed:",
+        error
+      );
+
+      if (!cancelled) {
+        setLoadError(
+          "Could not load your saved journey. Nothing was overwritten. Go back and reopen it."
+        );
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      mounted.current = false;
+
+      stopSensor();
+
+      // Accepted events already queued finish before this save.
+      if (snapshot.current) {
+        save().catch(error =>
+          console.error(
+            "Final journey save failed:",
+            error
+          )
+        );
+      }
+    };
+  }, []);
+
+  const ready = view !== null;
+  const steps = view?.steps || 0;
+  const secondsActive = view?.secondsActive || 0;
+  const hasCompleted = Boolean(view?.hasCompleted);
+
+  const isTracking = Boolean(
+    view?.isTracking &&
+      sensorReady &&
+      walkingStatus === "Walking verified" &&
+      focused &&
+      appState === "active" &&
+      !busy
+  );
+
+  const progress = Math.min(
+    100,
+    Math.floor((steps / totalSteps) * 10000) / 100
+  );
+
+  const liveMiles = steps / 2000;
+  const liveCalories = Math.round(steps * 0.04);
+
+  const remainingSteps = Math.max(
+    totalSteps - steps,
+    0
+  );
+
+  const currentCheckpoint = checkpointFor(
+    steps,
+    totalSteps
+  );
+
+  const timeActive = [
+    Math.floor(secondsActive / 3600),
+    Math.floor(secondsActive / 60) % 60,
+    secondsActive % 60,
+  ]
+    .map(number =>
+      String(number).padStart(2, "0")
+    )
+    .join(":");
+
+  const routeTitle =
+    currentJourney.title || "Legathon Journey";
 
   const routeDescription =
-    currentJourney?.gpsText ||
-    currentJourney?.description ||
-    "Walk anywhere. Every step powers your progress, unlocks new milestones, earns rewards, and moves you closer to completing your Legathon Journey.";
+    currentJourney.gpsText ||
+    currentJourney.description ||
+    "Walk anywhere. Every step moves you closer to completing your Legathon Journey.";
 
-  const liveMiles =
-    Number((steps / 2000).toFixed(2));
+  const routeKey = currentJourney.routeKey || id;
 
-  const liveCalories =
-    Math.round(steps * 0.04);
+  const imageValue =
+    getRouteImage?.(routeKey) ||
+    ROUTE_IMAGES?.[routeKey] ||
+    currentJourney.routeImage ||
+    currentJourney.image ||
+    ROUTE_IMAGES?.selma;
 
-  const progress =
-    steps >= totalSteps
-      ? 100
-      : Math.floor(
-          (steps / totalSteps) * 10000
-        ) / 100;
-
-  const remainingSteps =
-    Math.max(totalSteps - steps, 0);
-
-  const timeActive =
-    `${String(
-      Math.floor(secondsActive / 3600)
-    ).padStart(2, "0")}:` +
-    `${String(
-      Math.floor(
-        (secondsActive % 3600) / 60
-      )
-    ).padStart(2, "0")}:` +
-    `${String(
-      secondsActive % 60
-    ).padStart(2, "0")}`;
+  const routeImage =
+    typeof imageValue === "string"
+      ? { uri: imageValue }
+      : imageValue;
 
   const journeyData =
-    journeyMaps?.[currentJourney?.id] ||
-    journeyMaps?.[currentJourney?.title] ||
-    journeyMaps?.[currentJourney?.name] ||
+    journeyMaps?.[id] ||
+    journeyMaps?.[normalizedJourneyId] ||
+    journeyMaps?.[currentJourney.title] ||
     {};
 
-  const defaultCheckpointNames = [
+  const names =
+    journeyData.checkpoints ??
+    currentJourney.checkpoints ??
+    currentJourney.checkpointNames;
+
+  const defaults = [
     "Start",
     "Checkpoint 2",
     "Checkpoint 3",
@@ -250,1399 +793,841 @@ export default function GPSJourneyMapScreen({
     "Finish",
   ];
 
-  const rawCheckpoints =
-    journeyData?.checkpoints ??
-    currentJourney?.checkpoints ??
-    currentJourney?.checkpointNames;
+  const checkpoints = defaults.map(
+    (fallback, index) => {
+      const item = Array.isArray(names)
+        ? names[index]
+        : null;
 
-  const checkpointNames =
-    Array.isArray(rawCheckpoints)
-      ? rawCheckpoints
-          .slice(0, 5)
-          .map((checkpoint, index) => {
-            if (
-              typeof checkpoint ===
-              "string"
-            ) {
-              return checkpoint;
-            }
+      const threshold = Math.ceil(
+        (totalSteps * index) / 4
+      );
 
-            return (
-              checkpoint?.title ||
-              checkpoint?.name ||
-              checkpoint?.label ||
-              defaultCheckpointNames[index]
-            );
-          })
-      : [...defaultCheckpointNames];
+      return {
+        id: index + 1,
+        title:
+          typeof item === "string"
+            ? item
+            : item?.title ||
+              item?.name ||
+              item?.label ||
+              fallback,
+        complete: ready && steps >= threshold,
+        active:
+          ready &&
+          index + 1 === currentCheckpoint &&
+          steps < totalSteps,
+      };
+    }
+  );
 
-  while (checkpointNames.length < 5) {
-    checkpointNames.push(
-      defaultCheckpointNames[
-        checkpointNames.length
-      ]
-    );
-  }
+  const completedCheckpoints = checkpoints.filter(
+    point => point.complete
+  ).length;
 
-  const checkpointCount = 5;
-
-  const completedCheckpoints =
-    progress >= 100
-      ? checkpointCount
-      : Math.floor(
-          (progress / 100) *
-            checkpointCount
-        );
-
-  const currentCheckpoint =
-    progress >= 100
-      ? checkpointCount
-      : Math.min(
-          completedCheckpoints + 1,
-          checkpointCount
-        );
-
-  const checkpoints =
-    checkpointNames.map(
-      (title, index) => {
-        const checkpointNumber =
-          index + 1;
-
-        return {
-          id: checkpointNumber,
-          title,
-          complete:
-            checkpointNumber <=
-            completedCheckpoints,
-          active:
-            progress < 100 &&
-            checkpointNumber ===
-              currentCheckpoint,
-        };
-      }
-    );
-
-  const markerPositions =
-    checkpoints.map((_, index) => {
-      if (checkpoints.length === 1) {
-        return "50%";
-      }
-
-      return `${
-        (index /
-          (checkpoints.length - 1)) *
-          88 +
-        5
-      }%`;
-    });
+  const markerPositions = checkpoints.map(
+    (_, index) => `${5 + (index / 4) * 88}%`
+  );
 
   const shoeLeft =
-    `${Math.max(
-      5,
-      Math.min(
-        (steps / totalSteps) * 88 + 5,
-        93
-      )
-    )}%`;
-
-  const shareWalkProgress =
-    async () => {
-      await Share.share({
-        message:
-          `I’m walking ${
-            currentJourney?.title ||
-            "a Legathon journey"
-          } on Legathon Walk.\n\n` +
-          `Steps: ${steps.toLocaleString()}\n` +
-          `Distance: ${liveMiles.toFixed(
-            2
-          )} miles\n` +
-          `Checkpoints completed: ${completedCheckpoints}/5\n\n` +
-          "Join me on Legathon Walk.",
-      });
-    };
-
-  React.useEffect(() => {
-    let mounted = true;
-
-    async function loadStories() {
-      try {
-        const saved =
-          await AsyncStorage.getItem(
-            storyTriggerStorageKey
-          );
-
-        if (mounted) {
-          setShownStoryCheckpoints(
-            saved
-              ? JSON.parse(saved)
-              : []
-          );
-        }
-      } catch {
-        if (mounted) {
-          setShownStoryCheckpoints([]);
-        }
-      }
-    }
-
-    loadStories();
-
-    return () => {
-      mounted = false;
-    };
-  }, [storyTriggerStorageKey]);
-
-  React.useEffect(() => {
-    loadPassportStamps();
-  }, []);
-
-  async function loadPassportStamps() {
-    try {
-      const saved =
-        await AsyncStorage.getItem(
-          "passportStamps"
-        );
-
-      if (saved) {
-        setPassportStamps(
-          JSON.parse(saved)
-        );
-      }
-    } catch (error) {
-      console.log(
-        "Passport load error:",
-        error
-      );
-    }
-  }
-
-  React.useEffect(() => {
-    journeyStepBaseRef.current = null;
-    lastStepEventRef.current = 0;
-  }, [currentJourney?.id]);
-
-  React.useEffect(() => {
-    let subscription = null;
-    let mounted = true;
-
-    async function startPedometer() {
-      try {
-        const available =
-          await Pedometer.isAvailableAsync();
-
-        if (!available || !mounted) {
-          console.log(
-            "Pedometer is unavailable."
-          );
-          return;
-        }
-
-        lastStepEventRef.current = 0;
-
-        subscription =
-          Pedometer.watchStepCount(
-            async (result) => {
-              if (
-                !mounted ||
-                !isTracking
-              ) {
-                return;
-              }
-
-              const sensorSteps =
-                Number(
-                  result?.steps || 0
-                );
-
-              const stepDelta =
-                Math.max(
-                  sensorSteps -
-                    lastStepEventRef.current,
-                  0
-                );
-
-              lastStepEventRef.current =
-                sensorSteps;
-
-              if (stepDelta <= 0) {
-                return;
-              }
-
-              let newJourneySteps = 0;
-
-              setSteps(
-                (previousSteps) => {
-                  if (
-                    journeyStepBaseRef.current ==
-                    null
-                  ) {
-                    journeyStepBaseRef.current =
-                      previousSteps;
-                  }
-
-                  newJourneySteps =
-                    Math.min(
-                      totalSteps,
-                      previousSteps +
-                        stepDelta
-                    );
-
-                  return newJourneySteps;
-                }
-              );
-
-              await addRegularJourneySteps(
-                stepDelta
-              );
-
-              if (
-                newJourneySteps >=
-                totalSteps
-              ) {
-                setIsTracking(false);
-
-                if (subscription) {
-                  subscription.remove();
-                  subscription = null;
-                }
-
-                return;
-              }
-
-              try {
-                const savedLifetime =
-                  Number(
-                    (
-                      await AsyncStorage.getItem(
-                        "lifetimeSteps"
-                      )
-                    ) || 0
-                  );
-
-                await AsyncStorage.setItem(
-                  "lifetimeSteps",
-                  String(
-                    savedLifetime +
-                      stepDelta
-                  )
-                );
-              } catch (saveError) {
-                console.log(
-                  "Pedometer save error:",
-                  saveError
-                );
-              }
-            }
-          );
-      } catch (error) {
-        console.log(
-          "Pedometer start error:",
-          error
-        );
-      }
-    }
-
-    startPedometer();
-
-    return () => {
-      mounted = false;
-
-      if (subscription) {
-        subscription.remove();
-      }
-    };
-  }, [
-    currentJourney?.id,
-    isTracking,
-    totalSteps,
-  ]);
-
-  const runJourneyTest = async () => {
-    if (!__DEV__) return;
-    if (!currentJourney?.id) return;
-
-    try {
-      const testSteps =
-        Math.max(totalSteps - 100, 0);
-
-      setSteps(testSteps);
-
-      await AsyncStorage.setItem(
-        `journeyStats_${currentJourney.id}`,
-        JSON.stringify({
-          steps: testSteps,
-          secondsActive,
-        })
-      );
-
-      await updateJourneySteps(
-        currentJourney,
-        testSteps,
-        {
-          calories:
-            Math.round(
-              testSteps * 0.04
-            ),
-          walkingTimeMinutes:
-            secondsActive / 60,
-        }
-      );
-    } catch (error) {
-      console.log(
-        "Journey test error:",
-        error
-      );
-    }
-  };
-    React.useEffect(() => {
-    async function loadStats() {
-      if (!currentJourney?.id) {
-        return;
-      }
-
-      try {
-        const results =
-          await AsyncStorage.multiGet([
-            `journeyStats_${currentJourney.id}`,
-            `lastRewardedCheckpoint_${currentJourney.id}`,
-            `journeyCompleted_${currentJourney.id}`,
-          ]);
-
-        const savedStats =
-          results?.[0]?.[1];
-
-        const savedCheckpoint =
-          results?.[1]?.[1];
-
-        const savedCompletion =
-          results?.[2]?.[1];
-
-        if (savedStats) {
-          const data =
-            JSON.parse(savedStats);
-
-          setSteps(
-            Number(data?.steps || 0)
-          );
-
-          setSecondsActive(
-            Number(
-              data?.secondsActive || 0
-            )
-          );
-
-          setLastSavedAt(new Date());
-        }
-
-        if (savedCheckpoint) {
-          setLastRewardedCheckpoint(
-            Math.max(
-              1,
-              Number(savedCheckpoint)
-            )
-          );
-        }
-
-        setHasCompleted(
-          savedCompletion === "true"
-        );
-      } catch (error) {
-        console.log(
-          "Journey stats load error:",
-          error
-        );
-      }
-    }
-
-    loadStats();
-  }, [currentJourney?.id]);
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      if (isTracking) {
-        setSecondsActive(
-          (previousSeconds) =>
-            previousSeconds + 1
-        );
-      }
-    }, 1000);
-
-    return () => {
-      clearInterval(timer);
-    };
-  }, [isTracking]);
-
-  async function saveJourneyProgressData(
-    activeJourneyData,
-    progressValue
-  ) {
-    if (!activeJourneyData?.id) {
-      return;
-    }
-
-    const saved =
-      await AsyncStorage.getItem(
-        "journeyProgressData"
-      );
-
-    let existing = [];
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-
-        if (Array.isArray(parsed)) {
-          existing = parsed;
-        }
-      } catch {
-        existing = [];
-      }
-    }
-
-    const updatedJourney = {
-      id: activeJourneyData.id,
-      title:
-        activeJourneyData.title ||
-        "Legathon Journey",
-      progress: Math.min(
-        100,
-        Math.max(
-          0,
-          Math.round(
-            Number(progressValue || 0)
-          )
-        )
-      ),
-    };
-
-    const journeyAlreadyExists =
-      existing.some(
-        (item) =>
-          String(item?.id) ===
-          String(activeJourneyData.id)
-      );
-
-    const updated =
-      journeyAlreadyExists
-        ? existing.map((item) =>
-            String(item?.id) ===
-            String(
-              activeJourneyData.id
-            )
-              ? updatedJourney
-              : item
-          )
-        : [
-            ...existing,
-            updatedJourney,
-          ];
-
-    await AsyncStorage.setItem(
-      "journeyProgressData",
-      JSON.stringify(updated)
-    );
-  }
-
-  async function saveWeeklyStepData(
-    stepCount
-  ) {
-    const today =
-      new Date().getDay();
-
-    const saved =
-      await AsyncStorage.getItem(
-        "weeklyStepData"
-      );
-
-    let week = [
-      { day: "M", steps: 0 },
-      { day: "T", steps: 0 },
-      { day: "W", steps: 0 },
-      { day: "T", steps: 0 },
-      { day: "F", steps: 0 },
-      { day: "S", steps: 0 },
-      { day: "S", steps: 0 },
-    ];
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-
-        if (
-          Array.isArray(parsed) &&
-          parsed.length === 7
-        ) {
-          week = parsed;
-        }
-      } catch {
-        // Keep the empty week.
-      }
-    }
-
-    const todayIndex =
-      today === 0 ? 6 : today - 1;
-
-    week[todayIndex] = {
-      ...week[todayIndex],
-      steps: Number(stepCount || 0),
-    };
-
-    await AsyncStorage.setItem(
-      "weeklyStepData",
-      JSON.stringify(week)
-    );
-  }
-
-  React.useEffect(() => {
-    let cancelled = false;
-
-    async function saveStats() {
-      if (!currentJourney?.id) {
-        return;
-      }
-
-      try {
-        const updatedActiveJourney = {
-          ...currentJourney,
-          id: String(
-            currentJourney.id
-          ),
-          sessionId,
-          steps,
-          secondsActive,
-          progress,
-          journeyProgress: progress,
-          progressPercent: progress,
-          currentCheckpoint,
-          completed:
-            progress >= 100,
-          lastUpdated:
-            new Date().toISOString(),
-        };
-
-        await AsyncStorage.multiSet([
-          [
-            `journeyStats_${currentJourney.id}`,
-            JSON.stringify({
-              steps,
-              secondsActive,
-            }),
-          ],
-          [
-            `activeJourney_${currentJourney.id}`,
-            JSON.stringify(
-              updatedActiveJourney
-            ),
-          ],
-          [
-            "activeJourney",
-            JSON.stringify(
-              updatedActiveJourney
-            ),
-          ],
-        ]);
-
-        await saveJourneyProgressData(
-          currentJourney,
-          progress
-        );
-
-        await updateJourneySteps(
-          currentJourney,
-          steps,
-          {
-            calories: liveCalories,
-            walkingTimeMinutes:
-              secondsActive / 60,
-          }
-        );
-
-        await saveWeeklyStepData(
-          steps
-        );
-
-        if (!cancelled) {
-          setLastSavedAt(new Date());
-        }
-      } catch (error) {
-        console.log(
-          "Journey auto-save error:",
-          error
-        );
-      }
-    }
-
-    saveStats();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    steps,
-    secondsActive,
-    progress,
-    currentCheckpoint,
-    currentJourney?.id,
-    sessionId,
-    liveCalories,
-  ]);
-
-  const openCheckpointStory =
-    React.useCallback(
-      async (checkpointNumber) => {
-        const checkpoint =
-          Number(checkpointNumber);
-
-        if (
-          !checkpoint ||
-          checkpoint < 1 ||
-          checkpoint > 5 ||
-          shownStoryCheckpoints.includes(
-            checkpoint
-          )
-        ) {
-          return;
-        }
-
-        const updatedCheckpoints = [
-          ...shownStoryCheckpoints,
-          checkpoint,
-        ];
-
-        setShownStoryCheckpoints(
-          updatedCheckpoints
-        );
-
-        setIsTracking(false);
-
-        try {
-          await AsyncStorage.setItem(
-            storyTriggerStorageKey,
-            JSON.stringify(
-              updatedCheckpoints
-            )
-          );
-
-          await updateJourneySteps(
-            currentJourney,
-            steps,
-            {
-              calories:
-                liveCalories,
-              walkingTimeMinutes:
-                secondsActive / 60,
-            }
-          );
-
-          if (progress >= 100) {
-            await completeJourneyProgress(
-              normalizedJourneyId ||
-                currentJourney?.id
-            );
-          }
-        } catch (error) {
-          console.log(
-            "Checkpoint story save error:",
-            error
-          );
-        }
-
-        if (
-          typeof goToStory ===
-          "function"
-        ) {
-          goToStory(checkpoint);
-        }
-      },
-      [
-        goToStory,
-        shownStoryCheckpoints,
-        storyTriggerStorageKey,
-        currentJourney,
-        steps,
-        liveCalories,
-        secondsActive,
-        progress,
-        normalizedJourneyId,
-      ]
+    `${5 + Math.min(1, steps / totalSteps) * 88}%`;
+
+  async function awardReachedCheckpoints() {
+    const highest = checkpointFor(
+      snapshot.current.steps,
+      totalSteps
     );
 
-  React.useEffect(() => {
-    if (!currentJourney?.id) {
-      return;
-    }
-
-    let checkpointToOpen = null;
-
-    if (progress >= 100) {
-      checkpointToOpen = 5;
-    } else if (progress >= 80) {
-      checkpointToOpen = 4;
-    } else if (progress >= 60) {
-      checkpointToOpen = 3;
-    } else if (progress >= 40) {
-      checkpointToOpen = 2;
-    } else if (progress >= 20) {
-      checkpointToOpen = 1;
-    }
-
-    if (
-      checkpointToOpen &&
-      !shownStoryCheckpoints.includes(
-        checkpointToOpen
-      )
+    for (
+      let checkpoint = 2;
+      checkpoint <= highest;
+      checkpoint += 1
     ) {
-      openCheckpointStory(
-        checkpointToOpen
-      );
+      const key = `checkpointReward_${id}_${checkpoint}`;
+
+      if (await AsyncStorage.getItem(key) !== "true") {
+        await awardPointsOnce(
+          `${id}_checkpoint_${checkpoint}`,
+          50
+        );
+
+        await AsyncStorage.setItem(key, "true");
+      }
+
+      snapshot.current.lastRewardedCheckpoint =
+        Math.max(
+          snapshot.current.lastRewardedCheckpoint,
+          checkpoint
+        );
     }
-  }, [
-    progress,
-    currentJourney?.id,
-    shownStoryCheckpoints,
-    openCheckpointStory,
-  ]);
+  }
+
+  // Foreground GPS and pedometer session.
+  //
+  // Raw readings always advance the local sensor baseline.
+  // Rejected vehicle readings cannot be credited afterward.
+  //
+  // Accepted deltas wait six seconds before being credited.
+  // A disqualifying GPS reading cancels pending deltas.
 
   React.useEffect(() => {
+    if (
+      !ready ||
+      !view.isTracking ||
+      steps >= totalSteps ||
+      busy ||
+      !focused ||
+      appState !== "active"
+    ) {
+      return;
+    }
+
     let cancelled = false;
+    let lastReading = null;
+    let locationSubscription = null;
+    let verificationTimer = null;
+    let pending = [];
+    let priorTicket = null;
 
-    async function rewardCheckpoint() {
-      if (!currentJourney?.id) {
-        return;
+    const gate = createWalkingGate();
+
+    function cleanupLocation() {
+      locationSubscription?.remove();
+      locationSubscription = null;
+
+      if (verificationTimer) {
+        clearInterval(verificationTimer);
       }
 
-      const checkpointNumber =
-        Number(
-          currentCheckpoint || 0
+      verificationTimer = null;
+      pending = [];
+    }
+
+    function commit(delta) {
+      enqueueJourneyWork(async () => {
+        const available = Math.max(
+          0,
+          totalSteps - snapshot.current.steps
         );
 
-      const lastRewarded =
-        Number(
-          lastRewardedCheckpoint || 0
-        );
-
-      if (checkpointNumber <= 1) {
-        return;
-      }
-
-      if (
-        checkpointNumber <=
-        lastRewarded
-      ) {
-        return;
-      }
-
-      const checkpointKey =
-        `checkpointReward_${currentJourney.id}_${checkpointNumber}`;
-
-      try {
-        const alreadyRewarded =
-          await AsyncStorage.getItem(
-            checkpointKey
-          );
-
-        if (
-          alreadyRewarded === "true"
-        ) {
-          if (!cancelled) {
-            setLastRewardedCheckpoint(
-              checkpointNumber
-            );
-          }
-
+        if (!available) {
           return;
         }
 
-        const checkpointReward = 50;
-
-        await AsyncStorage.multiSet([
-          [
-            checkpointKey,
-            "true",
-          ],
-          [
-            `lastRewardedCheckpoint_${currentJourney.id}`,
-            String(
-              checkpointNumber
-            ),
-          ],
-        ]);
-
-        await awardPointsOnce(
-          `${currentJourney.id}_checkpoint_${checkpointNumber}`,
-          checkpointReward
+        const accepted = Math.min(
+          delta,
+          available
         );
+
+        const result =
+          await addRegularJourneySteps(accepted);
+
+        if (result?.blocked) {
+          throw new Error(
+            "Another activity owns step tracking. Resume this journey when ready."
+          );
+        }
+
+        if (!result?.saved) {
+          throw new Error(
+            "Could not save your step totals."
+          );
+        }
+
+        // Only credit the amount confirmed by the engine.
+        const credited = Math.min(
+          accepted,
+          Math.max(
+            0,
+            Math.floor(Number(result.added) || 0)
+          )
+        );
+
+        if (!credited) {
+          return;
+        }
+
+        snapshot.current.steps += credited;
+
+        if (snapshot.current.steps >= totalSteps) {
+          snapshot.current.isTracking = false;
+          stopSensor();
+        }
+
+        publish();
+
+        await persistNow();
+        await awardReachedCheckpoints();
+      }).catch(reportSaveError);
+    }
+
+    async function start() {
+      try {
+        const permission =
+          await Pedometer.requestPermissionsAsync();
 
         if (cancelled) {
           return;
         }
 
-        setLastRewardedCheckpoint(
-          checkpointNumber
-        );
+        if (!permission.granted) {
+          throw new Error(
+            "Enable Motion & Fitness permission to count steps."
+          );
+        }
 
-        Alert.alert(
-          "Checkpoint Reached!",
-          `You reached checkpoint ${checkpointNumber} and earned ${checkpointReward} points.`
-        );
+        const available =
+          await Pedometer.isAvailableAsync();
+
+        if (!available) {
+          throw new Error(
+            "Step tracking is unavailable on this device."
+          );
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        const activated =
+          await enqueueJourneyWork(async () => {
+            if (cancelled) {
+              return null;
+            }
+
+            return activateJourneyTracking();
+          });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!activated?.saved) {
+          throw new Error(
+            "Could not start journey tracking. Please try again."
+          );
+        }
+
+        const locationPermission =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!locationPermission.granted) {
+          throw new Error(
+            "Enable precise location to filter vehicle movement."
+          );
+        }
+
+        locationSubscription =
+          await Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.High,
+              timeInterval: 2000,
+              distanceInterval: 0,
+            },
+            fix => {
+              if (cancelled) {
+                return;
+              }
+
+              gate.update(fix);
+              setWalkingStatus(gate.status());
+            }
+          );
+
+        if (cancelled) {
+          cleanupLocation();
+          return;
+        }
+
+        trackingRef.current = true;
+
+        verificationTimer = setInterval(() => {
+          if (
+            cancelled ||
+            !trackingRef.current ||
+            busyRef.current
+          ) {
+            pending = [];
+            return;
+          }
+
+          const ticket = gate.ticket();
+
+          setWalkingStatus(gate.status());
+
+          if (ticket === null) {
+            pending = [];
+            return;
+          }
+
+          const readyItems = [];
+
+          pending = pending.filter(item => {
+            if (item.ticket !== ticket) {
+              return false;
+            }
+
+            if (Date.now() - item.time < 6000) {
+              return true;
+            }
+
+            readyItems.push(item);
+            return false;
+          });
+
+          const delta = readyItems.reduce(
+            (sum, item) => sum + item.delta,
+            0
+          );
+
+          if (delta) {
+            commit(delta);
+          }
+        }, 1000);
+
+        subscriptionRef.current =
+          Pedometer.watchStepCount(result => {
+            if (
+              cancelled ||
+              !trackingRef.current ||
+              busyRef.current
+            ) {
+              return;
+            }
+
+            const reading = Number(result?.steps);
+
+            if (
+              !Number.isFinite(reading) ||
+              reading < 0
+            ) {
+              return;
+            }
+
+            const value = Math.floor(reading);
+            const ticket = gate.ticket();
+
+            const delta =
+              lastReading === null ||
+              value < lastReading
+                ? 0
+                : value - lastReading;
+
+            // Always advance, even when steps are rejected.
+            lastReading = value;
+
+            if (
+              delta > 0 &&
+              ticket !== null &&
+              priorTicket === ticket
+            ) {
+              pending.push({
+                delta,
+                ticket,
+                time: Date.now(),
+              });
+            }
+
+            priorTicket = ticket;
+          });
+
+        setSensorError("");
+        setSensorReady(true);
       } catch (error) {
-        console.warn(
-          "Checkpoint reward error:",
-          error
-        );
+        cleanupLocation();
+
+        if (!cancelled) {
+          stopSensor();
+
+          snapshot.current.isTracking = false;
+
+          publish();
+
+          setSensorError(
+            error.message ||
+              "Step tracking could not start."
+          );
+        }
       }
     }
 
-    rewardCheckpoint();
+    start();
 
     return () => {
       cancelled = true;
+      cleanupLocation();
+      stopSensor();
     };
   }, [
-    currentCheckpoint,
-    currentJourney?.id,
-    lastRewardedCheckpoint,
+    ready,
+    view?.isTracking,
+    busy,
+    focused,
+    appState,
   ]);
 
-  async function awardPassportStamp(
-    completedJourneyId
-  ) {
-    if (!completedJourneyId) {
+  // Only verified foreground tracking increases active time.
+
+  React.useEffect(() => {
+    if (!isTracking) {
       return;
     }
 
-    try {
-      const normalizedId =
-        String(completedJourneyId)
-          .trim()
-          .toLowerCase();
+    const timer = setInterval(() => {
+      if (
+        !trackingRef.current ||
+        busyRef.current ||
+        !snapshot.current
+      ) {
+        return;
+      }
 
-      const stampAliases = {
-        roman: "rome",
-        rome: "rome",
-        greatwall: "wall",
-        wall: "wall",
-        tubman: "tubman",
-        harriet: "tubman",
-        mecca: "mecca",
-        tokyo: "tokyo",
-        trans: "trans",
-      };
+      snapshot.current.secondsActive += 1;
 
-      const stampId =
-        stampAliases[normalizedId] ||
-        normalizedId;
+      publish();
 
-      const saved =
-        await AsyncStorage.getItem(
-          "passportStamps"
-        );
+      if (snapshot.current.secondsActive % 5 === 0) {
+        save().catch(reportSaveError);
+      }
+    }, 1000);
 
-      let stamps = [];
+    return () => clearInterval(timer);
+  }, [isTracking]);
 
-      if (saved) {
-        try {
-          const parsed =
-            JSON.parse(saved);
+  // Save when leaving, changing screens, or backgrounding.
+  // This screen does not implement background GPS tracking.
 
-          if (Array.isArray(parsed)) {
-            stamps = parsed;
+  React.useEffect(() => {
+    const listener = AppState.addEventListener(
+      "change",
+      next => {
+        setAppState(next);
+
+        if (next !== "active") {
+          stopSensor();
+
+          if (snapshot.current) {
+            save().catch(reportSaveError);
           }
-        } catch {
-          stamps = [];
         }
       }
+    );
 
-      if (
-        !stamps.includes(stampId)
-      ) {
-        const updatedStamps = [
-          ...stamps,
-          stampId,
-        ];
+    const offBlur = navigation?.addListener?.(
+      "blur",
+      () => {
+        setFocused(false);
+        stopSensor();
 
-        await AsyncStorage.setItem(
-          "passportStamps",
-          JSON.stringify(
-            updatedStamps
-          )
-        );
+        if (snapshot.current) {
+          save().catch(reportSaveError);
+        }
+      }
+    );
 
-        setPassportStamps(
-          updatedStamps
+    const offFocus = navigation?.addListener?.(
+      "focus",
+      () => setFocused(true)
+    );
+
+    const offRemove = navigation?.addListener?.(
+      "beforeRemove",
+      event => {
+        if (
+          allowNavigation.current ||
+          !snapshot.current
+        ) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (busyRef.current) {
+          return;
+        }
+
+        runAction(async () => {
+          await persistNow();
+
+          allowNavigation.current = true;
+
+          navigation.dispatch(event.data.action);
+        });
+      }
+    );
+
+    return () => {
+      listener.remove();
+      offBlur?.();
+      offFocus?.();
+      offRemove?.();
+    };
+  }, [navigation]);
+
+  async function runAction(operation) {
+    if (!snapshot.current || busyRef.current) {
+      return;
+    }
+
+    busyRef.current = true;
+    setBusy(true);
+
+    stopSensor();
+
+    try {
+      await enqueueJourneyWork(operation);
+    } catch (error) {
+      reportSaveError(error);
+
+      if (mounted.current) {
+        Alert.alert(
+          "Unable to Save Journey",
+          error.message || "Please try again."
         );
       }
+    } finally {
+      busyRef.current = false;
 
-      await AsyncStorage.setItem(
-        `passport_${normalizedId}`,
-        "true"
-      );
-    } catch (error) {
-      console.warn(
-        "Passport stamp error:",
-        error
-      );
+      if (mounted.current) {
+        publish();
+        setBusy(false);
+      }
     }
   }
 
-  async function completeJourney() {
-    if (!currentJourney?.id) {
-      Alert.alert(
-        "Unable to Complete Journey",
-        "No active journey was found."
-      );
+  function leave() {
+    allowNavigation.current = true;
 
+    if (typeof goBack === "function") {
+      goBack();
+    } else {
+      navigation?.goBack();
+    }
+  }
+
+  function saveAndExit() {
+    if (!snapshot.current) {
+      leave();
       return;
     }
 
-    const activeJourneyId =
-      String(currentJourney.id);
+    return runAction(async () => {
+      await persistNow();
+      leave();
+    });
+  }
 
-    const currentProgress =
-      Number(progress || 0);
+  function toggleTracking() {
+    return runAction(async () => {
+      snapshot.current.isTracking =
+        snapshot.current.steps < totalSteps &&
+        !snapshot.current.isTracking;
 
-    const requiredSteps =
-      Number(totalSteps || 0);
+      await persistNow();
+    });
+  }
 
-    const currentSteps =
-      Number(steps || 0);
+  function openCheckpointStory(checkpointNumber) {
+    const number = Number(checkpointNumber);
 
-    const calculatedProgress =
-      requiredSteps > 0
-        ? Math.min(
-            100,
-            Math.round(
-              (currentSteps /
-                requiredSteps) *
-                100
-            )
-          )
-        : currentProgress;
+    if (
+      !snapshot.current ||
+      !Number.isInteger(number) ||
+      number < 1 ||
+      number > 5 ||
+      snapshot.current.steps <
+        Math.ceil((totalSteps * (number - 1)) / 4) ||
+      typeof goToStory !== "function"
+    ) {
+      return;
+    }
 
-    const isActuallyComplete =
-      currentProgress >= 100 ||
-      calculatedProgress >= 100 ||
-      (
-        requiredSteps > 0 &&
-        currentSteps >= requiredSteps
+    return runAction(async () => {
+      const previous = snapshot.current.shownStories;
+
+      snapshot.current.shownStories = [
+        ...new Set([...previous, number]),
+      ];
+
+      try {
+        await persistNow();
+      } catch (error) {
+        snapshot.current.shownStories = previous;
+        throw error;
+      }
+
+      goToStory(number);
+    });
+  }
+
+  React.useEffect(() => {
+    if (
+      !ready ||
+      busy ||
+      errorRef.current ||
+      !focused ||
+      appState !== "active" ||
+      !steps ||
+      typeof goToStory !== "function"
+    ) {
+      return;
+    }
+
+    const number = checkpointFor(
+      steps,
+      totalSteps
+    );
+
+    if (!view.shownStories.includes(number)) {
+      openCheckpointStory(number);
+    }
+  }, [
+    ready,
+    busy,
+    focused,
+    appState,
+    steps,
+    view?.shownStories,
+    goToStory,
+  ]);
+
+  function resetJourney() {
+    return runAction(async () => {
+      const prior = snapshot.current;
+
+      snapshot.current = {
+        ...prior,
+        steps: 0,
+        secondsActive: 0,
+        hasCompleted: false,
+        isTracking: false,
+        shownStories: [],
+      };
+
+      // Save an explicit zero so old progress cannot return.
+      await AsyncStorage.setItem(
+        `journeyStats_${id}`,
+        JSON.stringify({
+          ...snapshot.current,
+          schemaVersion: 2,
+        })
       );
 
-    if (!isActuallyComplete) {
+      await resetJourneyProgress(id);
+      await persistNow();
+
+      // Keep reward and checkpoint claim ledgers.
+      Alert.alert(
+        "Journey Reset",
+        "Progress was reset. Previously claimed rewards were kept. Tap Resume Tracking to walk again."
+      );
+    });
+  }
+
+  function runJourneyTest() {
+    if (!__DEV__) {
+      return;
+    }
+
+    return runAction(async () => {
+      snapshot.current.steps = Math.max(
+        snapshot.current.steps,
+        totalSteps - 100
+      );
+
+      snapshot.current.isTracking = false;
+
+      await persistNow();
+    });
+  }
+
+  async function awardPassportStamp() {
+    const aliases = {
+      roman: "rome",
+      rome: "rome",
+      greatwall: "wall",
+      wall: "wall",
+      tubman: "tubman",
+      harriet: "tubman",
+      mecca: "mecca",
+      tokyo: "tokyo",
+      trans: "trans",
+    };
+
+    const stampId =
+      aliases[id.toLowerCase()] ||
+      id.toLowerCase();
+
+    const raw = await AsyncStorage.getItem(
+      "passportStamps"
+    );
+
+    const stamps = raw ? JSON.parse(raw) : [];
+
+    if (!Array.isArray(stamps)) {
+      throw new Error("Passport data is invalid.");
+    }
+
+    await AsyncStorage.multiSet([
+      [
+        "passportStamps",
+        JSON.stringify(
+          [...new Set([...stamps, stampId])]
+        ),
+      ],
+      [
+        `passport_${id.toLowerCase()}`,
+        "true",
+      ],
+    ]);
+  }
+
+  function completeJourney() {
+    if (
+      !snapshot.current ||
+      snapshot.current.steps < totalSteps
+    ) {
       Alert.alert(
         "Journey Not Complete",
-        `You must reach 100% before receiving this reward. Current progress: ${calculatedProgress}%.`
+        "Reach the full step goal before claiming rewards."
       );
 
       return;
     }
 
-    const completedKey =
-      `journeyCompleted_${activeJourneyId}`;
+    return runAction(async () => {
+      snapshot.current.isTracking = false;
 
-    const rewardedKey =
-      `journeyRewarded_${activeJourneyId}`;
+      await persistNow();
+      await awardReachedCheckpoints();
 
-    try {
-      const savedResults =
+      const flags = Object.fromEntries(
         await AsyncStorage.multiGet([
-          completedKey,
-          rewardedKey,
-        ]);
+          `journeyCompleted_${id}`,
+          `journeyRewarded_${id}`,
+        ])
+      );
 
-      const completedSaved =
-        savedResults?.[0]?.[1];
+      const alreadyClaimed =
+        snapshot.current.rewardsClaimed ||
+        flags[`journeyCompleted_${id}`] === "true" ||
+        flags[`journeyRewarded_${id}`] === "true";
 
-      const rewardedSaved =
-        savedResults?.[1]?.[1];
+      let earnedCoins = 0;
+      let earnedPoints = 0;
 
-      if (
-        completedSaved === "true" ||
-        rewardedSaved === "true"
-      ) {
-        Alert.alert(
-          "Journey Already Completed",
-          "This journey has already been completed and rewarded."
-        );
+      if (!alreadyClaimed) {
+        const reward =
+          await completeJourneyReward(id);
 
-        return;
-      }
+        if (reward?.awarded) {
+          earnedCoins = nonnegative(
+            reward.addedWCoins ??
+              reward.walletResult?.added ??
+              reward.reward?.wCoins
+          );
+        } else {
+          throw new Error(
+            "The reward service did not confirm an award. Check your wallet before retrying."
+          );
+        }
 
-      const rewardResult =
-        await completeJourneyReward(
-          activeJourneyId
-        );
-
-      if (!rewardResult?.awarded) {
-        Alert.alert(
-          "Reward Already Received",
-          "This journey has already been rewarded."
-        );
-
-        return;
-      }
-
-      const journeyPoints =
-        Number(
-          currentJourney?.rewardPoints ||
-          journeyReward?.rewardPoints ||
-          0
-        );
-
-      const pointResult =
-        await addPoints({
-          id:
-            `journey_${activeJourneyId}_complete`,
-          title:
-            currentJourney?.title ||
-            "Legathon Journey",
+        const points = await addPoints({
+          id: `journey_${id}_complete`,
+          title: routeTitle,
           category: "Journey",
-          points: journeyPoints,
-          source:
-            "Journey Complete",
+          points: nonnegative(
+            currentJourney.rewardPoints ??
+              journeyReward?.rewardPoints
+          ),
+          source: "Journey Complete",
           metadata: {
-            journeyId:
-              activeJourneyId,
+            journeyId: id,
           },
         });
 
-      const completedJourney = {
-        ...currentJourney,
-        id: activeJourneyId,
-        progress: 100,
-        journeyProgress: 100,
-        progressPercent: 100,
-        currentCheckpoint: 5,
-        completed: true,
-        completedAt:
-          new Date().toISOString(),
-        steps: currentSteps,
-        totalSteps: requiredSteps,
-        routeImage:
-          currentJourney?.routeImage,
-      };
-
-      await AsyncStorage.multiSet([
-        [
-          "activeJourney",
-          JSON.stringify(
-            completedJourney
-          ),
-        ],
-        [
-          `activeJourney_${activeJourneyId}`,
-          JSON.stringify(
-            completedJourney
-          ),
-        ],
-        [
-          `journeyProgress_${activeJourneyId}`,
-          JSON.stringify(
-            completedJourney
-          ),
-        ],
-        [completedKey, "true"],
-        [rewardedKey, "true"],
-      ]);
-
-      await completeJourneyProgress(
-        activeJourneyId
-      );
-
-      await awardPassportStamp(
-        activeJourneyId
-      );
-
-      setHasCompleted(true);
-      setIsTracking(false);
-
-      const earnedCoins =
-        Number(
-          rewardResult?.addedWCoins ??
-          rewardResult?.walletResult
-            ?.added ??
-          rewardResult?.reward
-            ?.wCoins ??
-          journeyReward?.wCoins ??
-          0
+        earnedPoints = nonnegative(
+          points?.pointsAwarded
         );
 
-      Alert.alert(
-        "🏆 Journey Complete!",
-        `Congratulations!\n\n` +
-          `🪙 W Coins Earned: ${earnedCoins.toLocaleString()}\n\n` +
-          `⭐ Legathon Points Earned: ${Number(
-            pointResult?.pointsAwarded ||
-            0
-          ).toLocaleString()}\n\n` +
-          `🏅 Total Legathon Points: ${Number(
-            pointResult?.totalPoints ||
-            0
-          ).toLocaleString()}`
-      );
-    } catch (error) {
-      console.error(
-        "Complete journey failed:",
-        error
-      );
+        await AsyncStorage.multiSet([
+          [`journeyCompleted_${id}`, "true"],
+          [`journeyRewarded_${id}`, "true"],
+        ]);
+      }
+
+      await completeJourneyProgress(id);
+      await awardPassportStamp();
+
+      snapshot.current.hasCompleted = true;
+      snapshot.current.rewardsClaimed = true;
+
+      await persistNow();
 
       Alert.alert(
-        "Unable to Complete Journey",
-        String(
-          error?.message ??
-          error ??
-          "Unknown completion error"
-        )
+        "Journey Complete!",
+        alreadyClaimed
+          ? "You completed this walk again. Your previously claimed rewards remain protected."
+          : `WCoins earned: ${earnedCoins.toLocaleString()}\nLegathon points earned: ${earnedPoints.toLocaleString()}`
       );
-    }
+    });
   }
-    async function resetJourney() {
-    if (!currentJourney?.id) {
-      return;
-    }
 
-    const activeJourneyId =
-      String(currentJourney.id);
-
+  async function shareWalkProgress() {
     try {
-      setSteps(0);
-      setSecondsActive(0);
-      setHasCompleted(false);
-      setIsTracking(true);
-      setLastRewardedCheckpoint(1);
-      setShownStoryCheckpoints([]);
-
-      const resetJourneyData = {
-        ...currentJourney,
-        id: activeJourneyId,
-        progress: 0,
-        journeyProgress: 0,
-        progressPercent: 0,
-        currentCheckpoint: 1,
-        completed: false,
-        completedAt: null,
-        steps: 0,
-        updatedAt:
-          new Date().toISOString(),
-      };
-
-      await AsyncStorage.multiRemove([
-        `journeyStats_${activeJourneyId}`,
-        `activeJourney_${activeJourneyId}`,
-        `journeyProgress_${activeJourneyId}`,
-        `passport_${activeJourneyId}`,
-        `certificate_${activeJourneyId}`,
-        `lastRewardedCheckpoint_${activeJourneyId}`,
-        storyTriggerStorageKey,
-      ]);
-
-      await AsyncStorage.multiSet([
-        [
-          "activeJourney",
-          JSON.stringify(
-            resetJourneyData
-          ),
-        ],
-        [
-          `activeJourney_${activeJourneyId}`,
-          JSON.stringify(
-            resetJourneyData
-          ),
-        ],
-        [
-          `journeyProgress_${activeJourneyId}`,
-          JSON.stringify(
-            resetJourneyData
-          ),
-        ],
-      ]);
-
-      await resetJourneyProgress(
-        activeJourneyId
-      );
-
-      Alert.alert(
-        "Journey Reset",
-        "Progress was reset. Previously claimed rewards were kept."
-      );
+      await Share.share({
+        message:
+          `I’m walking ${routeTitle} on Legathon Walk.\n\n` +
+          `Steps: ${steps.toLocaleString()}\n` +
+          `Distance: ${liveMiles.toFixed(2)} miles\n` +
+          `Checkpoints reached: ${completedCheckpoints}/5\n\n` +
+          "Join me on Legathon Walk.",
+      });
     } catch (error) {
-      console.error(
-        "Reset journey failed:",
-        error
-      );
-
       Alert.alert(
-        "Unable to Reset Journey",
-        String(
-          error?.message ??
-          error ??
-          "Please try again."
-        )
+        "Unable to Share",
+        error.message || "Please try again."
       );
     }
   }
 
-  async function saveAndExit() {
-    if (!currentJourney?.id) {
-      if (
-        typeof goBack === "function"
-      ) {
-        goBack();
-      }
+  if (!ready) {
+    return (
+      <View style={[styles.container, styles.content]}>
+        <TouchableOpacity
+          onPress={leave}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>
+            ‹ Back
+          </Text>
+        </TouchableOpacity>
 
-      return;
-    }
+        <Text style={styles.title}>
+          {routeTitle}
+        </Text>
 
-    const activeJourneyId =
-      String(currentJourney.id);
-
-    const currentSteps =
-      Number(steps || 0);
-
-    const requiredSteps =
-      Number(totalSteps || 0);
-
-    const savedProgress =
-      requiredSteps > 0
-        ? Math.min(
-            100,
-            Math.round(
-              (currentSteps /
-                requiredSteps) *
-                100
-            )
-          )
-        : 0;
-
-    try {
-      const savedJourneyData = {
-        ...currentJourney,
-        id: activeJourneyId,
-        sessionId,
-        steps: currentSteps,
-        secondsActive,
-        totalSteps: requiredSteps,
-        progress:
-          hasCompleted
-            ? 100
-            : savedProgress,
-        journeyProgress:
-          hasCompleted
-            ? 100
-            : savedProgress,
-        progressPercent:
-          hasCompleted
-            ? 100
-            : savedProgress,
-        currentCheckpoint:
-          hasCompleted
-            ? 5
-            : currentCheckpoint,
-        completed:
-          Boolean(hasCompleted),
-        updatedAt:
-          new Date().toISOString(),
-      };
-
-      await AsyncStorage.multiSet([
-        [
-          "activeJourney",
-          JSON.stringify(
-            savedJourneyData
-          ),
-        ],
-        [
-          `activeJourney_${activeJourneyId}`,
-          JSON.stringify(
-            savedJourneyData
-          ),
-        ],
-        [
-          `journeyProgress_${activeJourneyId}`,
-          JSON.stringify(
-            savedJourneyData
-          ),
-        ],
-        [
-          "lastStartedJourney",
-          JSON.stringify(
-            savedJourneyData
-          ),
-        ],
-        [
-          "resumeJourneyId",
-          activeJourneyId,
-        ],
-        [
-          `journeyStats_${activeJourneyId}`,
-          JSON.stringify({
-            steps: currentSteps,
-            secondsActive,
-          }),
-        ],
-        [
-          `lastRewardedCheckpoint_${activeJourneyId}`,
-          String(
-            Number(
-              lastRewardedCheckpoint ||
-              1
-            )
-          ),
-        ],
-      ]);
-
-      await saveJourneyProgressData(
-        currentJourney,
-        hasCompleted
-          ? 100
-          : savedProgress
-      );
-
-      await updateJourneySteps(
-        currentJourney,
-        currentSteps,
-        {
-          calories: liveCalories,
-          walkingTimeMinutes:
-            secondsActive / 60,
-        }
-      );
-
-      if (
-        typeof goBack === "function"
-      ) {
-        goBack();
-      }
-    } catch (error) {
-      console.error(
-        "Save and exit failed:",
-        error
-      );
-
-      Alert.alert(
-        "Unable to Save Journey",
-        String(
-          error?.message ??
-          error ??
-          "Please try again."
-        )
-      );
-    }
+        <Text style={styles.subtitle}>
+          {loadError || "Loading saved journey progress…"}
+        </Text>
+      </View>
+    );
   }
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={
-        styles.content
-      }
-      showsVerticalScrollIndicator={
-        false
-      }
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      pointerEvents={busy ? "none" : "auto"}
     >
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={goBack}
+          onPress={saveAndExit}
           style={styles.backButton}
         >
           <Text style={styles.backText}>
@@ -1651,7 +1636,7 @@ export default function GPSJourneyMapScreen({
         </TouchableOpacity>
 
         <Text style={styles.kicker}>
-          LIVE GPS JOURNEY
+          LIVE JOURNEY PROGRESS
         </Text>
 
         <Text style={styles.title}>
@@ -1665,33 +1650,54 @@ export default function GPSJourneyMapScreen({
         <View
           style={[
             styles.statusBadge,
-            !isTracking &&
-              styles.statusBadgePaused,
+            !isTracking && styles.statusBadgePaused,
           ]}
         >
           <Text
             style={[
               styles.statusBadgeText,
-              !isTracking &&
-                styles.statusBadgeTextPaused,
+              !isTracking && styles.statusBadgeTextPaused,
             ]}
           >
             {progress >= 100
               ? "● Journey Goal Reached"
-              : isTracking
-                ? "● Tracking Active"
-                : "● Tracking Paused"}
+              : busy
+                ? "● Saving Progress"
+                : view.isTracking &&
+                    !sensorReady &&
+                    focused &&
+                    appState === "active"
+                  ? "● Starting Tracking"
+                  : view.isTracking &&
+                      sensorReady &&
+                      focused &&
+                      appState === "active"
+                    ? `● ${walkingStatus}`
+                    : "● Tracking Paused"}
           </Text>
         </View>
 
-        <Text
-          style={styles.autoSaveText}
-        >
+        <Text style={styles.autoSaveText}>
           {lastSavedAt
             ? `Auto-saved ${lastSavedAt.toLocaleTimeString()}`
             : "Auto-save ready"}
         </Text>
       </View>
+
+      {!!(saveError || sensorError) && (
+        <Text
+          style={[
+            styles.subtitle,
+            {
+              color: "#FFC747",
+              marginBottom: 14,
+            },
+          ]}
+          accessibilityRole="alert"
+        >
+          {saveError || sensorError}
+        </Text>
+      )}
 
       <View style={styles.statsGrid}>
         <StatMini
@@ -1721,20 +1727,12 @@ export default function GPSJourneyMapScreen({
       </View>
 
       <View style={styles.progressCard}>
-        <View
-          style={styles.progressHeader}
-        >
-          <Text
-            style={styles.progressTitle}
-          >
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressTitle}>
             Journey Progress
           </Text>
 
-          <Text
-            style={
-              styles.progressPercent
-            }
-          >
+          <Text style={styles.progressPercent}>
             {progress.toFixed(2)}%
           </Text>
         </View>
@@ -1744,19 +1742,13 @@ export default function GPSJourneyMapScreen({
             style={[
               styles.progressFill,
               {
-                width:
-                  `${Math.min(
-                    progress,
-                    100
-                  )}%`,
+                width: `${Math.min(progress, 100)}%`,
               },
             ]}
           />
         </View>
 
-        <Text
-          style={styles.progressRemaining}
-        >
+        <Text style={styles.progressRemaining}>
           {remainingSteps > 0
             ? `${remainingSteps.toLocaleString()} steps remaining`
             : "Journey step goal completed"}
@@ -1769,20 +1761,12 @@ export default function GPSJourneyMapScreen({
         imageStyle={styles.routeImage}
       >
         <View style={styles.routeOverlay}>
-          <View
-            style={
-              styles.routeProgressTrack
-            }
-          >
+          <View style={styles.routeProgressTrack}>
             <View
               style={[
                 styles.routeProgressFill,
                 {
-                  width:
-                    `${Math.min(
-                      progress,
-                      100
-                    )}%`,
+                  width: `${Math.min(progress, 100)}%`,
                 },
               ]}
             />
@@ -1798,77 +1782,53 @@ export default function GPSJourneyMapScreen({
           >
             <Image
               source={SHOE_ICON}
-              style={
-                styles.movingShoeImage
-              }
+              style={styles.movingShoeImage}
             />
           </View>
 
-          <View
-            style={
-              styles.checkpointTrack
-            }
-          >
-            {checkpoints.map(
-              (point, index) => {
-                const left =
-                  markerPositions[index];
-
-                return (
-                  <View
-                    key={point.id}
-                    style={[
-                      styles.checkpoint,
-                      { left },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.checkCircle,
-                        point.complete &&
-                          styles.checkCircleComplete,
-                        point.active &&
-                          styles.checkCircleCurrent,
-                      ]}
-                    >
-                      <Text
-                        style={
-                          styles.checkNumber
-                        }
-                      >
-                        {point.id === 5
-                          ? "🏁"
-                          : point.id}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              }
-            )}
+          <View style={styles.checkpointTrack}>
+            {checkpoints.map((point, index) => (
+              <View
+                key={point.id}
+                style={[
+                  styles.checkpoint,
+                  {
+                    left: markerPositions[index],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.checkCircle,
+                    point.complete &&
+                      styles.checkCircleComplete,
+                    point.active &&
+                      styles.checkCircleCurrent,
+                  ]}
+                >
+                  <Text style={styles.checkNumber}>
+                    {point.id === 5 ? "🏁" : point.id}
+                  </Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
       </ImageBackground>
 
       <View style={styles.summaryCard}>
-        <Text
-          style={styles.summaryTitle}
-        >
+        <Text style={styles.summaryTitle}>
           Journey Summary
         </Text>
 
         <SummaryRow
           label="Progress"
-          value={`${progress.toFixed(
-            2
-          )}%`}
+          value={`${progress.toFixed(2)}%`}
         />
 
         <SummaryRow
           label="Completed Checkpoints"
-          value={`${checkpoints.filter(
-            (checkpoint) =>
-              checkpoint.complete
-          ).length}/5`}
+          value={`${completedCheckpoints}/5`}
         />
 
         <SummaryRow
@@ -1889,9 +1849,7 @@ export default function GPSJourneyMapScreen({
       </View>
 
       <View style={styles.rewardsCard}>
-        <Text
-          style={styles.rewardsTitle}
-        >
+        <Text style={styles.rewardsTitle}>
           Journey Rewards
         </Text>
 
@@ -1899,8 +1857,8 @@ export default function GPSJourneyMapScreen({
           label="Reward Points"
           value={Number(
             journeyReward?.rewardPoints ||
-            currentJourney?.rewardPoints ||
-            0
+              currentJourney?.rewardPoints ||
+              0
           ).toLocaleString()}
           reward
         />
@@ -1909,54 +1867,50 @@ export default function GPSJourneyMapScreen({
           label="W Coins"
           value={Number(
             journeyReward?.wCoins ||
-            currentJourney?.wCoins ||
-            0
+              currentJourney?.wCoins ||
+              0
           ).toLocaleString()}
           reward
         />
 
         <SummaryRow
           label="Passport Stamp"
-          value="✓ Unlocks"
+          value={
+            hasCompleted
+              ? "✓ Unlocked"
+              : "Unlocks on completion"
+          }
           reward
         />
 
         <SummaryRow
           label="Certificate"
-          value="✓ Earned"
+          value={
+            hasCompleted
+              ? "✓ Earned"
+              : "Earned on completion"
+          }
           reward
         />
       </View>
 
       <View style={styles.historyCard}>
-        <Text
-          style={styles.historyTitle}
-        >
+        <Text style={styles.historyTitle}>
           Journey Checkpoints
         </Text>
 
-        {checkpoints.map((point) => (
+        {checkpoints.map(point => (
           <TouchableOpacity
             key={point.id}
             style={styles.historyRow}
-            disabled={
-              !point.complete &&
-              !point.active
-            }
+            disabled={!point.complete && !point.active}
             onPress={() => {
-              if (
-                point.complete ||
-                point.active
-              ) {
-                openCheckpointStory(
-                  point.id
-                );
+              if (point.complete || point.active) {
+                openCheckpointStory(point.id);
               }
             }}
           >
-            <Text
-              style={styles.historyIcon}
-            >
+            <Text style={styles.historyIcon}>
               {point.complete
                 ? "✅"
                 : point.active
@@ -1964,18 +1918,12 @@ export default function GPSJourneyMapScreen({
                   : "○"}
             </Text>
 
-            <Text
-              style={styles.historyText}
-            >
+            <Text style={styles.historyText}>
               {point.id}. {point.title}
             </Text>
 
             {point.complete && (
-              <Text
-                style={
-                  styles.reachedText
-                }
-              >
+              <Text style={styles.reachedText}>
                 Reached
               </Text>
             )}
@@ -1988,46 +1936,26 @@ export default function GPSJourneyMapScreen({
           style={styles.testButton}
           onPress={runJourneyTest}
         >
-          <Text
-            style={
-              styles.testButtonText
-            }
-          >
+          <Text style={styles.testButtonText}>
             🧪 DEV: Jump Near Finish
           </Text>
         </TouchableOpacity>
       )}
 
-      {progress >= 100 &&
-        !hasCompleted && (
-          <TouchableOpacity
-            style={
-              styles.completeButton
-            }
-            onPress={completeJourney}
-          >
-            <Text
-              style={
-                styles.completeButtonText
-              }
-            >
-              Complete Journey and
-              Claim Rewards
-            </Text>
-          </TouchableOpacity>
-        )}
+      {progress >= 100 && !hasCompleted && (
+        <TouchableOpacity
+          style={styles.completeButton}
+          onPress={completeJourney}
+        >
+          <Text style={styles.completeButtonText}>
+            Complete Journey and Claim Rewards
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {hasCompleted && (
-        <View
-          style={
-            styles.completedBanner
-          }
-        >
-          <Text
-            style={
-              styles.completedBannerText
-            }
-          >
+        <View style={styles.completedBanner}>
+          <Text style={styles.completedBannerText}>
             🏆 Journey Completed
           </Text>
         </View>
@@ -2035,33 +1963,21 @@ export default function GPSJourneyMapScreen({
 
       <View style={styles.actionRow}>
         <TouchableOpacity
-          style={
-            styles.secondaryButton
-          }
-          onPress={() =>
-            setIsTracking(
-              (previous) => !previous
-            )
-          }
+          style={styles.secondaryButton}
+          onPress={toggleTracking}
         >
-          <Text
-            style={styles.secondaryText}
-          >
-            {isTracking
+          <Text style={styles.secondaryText}>
+            {view.isTracking
               ? "Pause Tracking"
               : "Resume Tracking"}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={
-            styles.secondaryButton
-          }
+          style={styles.secondaryButton}
           onPress={saveAndExit}
         >
-          <Text
-            style={styles.secondaryText}
-          >
+          <Text style={styles.secondaryText}>
             Save and Exit
           </Text>
         </TouchableOpacity>
@@ -2071,9 +1987,7 @@ export default function GPSJourneyMapScreen({
         style={styles.shareWalkButton}
         onPress={shareWalkProgress}
       >
-        <Text
-          style={styles.shareWalkText}
-        >
+        <Text style={styles.shareWalkText}>
           📤 Share My Walk
         </Text>
       </TouchableOpacity>
@@ -2091,18 +2005,14 @@ export default function GPSJourneyMapScreen({
               },
               {
                 text: "Reset",
-                style:
-                  "destructive",
-                onPress:
-                  resetJourney,
+                style: "destructive",
+                onPress: resetJourney,
               },
             ]
           );
         }}
       >
-        <Text
-          style={styles.resetButtonText}
-        >
+        <Text style={styles.resetButtonText}>
           Reset Journey
         </Text>
       </TouchableOpacity>
@@ -2125,8 +2035,7 @@ function StatMini({
       <Text
         style={[
           styles.statValue,
-          small &&
-            styles.statValueSmall,
+          small && styles.statValueSmall,
         ]}
       >
         {value}
@@ -2168,34 +2077,30 @@ function SummaryRow({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#07111F",
   },
-
   content: {
     padding: 18,
     paddingBottom: 60,
   },
-
   header: {
     marginBottom: 18,
   },
-
   backButton: {
     alignSelf: "flex-start",
     marginBottom: 12,
     paddingVertical: 6,
     paddingRight: 18,
   },
-
   backText: {
     color: "#D4AF37",
     fontSize: 17,
     fontWeight: "900",
   },
-
   kicker: {
     color: "#8BE7FF",
     fontSize: 12,
@@ -2203,63 +2108,50 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 6,
   },
-
   title: {
     color: "#FFFFFF",
     fontSize: 30,
     fontWeight: "900",
     marginBottom: 8,
   },
-
   subtitle: {
     color: "#C8D6EA",
     fontSize: 14,
     lineHeight: 21,
   },
-
   statusBadge: {
     alignSelf: "flex-start",
-    backgroundColor:
-      "rgba(182,255,216,0.12)",
-    borderColor:
-      "rgba(182,255,216,0.35)",
+    backgroundColor: "rgba(182,255,216,0.12)",
+    borderColor: "rgba(182,255,216,0.35)",
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
     marginTop: 12,
   },
-
   statusBadgePaused: {
-    backgroundColor:
-      "rgba(255,199,71,0.12)",
-    borderColor:
-      "rgba(255,199,71,0.40)",
+    backgroundColor: "rgba(255,199,71,0.12)",
+    borderColor: "rgba(255,199,71,0.40)",
   },
-
   statusBadgeText: {
     color: "#B6FFD8",
     fontSize: 12,
     fontWeight: "900",
   },
-
   statusBadgeTextPaused: {
     color: "#FFC747",
   },
-
   autoSaveText: {
     color: "#9FB0C7",
     fontSize: 12,
     fontWeight: "700",
     marginTop: 8,
   },
-
   statsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 16,
   },
-
   statBox: {
     width: "23%",
     minHeight: 100,
@@ -2270,26 +2162,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor:
-      "rgba(212,175,55,0.25)",
+    borderColor: "rgba(212,175,55,0.25)",
   },
-
   statIcon: {
     fontSize: 20,
     marginBottom: 4,
   },
-
   statValue: {
     color: "#B6FFD8",
     fontSize: 18,
     fontWeight: "900",
     textAlign: "center",
   },
-
   statValueSmall: {
     fontSize: 12,
   },
-
   statLabel: {
     color: "#9FB0C7",
     fontSize: 11,
@@ -2297,7 +2184,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
     textAlign: "center",
   },
-
   progressCard: {
     backgroundColor: "#111C2D",
     borderRadius: 20,
@@ -2306,26 +2192,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2A3B52",
   },
-
   progressHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
   },
-
   progressTitle: {
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "900",
   },
-
   progressPercent: {
     color: "#A6FFD2",
     fontSize: 22,
     fontWeight: "900",
   },
-
   progressBar: {
     width: "100%",
     height: 12,
@@ -2333,20 +2215,17 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
   },
-
   progressFill: {
     height: "100%",
     backgroundColor: "#78E8C5",
     borderRadius: 999,
   },
-
   progressRemaining: {
     marginTop: 12,
     color: "#DDE6F3",
     fontSize: 14,
     fontWeight: "800",
   },
-
   routeCard: {
     height: 360,
     borderRadius: 28,
@@ -2354,67 +2233,55 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     backgroundColor: "#0E1A2B",
     borderWidth: 1,
-    borderColor:
-      "rgba(212,175,55,0.35)",
+    borderColor: "rgba(212,175,55,0.35)",
   },
-
   routeImage: {
     resizeMode: "cover",
   },
-
   routeOverlay: {
     flex: 1,
     justifyContent: "flex-end",
     padding: 18,
     paddingBottom: 36,
-    backgroundColor:
-      "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
-
   routeProgressTrack: {
     position: "absolute",
     left: "5%",
     right: "5%",
     bottom: 130,
     height: 8,
-    backgroundColor:
-      "rgba(255,255,255,0.25)",
+    backgroundColor: "rgba(255,255,255,0.25)",
     borderRadius: 10,
     overflow: "hidden",
   },
-
   routeProgressFill: {
     height: "100%",
     backgroundColor: "#D4AF37",
     borderRadius: 10,
   },
-
   movingShoe: {
     position: "absolute",
     bottom: 118,
     marginLeft: -14,
     zIndex: 20,
   },
-
   movingShoeImage: {
     width: 28,
     height: 28,
     resizeMode: "contain",
   },
-
   checkpointTrack: {
     height: 70,
     position: "relative",
     marginTop: 20,
     marginBottom: 20,
   },
-
   checkpoint: {
     position: "absolute",
     top: 22,
     marginLeft: -19,
   },
-
   checkCircle: {
     width: 38,
     height: 38,
@@ -2425,40 +2292,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   checkCircleComplete: {
     backgroundColor: "#1F8F55",
     borderColor: "#B6FFD8",
   },
-
   checkCircleCurrent: {
     backgroundColor: "#D4AF37",
     borderColor: "#FFFFFF",
   },
-
   checkNumber: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
   },
-
   summaryCard: {
     backgroundColor: "#101C2E",
     borderRadius: 24,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor:
-      "rgba(212,175,55,0.25)",
+    borderColor: "rgba(212,175,55,0.25)",
   },
-
   summaryTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 12,
   },
-
   summaryRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2466,97 +2326,81 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     gap: 12,
   },
-
   summaryLabel: {
     flex: 1,
     color: "#9FB0C7",
     fontSize: 14,
     fontWeight: "700",
   },
-
   summaryValue: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
     textAlign: "right",
   },
-
   rewardsCard: {
     backgroundColor: "#101C2E",
     borderRadius: 24,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor:
-      "rgba(212,175,55,0.25)",
+    borderColor: "rgba(212,175,55,0.25)",
   },
-
   rewardsTitle: {
     color: "#D4AF37",
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 12,
   },
-
   rewardLabel: {
     flex: 1,
     color: "#9FB0C7",
     fontSize: 14,
     fontWeight: "700",
   },
-
   rewardValue: {
     color: "#B6FFD8",
     fontSize: 14,
     fontWeight: "900",
     textAlign: "right",
   },
-
   historyCard: {
     backgroundColor: "#101C2E",
     borderRadius: 24,
     padding: 18,
     borderWidth: 1,
-    borderColor:
-      "rgba(212,175,55,0.25)",
+    borderColor: "rgba(212,175,55,0.25)",
     marginBottom: 16,
   },
-
   historyTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "900",
     marginBottom: 14,
   },
-
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
     minHeight: 50,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor:
-      "rgba(255,255,255,0.08)",
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
-
   historyIcon: {
     width: 30,
     fontSize: 17,
   },
-
   historyText: {
     flex: 1,
     color: "#DDE8F8",
     fontSize: 14,
     fontWeight: "700",
   },
-
   reachedText: {
     color: "#B6FFD8",
     fontSize: 12,
     fontWeight: "900",
   },
-
   testButton: {
     backgroundColor: "#24344D",
     paddingVertical: 16,
@@ -2566,13 +2410,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#435B7A",
   },
-
   testButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "900",
   },
-
   completeButton: {
     backgroundColor: "#D4AF37",
     paddingVertical: 17,
@@ -2582,39 +2424,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 14,
   },
-
   completeButtonText: {
     color: "#07111F",
     fontSize: 16,
     fontWeight: "900",
     textAlign: "center",
   },
-
   completedBanner: {
-    backgroundColor:
-      "rgba(182,255,216,0.14)",
+    backgroundColor: "rgba(182,255,216,0.14)",
     borderWidth: 1,
-    borderColor:
-      "rgba(182,255,216,0.45)",
+    borderColor: "rgba(182,255,216,0.45)",
     borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 18,
     alignItems: "center",
     marginBottom: 14,
   },
-
   completedBannerText: {
     color: "#B6FFD8",
     fontSize: 17,
     fontWeight: "900",
   },
-
   actionRow: {
     flexDirection: "row",
     gap: 12,
     marginBottom: 14,
   },
-
   secondaryButton: {
     flex: 1,
     backgroundColor: "#16253A",
@@ -2626,14 +2461,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2A405D",
   },
-
   secondaryText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
     textAlign: "center",
   },
-
   shareWalkButton: {
     backgroundColor: "#D8A72E",
     borderRadius: 999,
@@ -2643,13 +2476,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 14,
   },
-
   shareWalkText: {
     color: "#05070C",
     fontSize: 16,
     fontWeight: "900",
   },
-
   resetButton: {
     backgroundColor: "#3A1620",
     paddingVertical: 15,
@@ -2659,10 +2490,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 12,
     borderWidth: 1,
-    borderColor:
-      "rgba(255,182,193,0.25)",
+    borderColor: "rgba(255,182,193,0.25)",
   },
-
   resetButtonText: {
     color: "#FFB6C1",
     fontSize: 15,

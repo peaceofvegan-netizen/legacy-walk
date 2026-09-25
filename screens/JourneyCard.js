@@ -27,66 +27,70 @@ export default function JourneyCard({
 
   const locked = isJourneyLocked(item, userPlan);
 
- const progress = Math.max(
-  0,
-  Math.min(
-    100,
-    Number(savedProgress) ||
-      Number(item?.progress) ||
-      Number(item?.journeyProgress) ||
-      Number(item?.progressPercent) ||
-      0
-  )
-);
+  // Use the saved progress supplied by JourneysScreen.
+  // Zero is valid and must never fall back to an old percentage.
+  const rawProgress = Number(savedProgress);
 
-const miles = Number(
-  item?.miles ??
-  item?.distance ??
-  0
-);
+  const progress = Number.isFinite(rawProgress)
+    ? Math.max(0, Math.min(100, rawProgress))
+    : 0;
 
-const steps = Number(
-  item?.steps ??
-  item?.totalSteps ??
-  Math.round(miles * 2000)
-);
+  // Keep unfinished progress from rounding up to 100%.
+  const progressText = (
+    progress < 100
+      ? Math.min(progress, 99.99)
+      : 100
+  ).toFixed(2);
 
+  function safeNumber(value) {
+    const number = Number(value ?? 0);
 
+    return Number.isFinite(number)
+      ? Math.max(0, number)
+      : 0;
+  }
 
-  const reward = Number(
+  const miles = safeNumber(
+    item.distanceMiles ??
+    item.miles ??
+    item.distance ??
+    0
+  );
+
+  const steps = Math.floor(
+    safeNumber(
+      item.totalSteps ??
+      item.steps ??
+      Math.round(miles * 2000)
+    )
+  );
+
+  const reward = safeNumber(
+    item.wCoins ??
     item.wCoinReward ??
-      item.rewardPoints ??
-      item.reward ??
-      0
+    item.coins ??
+    item.reward ??
+    0
   );
 
-  const xp = Number(
+  const xp = safeNumber(
+    item.avatarXP ??
     item.xpReward ??
-      item.xp ??
-      reward * 2
+    item.xp ??
+    0
   );
 
-  const difficulty =
-    item.difficulty || "Easy";
-
-  const badge =
-    item.badge || "Explorer";
-
-  const difficultyColor =
-    item.color || "#D4AF37";
+  const difficulty = item.difficulty || "Easy";
+  const badge = item.badge || "Explorer";
+  const difficultyColor = item.color || "#D4AF37";
 
   const estimatedTime =
-    item.estimatedTime ||
-    "Up to 1 week";
+    item.estimatedTime || "Up to 1 week";
 
-  const isActive =
-    activeJourney?.id === item.id;
+  const isActive = activeJourney?.id === item.id;
 
-  const title =
-    item.title || "Legacy Journey";
-
-  const category =
-    item.category || "";
+  const title = item.title || "Legathon Journey";
+  const category = item.category || "";
 
   const subtitle =
     item.subtitle ||
@@ -111,16 +115,6 @@ const steps = Number(
 
     setActiveJourney?.(item);
     goHome?.(item);
-  }
-
-  function handleStory() {
-    if (locked) {
-      goPaywall?.(item);
-      return;
-    }
-
-    setSelectedJourney?.(item);
-    goStory?.(item);
   }
 
   function StatBox({
@@ -153,10 +147,8 @@ const steps = Number(
     <View
       style={[
         styles.card,
-        locked &&
-          styles.lockedCard,
-        isActive &&
-          styles.activeCard,
+        locked && styles.lockedCard,
+        isActive && styles.activeCard,
       ]}
     >
       <ImageBackground
@@ -165,17 +157,16 @@ const steps = Number(
         imageStyle={styles.imageStyle}
         resizeMode="cover"
       >
-        <View style={styles.imageOverlay} />
+        <View style={styles.imageShade} />
 
-        <View style={styles.header}>
+        <View style={styles.topRow}>
           <View />
 
           <View
             style={[
               styles.difficultyBadge,
               {
-                borderColor:
-                  difficultyColor,
+                borderColor: difficultyColor,
               },
             ]}
           >
@@ -183,17 +174,12 @@ const steps = Number(
               style={[
                 styles.difficultyDot,
                 {
-                  backgroundColor:
-                    difficultyColor,
+                  backgroundColor: difficultyColor,
                 },
               ]}
             />
 
-            <Text
-              style={
-                styles.difficultyText
-              }
-            >
+            <Text style={styles.difficultyText}>
               {difficulty}
             </Text>
           </View>
@@ -201,11 +187,7 @@ const steps = Number(
 
         {locked && (
           <View style={styles.lockBadge}>
-            <Text
-              style={
-                styles.lockBadgeText
-              }
-            >
+            <Text style={styles.lockBadgeText}>
               🔒 PREMIUM
             </Text>
           </View>
@@ -213,11 +195,7 @@ const steps = Number(
 
         {isActive && !locked && (
           <View style={styles.activeBadge}>
-            <Text
-              style={
-                styles.activeBadgeText
-              }
-            >
+            <Text style={styles.activeBadgeText}>
               ACTIVE JOURNEY
             </Text>
           </View>
@@ -233,25 +211,21 @@ const steps = Number(
         </Text>
 
         {!!category && (
-          <Text
-            style={styles.category}
-          >
+          <Text style={styles.category}>
             {category}
           </Text>
         )}
 
         {!!subtitle && (
           <Text
-            style={
-              styles.description
-            }
+            style={styles.description}
             numberOfLines={3}
           >
             {subtitle}
           </Text>
         )}
 
-                <View style={styles.rewardPanel}>
+        <View style={styles.rewardPanel}>
           <Text style={styles.rewardTitle}>
             🏆 Journey Rewards
           </Text>
@@ -312,7 +286,7 @@ const steps = Number(
           </Text>
 
           <Text style={styles.progressPercent}>
-            {progress}%
+            {progressText}%
           </Text>
         </View>
 
@@ -321,46 +295,46 @@ const steps = Number(
             style={[
               styles.progressFill,
               {
-                width: `${progress}%`,
-                backgroundColor:
-                  difficultyColor,
+                width: `${progressText}%`,
+                backgroundColor: difficultyColor,
               },
             ]}
           />
         </View>
 
         <Text style={styles.progressText}>
-          {progress}% Complete
+          {progressText}% Complete
         </Text>
 
-       <View style={styles.infoRow}>
-  <StatBox
-    label="Miles"
-    value={`${miles.toLocaleString()} mi`}
-  />
+        <View style={styles.infoRow}>
+          <StatBox
+            label="Miles"
+            value={`${miles.toLocaleString()} mi`}
+          />
 
-  <StatBox
-    label="Steps"
-    value={steps.toLocaleString()}
-  />
+          <StatBox
+            label="Steps"
+            value={steps.toLocaleString()}
+          />
 
-  <StatBox
-    label="Badge"
-    value={badge}
-    last
-  />
-</View>
+          <StatBox
+            label="Badge"
+            value={badge}
+            last
+          />
+        </View>
+
         {locked && (
           <Text style={styles.lockMessage}>
             {getUpgradeMessage(item)}
           </Text>
         )}
 
-       <TouchableOpacity
-  style={styles.primaryButton}
-  activeOpacity={0.9}
-  onPress={handleView}
->
+        <TouchableOpacity
+          style={styles.primaryButton}
+          activeOpacity={0.9}
+          onPress={handleView}
+        >
           <Text style={styles.primaryButtonText}>
             {locked
               ? "Unlock Journey"
@@ -368,24 +342,22 @@ const steps = Number(
           </Text>
         </TouchableOpacity>
 
-      <TouchableOpacity
-  style={[
-    styles.startButton,
-    locked && styles.lockedButton,
-  ]}
-  activeOpacity={0.9}
-  onPress={handleStart}
->
-  <Text style={styles.startButtonText}>
-    {locked
-      ? "View Plans"
-      : isActive
-      ? "Continue Journey"
-      : "Start Journey"}
-  </Text>
-</TouchableOpacity>
-
-
+        <TouchableOpacity
+          style={[
+            styles.startButton,
+            locked && styles.lockedButton,
+          ]}
+          activeOpacity={0.9}
+          onPress={handleStart}
+        >
+          <Text style={styles.startButtonText}>
+            {locked
+              ? "View Plans"
+              : isActive
+              ? "Continue Journey"
+              : "Start Journey"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -399,7 +371,6 @@ const styles = StyleSheet.create({
     marginBottom: 22,
     borderWidth: 2,
     borderColor: "#20314A",
-
     shadowColor: "#000",
     shadowOpacity: 0.45,
     shadowRadius: 12,
@@ -407,7 +378,6 @@ const styles = StyleSheet.create({
       width: 0,
       height: 8,
     },
-
     elevation: 10,
   },
 
@@ -431,50 +401,47 @@ const styles = StyleSheet.create({
 
   imageShade: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor:
-      "rgba(4,10,22,0.10)",
+    backgroundColor: "rgba(4,10,22,0.10)",
   },
-
- 
 
   topSpacer: {
     width: 1,
   },
 
- topRow: {
-  position: "absolute",
-  top: 14,
-  right: 14,
-  zIndex: 5,
-},
+  topRow: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    zIndex: 5,
+  },
 
-difficultyBadge: {
-  flexDirection: "row",
-  alignItems: "center",
-  alignSelf: "flex-end",
-  backgroundColor: "rgba(3, 10, 23, 0.92)",
-  borderWidth: 1.5,
-  borderRadius: 18,
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  minWidth: 0,
-  maxWidth: 130,
-},
+  difficultyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    backgroundColor: "rgba(3,10,23,0.92)",
+    borderWidth: 1.5,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 0,
+    maxWidth: 130,
+  },
 
-difficultyDot: {
-  width: 8,
-  height: 8,
-  borderRadius: 4,
-  marginRight: 7,
-},
+  difficultyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 7,
+  },
 
-difficultyText: {
-  color: "#FFFFFF",
-  fontSize: 12,
-  fontWeight: "900",
-},
+  difficultyText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
 
-    lockBadge: {
+  lockBadge: {
     position: "absolute",
     top: 14,
     left: 14,
@@ -643,36 +610,37 @@ difficultyText: {
     textAlign: "right",
   },
 
-statBox: {
-  flex: 1,
-  minWidth: 0,
-  backgroundColor: "#10213D",
-  borderWidth: 1,
-  borderColor: "#294366",
-  borderRadius: 16,
-  paddingVertical: 16,
-  paddingHorizontal: 6,
-  alignItems: "center",
-  justifyContent: "center",
-  marginRight: 8,
-},
-lastStatBox: {
-  marginRight: 0,
-},
+  statBox: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "#10213D",
+    borderWidth: 1,
+    borderColor: "#294366",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
 
-statLabel: {
-  color: "#AEBBD0",
-  fontSize: 12,
-  fontWeight: "700",
-  textAlign: "center",
-},
+  lastStatBox: {
+    marginRight: 0,
+  },
 
-statValue: {
-  color: "#FFFFFF",
-  fontSize: 15,
-  fontWeight: "900",
-  textAlign: "center",
-},
+  statLabel: {
+    color: "#AEBBD0",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  statValue: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+    textAlign: "center",
+  },
 
   lockMessage: {
     color: "#FFD54A",
@@ -733,12 +701,12 @@ statValue: {
     fontSize: 14,
     fontWeight: "800",
   },
-infoRow: {
-  flexDirection: "row",
-  alignItems: "stretch",
-  justifyContent: "space-between",
-  marginTop: 18,
-  marginBottom: 20,
 
-},
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    marginTop: 18,
+    marginBottom: 20,
+  },
 });
