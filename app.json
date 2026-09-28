@@ -6,27 +6,34 @@
     "orientation": "portrait",
     "scheme": "legathonwalk",
     "userInterfaceStyle": "dark",
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "net.legathonwalk.app",
+
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Legathon Walk uses your location to track walking journeys.",
         "NSMotionUsageDescription": "Legathon Walk uses motion activity to count steps and track walking activity.",
+        "NSCameraUsageDescription": "Legathon Walk uses the camera when you choose to take a photo within the app.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+
     "android": {
       "package": "net.legathonwalk.app",
+
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACTIVITY_RECOGNITION"
       ]
     },
+
     "extra": {
       "eas": {
         "projectId": "90ab6971-beb3-493e-90fc-b4fa5d093077"
       }
     },
+
     "plugins": [
       "expo-sharing",
       "expo-notifications",
@@ -34,7 +41,6 @@
       "expo-audio",
       "expo-font",
       "expo-asset"
-      
     ]
   }
 }
