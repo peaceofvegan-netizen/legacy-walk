@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -15,71 +14,190 @@ import {
   Image,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from
+  "@react-native-async-storage/async-storage";
+
+import {
+  StripeProvider,
+} from "@stripe/stripe-react-native";
 
 import {
   isStepTrackingAvailable,
   syncTodaySteps,
 } from "./utils/stepTrackingEngine";
 
-import { translate, loadLanguage } from "./i18n/i18n";
-import { AVATARS } from "./data/avatarCatalog";
-import { useStepCounter } from "./hooks/useStepCounter";
+import {
+  loadLanguage,
+} from "./i18n/i18n";
 
-import PassportDetailScreen from "./screens/PassportDetailScreen";
-import WalkingDashboardScreen from "./screens/WalkingDashboardScreen";
-import JourneysScreen from "./screens/JourneysScreen";
-import JourneyDetailScreen from "./screens/JourneyDetailScreen";
-import GPSJourneyMapScreen from "./screens/GPSJourneyMapScreen";
-import WalkingFunctionScreen from "./screens/WalkingFunctionScreen";
-import RewardsScreen from "./screens/RewardsScreen";
-import MoreScreen from "./screens/MoreScreen";
+import {
+  useStepCounter,
+} from "./hooks/useStepCounter";
 
-import RecoveryCoachScreen from "./screens/RecoveryCoachScreen";
-import HydrationCoachScreen from "./screens/HydrationCoachScreen";
-import SleepCoachScreen from "./screens/SleepCoachScreen";
-import BreathingScreen from "./screens/BreathingScreen";
-import BreathingAnalyticsScreen from "./screens/BreathingAnalyticsScreen";
-import WalkingAnalyticsScreen from "./screens/WalkingAnalyticsScreen";
-import AIConversationScreen from "./screens/AIConversationScreen";
-import AIWellnessMasterScreen from "./screens/AIWellnessMasterScreen";
+import {
+  getWCoins,
+} from "./utils/wcoinStorage";
 
-import AvatarCenterScreen from "./screens/AvatarCenterScreen";
-import AvatarProfileScreen from "./screens/AvatarProfileScreen";
 
-import PassportScreen from "./screens/PassportScreen";
-import MarathonScreen from "./screens/MarathonScreen";
-import WorldMarathonDetailScreen from "./screens/WorldMarathonDetailScreen";
+// ============================================================
+// SCREENS
+// ============================================================
 
-import JourneyPreferencesScreen from "./screens/JourneyPreferencesScreen";
-import PersonalizationSummaryScreen from "./screens/PersonalizationSummaryScreen";
+import PassportDetailScreen
+  from "./screens/PassportDetailScreen";
 
-import SubscriptionCheckoutScreen from "./screens/SubscriptionCheckoutScreen";
-import SubscriptionScreen from "./screens/SubscriptionScreen";
-import {restoreRevenueCatPurchases,} from "./services/revenuecat";
-import MealPlannerScreen from "./screens/MealPlannerScreen";
-import HallOfLegendsScreen from "./screens/HallOfLegendsScreen";
-import CertificateScreen from "./screens/CertificateScreen";
-import ProfileScreen from "./screens/ProfileScreen";
-import NotificationSettingsScreen from "./screens/NotificationSettingsScreen";
-import AboutScreen from "./screens/AboutScreen";
+import WalkingDashboardScreen
+  from "./screens/WalkingDashboardScreen";
 
-import PhysicalMerchStoreScreen from "./screens/PhysicalMerchStoreScreen";
-import StoreItemDetailScreen from "./screens/StoreItemDetailScreen";
-import PurchaseConfirmationScreen from "./screens/PurchaseConfirmationScreen";
+import JourneysScreen
+  from "./screens/JourneysScreen";
 
-import CommunityScreen from "./screens/CommunityScreen";
-import LeaderboardScreen from "./screens/LeaderboardScreen";
-import DailyChallengeScreen from "./screens/DailyChallengeScreen";
+import JourneyDetailScreen
+  from "./screens/JourneyDetailScreen";
 
-import SettingsScreen from "./screens/SettingScreen";
-import PrivacyPolicyScreen from "./screens/PrivacyScreen";
-import LanguageSelectionScreen from "./screens/LanguageSelectionScreen";
-import WCoinWalletScreen from "./screens/WCoinWalletScreen";
-import PaywallScreen from "./screens/PaywallScreen";
-import JourneyStoryScreen from "./screens/JourneyStoryScreen";
+import GPSJourneyMapScreen
+  from "./screens/GPSJourneyMapScreen";
 
-const WCOIN_KEY = "wCoinBalance";
+import WalkingFunctionScreen
+  from "./screens/WalkingFunctionScreen";
+
+import RewardsScreen
+  from "./screens/RewardsScreen";
+
+import MoreScreen
+  from "./screens/MoreScreen";
+
+import RecoveryCoachScreen
+  from "./screens/RecoveryCoachScreen";
+
+import HydrationCoachScreen
+  from "./screens/HydrationCoachScreen";
+
+import SleepCoachScreen
+  from "./screens/SleepCoachScreen";
+
+import BreathingScreen
+  from "./screens/BreathingScreen";
+
+import BreathingAnalyticsScreen
+  from "./screens/BreathingAnalyticsScreen";
+
+import WalkingAnalyticsScreen
+  from "./screens/WalkingAnalyticsScreen";
+
+import AIConversationScreen
+  from "./screens/AIConversationScreen";
+
+import AIWellnessMasterScreen
+  from "./screens/AIWellnessMasterScreen";
+
+import AvatarCenterScreen
+  from "./screens/AvatarCenterScreen";
+
+import AvatarProfileScreen
+  from "./screens/AvatarProfileScreen";
+
+import PassportScreen
+  from "./screens/PassportScreen";
+
+import MarathonScreen
+  from "./screens/MarathonScreen";
+
+import WorldMarathonDetailScreen
+  from "./screens/WorldMarathonDetailScreen";
+
+import JourneyPreferencesScreen
+  from "./screens/JourneyPreferencesScreen";
+
+import PersonalizationSummaryScreen
+  from "./screens/PersonalizationSummaryScreen";
+
+import SubscriptionCheckoutScreen
+  from "./screens/SubscriptionCheckoutScreen";
+
+import SubscriptionScreen
+  from "./screens/SubscriptionScreen";
+
+import MealPlannerScreen
+  from "./screens/MealPlannerScreen";
+
+import HallOfLegendsScreen
+  from "./screens/HallOfLegendsScreen";
+
+import CertificateScreen
+  from "./screens/CertificateScreen";
+
+import ProfileScreen
+  from "./screens/ProfileScreen";
+
+import AboutScreen
+  from "./screens/AboutScreen";
+
+import PhysicalMerchStoreScreen
+  from "./screens/PhysicalMerchStoreScreen";
+
+import StoreItemDetailScreen
+  from "./screens/StoreItemDetailScreen";
+
+import PurchaseConfirmationScreen
+  from "./screens/PurchaseConfirmationScreen";
+
+import CommunityScreen
+  from "./screens/CommunityScreen";
+
+import CommunityCommentsScreen
+  from "./screens/CommunityCommentsScreen";
+
+import LeaderboardScreen
+  from "./screens/LeaderboardScreen";
+
+import DailyChallengeScreen
+  from "./screens/DailyChallengeScreen";
+
+import SettingsScreen
+  from "./screens/SettingScreen";
+
+import PrivacyPolicyScreen
+  from "./screens/PrivacyScreen";
+
+import LanguageSelectionScreen
+  from "./screens/LanguageSelectionScreen";
+
+import WCoinWalletScreen
+  from "./screens/WCoinWalletScreen";
+
+import JourneyStoryScreen
+  from "./screens/JourneyStoryScreen";
+
+
+// ============================================================
+// REVENUECAT
+// ============================================================
+
+import {
+  configureRevenueCat,
+  refreshRevenueCatMembership,
+  restoreRevenueCatPurchases,
+} from "./services/revenuecat";
+
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const WCOIN_KEY =
+  "wCoinBalance";
+
+
+const STRIPE_PUBLISHABLE_KEY =
+  process.env
+    .EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+  "";
+
+
+// ============================================================
+// NAV BUTTON
+// ============================================================
 
 function NavButton({
   icon,
@@ -87,715 +205,1701 @@ function NavButton({
   active,
   onPress,
 }) {
+
   return (
+
     <TouchableOpacity
-      style={styles.navButton}
-      onPress={onPress}
-      activeOpacity={0.75}
+      style={
+        styles.navButton
+      }
+
+      onPress={
+        onPress
+      }
+
+      activeOpacity={
+        0.75
+      }
     >
+
       <Image
-        source={icon}
+        source={
+          icon
+        }
+
         style={[
           styles.navIconImage,
-          active && styles.activeNavIcon,
+
+          active &&
+            styles.activeNavIcon,
         ]}
       />
+
 
       <Text
         style={[
           styles.navText,
-          active && styles.activeNavText,
+
+          active &&
+            styles.activeNavText,
         ]}
       >
+
         {label}
+
       </Text>
+
     </TouchableOpacity>
   );
 }
 
+
+// ============================================================
+// APP
+// ============================================================
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState("home");
+
+  // ==========================================================
+  // NAVIGATION
+  // ==========================================================
 
   const [
-    selectedLegathonLevel,
-    setSelectedLegathonLevel,
-  ] = useState(1);
+    activeTab,
+    setActiveTab,
+  ] =
+    useState(
+      "home"
+    );
+
+
+  // ==========================================================
+  // WALKING
+  // ==========================================================
 
   const [
-    selectedLegathonWorld,
-    setSelectedLegathonWorld,
-  ] = useState(1);
+    lifetimeSteps,
+    setLifetimeSteps,
+  ] =
+    useState(
+      0
+    );
+
+
+  const walkingData =
+    useStepCounter();
+
 
   const [
-    legathonStarsEarned,
-    setLegathonStarsEarned,
-  ] = useState(0);
+    totalSteps,
+    setTotalSteps,
+  ] =
+    useState(
+      0
+    );
 
-  const [lifetimeSteps, setLifetimeSteps] =
-    useState(0);
 
-  const [language, setLanguage] =
-    useState("en");
-
-  const [lastJourney, setLastJourney] =
-    useState(null);
-
-  const [selectedJourney, setSelectedJourney] =
-    useState(null);
+  // ==========================================================
+  // LANGUAGE
+  // ==========================================================
 
   const [
-    selectedStoreItem,
-    setSelectedStoreItem,
-  ] = useState(null);
+    language,
+    setLanguage,
+  ] =
+    useState(
+      "en"
+    );
+
+
+  // ==========================================================
+  // JOURNEYS
+  // ==========================================================
 
   const [
-    selectedPassport,
-    setSelectedPassport,
-  ] = useState(null);
+    lastJourney,
+    setLastJourney,
+  ] =
+    useState(
+      null
+    );
 
-  const [equippedAvatar, setEquippedAvatar] =
-    useState(null);
 
   const [
-    subscriptionPlan,
-    setSubscriptionPlan,
-  ] = useState("free");
+    selectedJourney,
+    setSelectedJourney,
+  ] =
+    useState(
+      null
+    );
 
-  const [isPremium, setIsPremium] =
-    useState(false);
-
-  const walkingData = useStepCounter();
-
-  const [totalSteps, setTotalSteps] =
-    useState(0);
-
-  const [wCoinBalance, setWCoinBalance] =
-    useState(0);
-
-  const [selectedPlan, setSelectedPlan] =
-    useState(null);
 
   const [
     selectedStoryCheckpoint,
     setSelectedStoryCheckpoint,
-  ] = useState(1);
+  ] =
+    useState(
+      1
+    );
+
+
+  // ==========================================================
+  // STORE
+  // ==========================================================
+
+  const [
+    selectedStoreItem,
+    setSelectedStoreItem,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // COMMUNITY
+  // ==========================================================
+
+  const [
+    selectedCommunityPost,
+    setSelectedCommunityPost,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // PASSPORT
+  // ==========================================================
+
+  const [
+    selectedPassport,
+    setSelectedPassport,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // AVATAR
+  // ==========================================================
+
+  const [
+    equippedAvatar,
+    setEquippedAvatar,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // SUBSCRIPTION
+  // ==========================================================
+
+  const [
+    subscriptionPlan,
+    setSubscriptionPlan,
+  ] =
+    useState(
+      "free"
+    );
+
+
+  const [
+    isPremium,
+    setIsPremium,
+  ] =
+    useState(
+      false
+    );
+
+
+  const [
+    selectedPlan,
+    setSelectedPlan,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // WCOINS
+  // ==========================================================
+
+  const [
+    wCoinBalance,
+    setWCoinBalance,
+  ] =
+    useState(
+      0
+    );
+
+
+  // ==========================================================
+  // MARATHON
+  // ==========================================================
 
   const [
     selectedMarathonId,
     setSelectedMarathonId,
-  ] = useState("nyc");
-
-  // ============================================================
-  // WCOIN FUNCTIONS
-  // ============================================================
-
-  async function addWCoins(amount) {
-    const saved = await AsyncStorage.getItem(
-      WCOIN_KEY
+  ] =
+    useState(
+      "nyc"
     );
 
-    const current = Number(saved || 0);
+
+  // ==========================================================
+  // VERIFIED MEMBERSHIP
+  // ==========================================================
+
+  const applyMembershipPlan =
+    useCallback(
+      (
+        incomingPlan
+      ) => {
+
+        const value =
+          String(
+            incomingPlan ||
+            "free"
+          )
+            .toLowerCase();
+
+
+        const plan =
+
+          value ===
+            "elite"
+
+            ? "elite"
+
+            : value ===
+              "premium"
+
+              ? "premium"
+
+              : "free";
+
+
+        setSubscriptionPlan(
+          plan
+        );
+
+
+        setIsPremium(
+          plan ===
+            "premium" ||
+
+          plan ===
+            "elite"
+        );
+
+
+        return plan;
+      },
+      []
+    );
+
+
+  // ==========================================================
+  // REFRESH VERIFIED MEMBERSHIP
+  // ==========================================================
+
+  const refreshVerifiedMembership =
+    useCallback(
+      async () => {
+
+        try {
+
+          // RevenueCat identifies the customer
+          // using the current Supabase UUID.
+
+          await configureRevenueCat();
+
+
+          const result =
+            await refreshRevenueCatMembership();
+
+
+          console.log(
+            "Membership refresh result:",
+            result
+          );
+
+
+          // --------------------------------------------------
+          // Prefer server-verified RevenueCat → Supabase result.
+          // --------------------------------------------------
+
+          if (
+            result
+              ?.serverSync
+              ?.synced ===
+            true
+          ) {
+
+            return applyMembershipPlan(
+              result
+                .serverSync
+                .plan
+            );
+          }
+
+
+          // --------------------------------------------------
+          // RevenueCat fallback for app display.
+          // Server checkout still performs its own verification.
+          // --------------------------------------------------
+
+          if (
+            result?.plan
+          ) {
+
+            return applyMembershipPlan(
+              result.plan
+            );
+          }
+
+
+          return applyMembershipPlan(
+            "free"
+          );
+
+        } catch (
+          error
+        ) {
+
+          console.log(
+            "Membership refresh error:",
+            error
+          );
+
+
+          return applyMembershipPlan(
+            "free"
+          );
+        }
+      },
+      [
+        applyMembershipPlan,
+      ]
+    );
+
+
+  // ==========================================================
+  // SECURE WCOIN BALANCE
+  // ==========================================================
+
+  const refreshSecureWCoinBalance =
+    useCallback(
+      async () => {
+
+        try {
+
+          const balance =
+            await getWCoins();
+
+
+          const normalized =
+            Math.max(
+              0,
+
+              Math.floor(
+                Number(
+                  balance
+                ) || 0
+              )
+            );
+
+
+          setWCoinBalance(
+            normalized
+          );
+
+
+          return normalized;
+
+        } catch (
+          error
+        ) {
+
+          console.log(
+            "Secure WCoin refresh error:",
+            error
+          );
+
+
+          return 0;
+        }
+      },
+      []
+    );
+
+
+  // ==========================================================
+  // LEGACY LOCAL WCOIN AWARD
+  //
+  // Retained because older reward screens may still call it.
+  // Merchandise purchases DO NOT use this function.
+  // ==========================================================
+
+  async function addWCoins(
+    amount
+  ) {
+
+    const saved =
+      await AsyncStorage
+        .getItem(
+          WCOIN_KEY
+        );
+
+
+    const current =
+      Number(
+        saved || 0
+      );
+
+
     const updated =
-      current + Number(amount || 0);
+      current +
+      Number(
+        amount || 0
+      );
 
-    await AsyncStorage.setItem(
-      WCOIN_KEY,
-      String(updated)
+
+    await AsyncStorage
+      .setItem(
+        WCOIN_KEY,
+
+        String(
+          updated
+        )
+      );
+
+
+    setWCoinBalance(
+      updated
     );
 
-    setWCoinBalance(updated);
 
-    console.log("Saved WCoins:", updated);
-
-    alert(`W Coins now: ${updated}`);
-  }
-
-  async function spendWCoins(amount) {
-    const saved = await AsyncStorage.getItem(
-      WCOIN_KEY
+    console.log(
+      "Saved WCoins:",
+      updated
     );
 
-    const current = Number(saved || 0);
-    const cost = Number(amount || 0);
-
-    if (current < cost) {
-      alert("Not enough W Coins");
-      return false;
-    }
-
-    const updated = current - cost;
-
-    await AsyncStorage.setItem(
-      WCOIN_KEY,
-      String(updated)
-    );
-
-    setWCoinBalance(updated);
 
     alert(
-      `Purchase complete. W Coins left: ${updated}`
+      `W Coins now: ${updated}`
     );
-
-    return true;
   }
 
-  async function awardJourneyRewards(journey) {
-    if (!journey?.id) {
+
+  // ==========================================================
+  // JOURNEY REWARD FALLBACK
+  // ==========================================================
+
+  async function awardJourneyRewards(
+    journey
+  ) {
+
+    if (
+      !journey?.id
+    ) {
+
       return false;
     }
+
 
     const rewardKey =
       `journeyRewarded_${journey.id}`;
 
-    const alreadyRewarded =
-      await AsyncStorage.getItem(rewardKey);
 
-    if (alreadyRewarded === "true") {
-      alert("Journey reward already claimed.");
+    const alreadyRewarded =
+      await AsyncStorage
+        .getItem(
+          rewardKey
+        );
+
+
+    if (
+      alreadyRewarded ===
+      "true"
+    ) {
+
+      alert(
+        "Journey reward already claimed."
+      );
+
+
       return false;
     }
 
-    const points = Number(
-      journey.rewardPoints || 0
-    );
 
-    const coins = Number(
-      journey.rewardCoins || 0
-    );
-
-    const savedPoints =
-      await AsyncStorage.getItem(
-        "rewardPoints"
+    const points =
+      Number(
+        journey
+          .rewardPoints ||
+        0
       );
 
+
+    const coins =
+      Number(
+        journey
+          .rewardCoins ||
+        0
+      );
+
+
+    const savedPoints =
+      await AsyncStorage
+        .getItem(
+          "rewardPoints"
+        );
+
+
     const updatedPoints =
-      Number(savedPoints || 0) + points;
+      Number(
+        savedPoints ||
+        0
+      ) +
+      points;
 
-    await AsyncStorage.setItem(
-      "rewardPoints",
-      String(updatedPoints)
-    );
 
-    await AsyncStorage.setItem(
-      rewardKey,
-      "true"
-    );
+    await AsyncStorage
+      .setItem(
+        "rewardPoints",
 
-    if (coins > 0) {
-      await addWCoins(coins);
+        String(
+          updatedPoints
+        )
+      );
+
+
+    await AsyncStorage
+      .setItem(
+        rewardKey,
+        "true"
+      );
+
+
+    if (
+      coins >
+      0
+    ) {
+
+      await addWCoins(
+        coins
+      );
     }
+
 
     alert(
       `Journey Complete!\n+${points} Legathon Points\n+${coins} W Coins\nPassport Stamp Unlocked`
     );
 
-    setSelectedPassport(journey);
-    setActiveTab("worldPassport");
+
+    setSelectedPassport(
+      journey
+    );
+
+
+    setActiveTab(
+      "worldPassport"
+    );
+
 
     return true;
   }
 
-  // ============================================================
-  // GLOBAL STEP ROUTER
-  // ============================================================
 
-  const appStateRef = useRef(
-    AppState.currentState
-  );
+  // ==========================================================
+  // GLOBAL STEP ROUTER
+  // ==========================================================
+
+  const appStateRef =
+    useRef(
+      AppState
+        .currentState
+    );
+
 
   const stepSyncRunningRef =
-    useRef(false);
+    useRef(
+      false
+    );
+
 
   const stepSyncTimerRef =
-    useRef(null);
+    useRef(
+      null
+    );
+
 
   const runGlobalStepSync =
-    useCallback(async () => {
-      if (stepSyncRunningRef.current) {
-        return;
-      }
+    useCallback(
+      async () => {
 
-      stepSyncRunningRef.current = true;
+        if (
+          stepSyncRunningRef
+            .current
+        ) {
 
-      try {
-        const available =
-          await isStepTrackingAvailable();
-
-        if (!available) {
           return;
         }
 
-        const result =
-          await syncTodaySteps();
 
-        if (__DEV__) {
-          console.log(
-            "[GLOBAL STEP ROUTER]",
-            {
-              delta:
-                result?.delta ?? 0,
+        stepSyncRunningRef
+          .current =
+          true;
 
-              destination:
-                result?.destination ??
-                null,
 
-              marathonId:
-                result?.marathonId ??
-                null,
+        try {
 
-              synced:
-                result?.synced === true,
-            }
-          );
-        }
-      } catch (error) {
-        console.log(
-          "Global step router error:",
-          error
-        );
-      } finally {
-        stepSyncRunningRef.current = false;
-      }
-    }, []);
+          const available =
+            await isStepTrackingAvailable();
 
-  // ============================================================
-  // INITIAL STEP SYNC
-  // ============================================================
 
-  useEffect(() => {
-    runGlobalStepSync();
-  }, [runGlobalStepSync]);
+          if (
+            !available
+          ) {
 
-  // ============================================================
-  // APP-WIDE STEP SYNC
-  // ============================================================
-
-  useEffect(() => {
-    const startStepSync = () => {
-      if (stepSyncTimerRef.current) {
-        return;
-      }
-
-      stepSyncTimerRef.current =
-        setInterval(() => {
-          runGlobalStepSync();
-        }, 5000);
-    };
-
-    const stopStepSync = () => {
-      if (!stepSyncTimerRef.current) {
-        return;
-      }
-
-      clearInterval(
-        stepSyncTimerRef.current
-      );
-
-      stepSyncTimerRef.current = null;
-    };
-
-    if (
-      AppState.currentState === "active"
-    ) {
-      startStepSync();
-    }
-
-    const subscription =
-      AppState.addEventListener(
-        "change",
-        (nextState) => {
-          const previousState =
-            appStateRef.current;
-
-          appStateRef.current =
-            nextState;
-
-          if (nextState === "active") {
-            runGlobalStepSync();
-            startStepSync();
             return;
           }
 
+
+          const result =
+            await syncTodaySteps();
+
+
           if (
-            previousState === "active" &&
-            (
-              nextState === "inactive" ||
-              nextState === "background"
-            )
+            __DEV__
           ) {
-            runGlobalStepSync();
-            stopStepSync();
+
+            console.log(
+              "[GLOBAL STEP ROUTER]",
+              {
+
+                delta:
+                  result
+                    ?.delta ??
+                  0,
+
+                destination:
+                  result
+                    ?.destination ??
+                  null,
+
+                marathonId:
+                  result
+                    ?.marathonId ??
+                  null,
+
+                synced:
+                  result
+                    ?.synced ===
+                  true,
+
+              }
+            );
           }
-        }
-      );
 
-    return () => {
-      stopStepSync();
-      subscription.remove();
-    };
-  }, [runGlobalStepSync]);
-    // ============================================================
-  // LOAD SAVED APP DATA
-  // ============================================================
-
-  useEffect(() => {
-    async function initLanguage() {
-      try {
-        const savedLanguage =
-          await loadLanguage();
-
-        if (savedLanguage) {
-          setLanguage(savedLanguage);
-        }
-      } catch (error) {
-        console.log(
-          "Language load error:",
+        } catch (
           error
-        );
-      }
-    }
+        ) {
 
-    initLanguage();
-  }, []);
-
-  useEffect(() => {
-    async function loadWCoins() {
-      try {
-        const saved =
-          await AsyncStorage.getItem(
-            WCOIN_KEY
+          console.log(
+            "Global step router error:",
+            error
           );
 
-        setWCoinBalance(
-          Number(saved || 0)
-        );
-      } catch (error) {
-        console.log(
-          "WCoin load error:",
-          error
-        );
-      }
-    }
+        } finally {
 
-    loadWCoins();
-  }, []);
+          stepSyncRunningRef
+            .current =
+            false;
+        }
+      },
+      []
+    );
 
-  useEffect(() => {
-    async function loadLastJourney() {
-      try {
-        const saved =
-          await AsyncStorage.getItem(
-            "lastJourney"
+
+  // ==========================================================
+  // INITIAL STEP SYNC
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      runGlobalStepSync();
+
+    },
+    [
+      runGlobalStepSync,
+    ]
+  );
+
+
+  // ==========================================================
+  // APP-WIDE STEP SYNC
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      const startStepSync =
+        () => {
+
+          if (
+            stepSyncTimerRef
+              .current
+          ) {
+
+            return;
+          }
+
+
+          stepSyncTimerRef
+            .current =
+
+            setInterval(
+              () => {
+
+                runGlobalStepSync();
+
+              },
+              5000
+            );
+        };
+
+
+      const stopStepSync =
+        () => {
+
+          if (
+            !stepSyncTimerRef
+              .current
+          ) {
+
+            return;
+          }
+
+
+          clearInterval(
+            stepSyncTimerRef
+              .current
           );
 
-        if (saved) {
-          const journey =
-            JSON.parse(saved);
 
-          setLastJourney(journey);
-          setSelectedJourney(journey);
-        }
-      } catch (error) {
-        console.log(
-          "Last journey load error:",
-          error
-        );
+          stepSyncTimerRef
+            .current =
+            null;
+        };
+
+
+      if (
+        AppState
+          .currentState ===
+        "active"
+      ) {
+
+        startStepSync();
       }
-    }
 
-    loadLastJourney();
-  }, []);
 
-  // ============================================================
+      const subscription =
+        AppState
+          .addEventListener(
+            "change",
+
+            (
+              nextState
+            ) => {
+
+              const previousState =
+                appStateRef
+                  .current;
+
+
+              appStateRef
+                .current =
+                nextState;
+
+
+              if (
+                nextState ===
+                "active"
+              ) {
+
+                runGlobalStepSync();
+
+                startStepSync();
+
+                return;
+              }
+
+
+              if (
+                previousState ===
+                  "active" &&
+
+                (
+                  nextState ===
+                    "inactive" ||
+
+                  nextState ===
+                    "background"
+                )
+              ) {
+
+                runGlobalStepSync();
+
+                stopStepSync();
+              }
+            }
+          );
+
+
+      return () => {
+
+        stopStepSync();
+
+        subscription
+          .remove();
+      };
+
+    },
+    [
+      runGlobalStepSync,
+    ]
+  );
+
+
+  // ==========================================================
+  // LOAD LANGUAGE
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      async function initLanguage() {
+
+        try {
+
+          const savedLanguage =
+            await loadLanguage();
+
+
+          if (
+            savedLanguage
+          ) {
+
+            setLanguage(
+              savedLanguage
+            );
+          }
+
+        } catch (
+          error
+        ) {
+
+          console.log(
+            "Language load error:",
+            error
+          );
+        }
+      }
+
+
+      initLanguage();
+
+    },
+    []
+  );
+
+
+  // ==========================================================
+  // LOAD VERIFIED MEMBERSHIP WHEN APP OPENS
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      let mounted =
+        true;
+
+
+      async function loadMembership() {
+
+        if (
+          !mounted
+        ) {
+
+          return;
+        }
+
+
+        await refreshVerifiedMembership();
+      }
+
+
+      loadMembership();
+
+
+      return () => {
+
+        mounted =
+          false;
+      };
+
+    },
+    [
+      refreshVerifiedMembership,
+    ]
+  );
+
+
+  // ==========================================================
+  // REFRESH MEMBERSHIP WHEN APP RETURNS
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      const subscription =
+        AppState
+          .addEventListener(
+            "change",
+
+            (
+              nextState
+            ) => {
+
+              if (
+                nextState ===
+                "active"
+              ) {
+
+                refreshVerifiedMembership();
+              }
+            }
+          );
+
+
+      return () => {
+
+        subscription
+          .remove();
+      };
+
+    },
+    [
+      refreshVerifiedMembership,
+    ]
+  );
+
+
+  // ==========================================================
+  // LOAD WCOINS
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      refreshSecureWCoinBalance();
+
+    },
+    [
+      refreshSecureWCoinBalance,
+    ]
+  );
+
+
+  // ==========================================================
+  // REFRESH WCOINS WHEN APP RETURNS
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      const subscription =
+        AppState
+          .addEventListener(
+            "change",
+
+            (
+              nextState
+            ) => {
+
+              if (
+                nextState ===
+                "active"
+              ) {
+
+                refreshSecureWCoinBalance();
+              }
+            }
+          );
+
+
+      return () => {
+
+        subscription
+          .remove();
+      };
+
+    },
+    [
+      refreshSecureWCoinBalance,
+    ]
+  );
+
+
+  // ==========================================================
+  // LOAD LAST JOURNEY
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      async function loadLastJourney() {
+
+        try {
+
+          const saved =
+            await AsyncStorage
+              .getItem(
+                "lastJourney"
+              );
+
+
+          if (
+            saved
+          ) {
+
+            const journey =
+              JSON.parse(
+                saved
+              );
+
+
+            setLastJourney(
+              journey
+            );
+
+
+            setSelectedJourney(
+              journey
+            );
+          }
+
+        } catch (
+          error
+        ) {
+
+          console.log(
+            "Last journey load error:",
+            error
+          );
+        }
+      }
+
+
+      loadLastJourney();
+
+    },
+    []
+  );
+
+
+  // ==========================================================
   // NAVIGATION HELPERS
-  // ============================================================
+  // ==========================================================
 
-  const goHome = () => {
-    setActiveTab("home");
-  };
+  const goHome =
+    () => {
 
-  const goMore = () => {
-    setActiveTab("more");
-  };
+      setActiveTab(
+        "home"
+      );
+    };
+
+
+  const goMore =
+    () => {
+
+      setActiveTab(
+        "more"
+      );
+    };
+
 
   const openJourneyDetail =
-    async (journey) => {
-      setSelectedJourney(journey);
-      setLastJourney(journey);
+    async (
+      journey
+    ) => {
 
-      await AsyncStorage.setItem(
-        "lastJourney",
-        JSON.stringify(journey)
+      setSelectedJourney(
+        journey
       );
 
-      setActiveTab("journeyDetail");
+
+      setLastJourney(
+        journey
+      );
+
+
+      await AsyncStorage
+        .setItem(
+          "lastJourney",
+
+          JSON.stringify(
+            journey
+          )
+        );
+
+
+      setActiveTab(
+        "journeyDetail"
+      );
     };
+
 
   const openGPSJourneyMap =
-    async (journey) => {
-      setSelectedJourney(journey);
-      setLastJourney(journey);
+    async (
+      journey
+    ) => {
 
-      await AsyncStorage.setItem(
-        "lastJourney",
-        JSON.stringify(journey)
+      setSelectedJourney(
+        journey
       );
 
-      setActiveTab("journeyMap");
+
+      setLastJourney(
+        journey
+      );
+
+
+      await AsyncStorage
+        .setItem(
+          "lastJourney",
+
+          JSON.stringify(
+            journey
+          )
+        );
+
+
+      setActiveTab(
+        "journeyMap"
+      );
     };
 
-  const openStoreItemDetail = (item) => {
-    setSelectedStoreItem(item);
-    setActiveTab("storeItemDetail");
-  };
+
+  const openStoreItemDetail =
+    (
+      item
+    ) => {
+
+      setSelectedStoreItem(
+        item
+      );
+
+
+      setActiveTab(
+        "storeItemDetail"
+      );
+    };
+
 
   const goToPurchaseConfirmation =
-    (item) => {
-      setSelectedStoreItem(item);
+    (
+      item
+    ) => {
+
+      setSelectedStoreItem(
+        item
+      );
+
+
       setActiveTab(
         "purchaseConfirmation"
       );
     };
 
-  // ============================================================
-  // SCREEN ROUTER
-  // ============================================================
 
-  const screen =
-    activeTab === "home" ? (
+  // ==========================================================
+  // RESTORE REVENUECAT PURCHASES
+  // ==========================================================
+
+  async function handleRestorePurchases() {
+
+    try {
+
+      const restoredPlan =
+        await restoreRevenueCatPurchases();
+
+
+      const plan =
+        applyMembershipPlan(
+          restoredPlan
+        );
+
+
+      await refreshVerifiedMembership();
+
+
+      return plan;
+
+    } catch (
+      error
+    ) {
+
+      console.log(
+        "Restore purchases error:",
+        error
+      );
+
+
+      return "free";
+    }
+  }
+
+
+  // ==========================================================
+  // SCREEN ROUTER
+  // ==========================================================
+
+  let screen;
+
+
+  // ==========================================================
+  // HOME
+  // ==========================================================
+
+  if (
+    activeTab ===
+    "home"
+  ) {
+
+    screen = (
+
       <WalkingDashboardScreen
-        language={language}
-        currentAvatar={equippedAvatar}
-        activeJourney={selectedJourney}
-        goToJourneys={() =>
-          setActiveTab("journeys")
+        language={
+          language
         }
+
+        currentAvatar={
+          equippedAvatar
+        }
+
+        activeJourney={
+          selectedJourney
+        }
+
+        goToJourneys={() =>
+          setActiveTab(
+            "journeys"
+          )
+        }
+
         goToGPSJourneyMap={() => {
+
           const journeyToOpen =
             lastJourney ||
             selectedJourney;
 
-          if (journeyToOpen) {
+
+          if (
+            journeyToOpen
+          ) {
+
             openGPSJourneyMap(
               journeyToOpen
             );
+
           } else {
-            setActiveTab("journeys");
+
+            setActiveTab(
+              "journeys"
+            );
           }
         }}
+
         goToPassport={() =>
-          setActiveTab("passport")
+          setActiveTab(
+            "passport"
+          )
         }
+
         goToAvatarProfile={() =>
-          setActiveTab("avatarProfile")
+          setActiveTab(
+            "avatarProfile"
+          )
         }
+
         goToRewards={() =>
-          setActiveTab("rewards")
+          setActiveTab(
+            "rewards"
+          )
         }
+
         goToWalkingAnalytics={() =>
           setActiveTab(
             "walkingAnalytics"
           )
         }
+
         goToLegathons={() =>
-          setActiveTab("legathons")
+          setActiveTab(
+            "legathons"
+          )
         }
       />
 
-    ) : activeTab === "journeys" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // JOURNEYS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "journeys"
+  ) {
+
+    screen = (
+
       <JourneysScreen
-        language={language}
-        activeJourney={selectedJourney}
+        language={
+          language
+        }
+
+        activeJourney={
+          selectedJourney
+        }
+
         setSelectedJourney={
           setSelectedJourney
         }
+
         goToJourneyDetail={
           openJourneyDetail
         }
+
         goToGPSJourneyMap={
           openGPSJourneyMap
         }
+
         goToSubscription={() =>
-          setActiveTab("subscription")
+          setActiveTab(
+            "subscription"
+          )
         }
-        goBack={goHome}
+
+        goBack={
+          goHome
+        }
+
         subscriptionPlan={
           subscriptionPlan
         }
       />
 
-    ) : activeTab ===
-      "journeyDetail" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // JOURNEY DETAIL
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "journeyDetail"
+  ) {
+
+    screen = (
+
       <JourneyDetailScreen
-        journey={selectedJourney}
-        goBack={() =>
-          setActiveTab("journeys")
+        journey={
+          selectedJourney
         }
-        startJourney={(journey) => {
+
+        goBack={() =>
+          setActiveTab(
+            "journeys"
+          )
+        }
+
+        startJourney={(
+          journey
+        ) => {
+
           const requiredPlan =
+
             journey?.accessLevel ||
+
             (
               journey?.premium
                 ? "premium"
                 : "free"
             );
 
+
           const currentPlan =
             String(
               subscriptionPlan ||
               "free"
-            ).toLowerCase();
+            )
+              .toLowerCase();
+
 
           const canStart =
-            requiredPlan === "free" ||
+
+            requiredPlan ===
+              "free" ||
+
             (
               requiredPlan ===
                 "premium" &&
+
               (
                 currentPlan ===
                   "premium" ||
+
                 currentPlan ===
                   "elite"
               )
             ) ||
+
             (
               requiredPlan ===
                 "elite" &&
-              currentPlan === "elite"
+
+              currentPlan ===
+                "elite"
             );
 
-          if (!canStart) {
+
+          if (
+            !canStart
+          ) {
+
             setSelectedJourney(
               journey
             );
+
 
             setActiveTab(
               "subscription"
             );
 
+
             return;
           }
 
-          setSelectedJourney(journey);
-          setLastJourney(journey);
-          setActiveTab("journeyMap");
-        }}
-        goToSubscription={() =>
-          setActiveTab("subscription")
-        }
-        subscriptionPlan={
-          subscriptionPlan
-        }
-        lifetimeSteps={lifetimeSteps}
-      />
 
-    ) : activeTab ===
-      "subscriptionCheckout" ? (
-      <SubscriptionCheckoutScreen
-        selectedPlan={selectedPlan}
-        subscriptionPlan={
-          subscriptionPlan
-        }
-        goBack={() =>
-          setActiveTab("subscription")
-        }
-        onConfirm={(plan) => {
-          setSubscriptionPlan(plan);
-          setIsPremium(
-            plan !== "free"
+          setSelectedJourney(
+            journey
           );
-          setActiveTab("home");
+
+
+          setLastJourney(
+            journey
+          );
+
+
+          setActiveTab(
+            "journeyMap"
+          );
         }}
+
+        goToSubscription={() =>
+          setActiveTab(
+            "subscription"
+          )
+        }
+
+        subscriptionPlan={
+          subscriptionPlan
+        }
+
+        lifetimeSteps={
+          lifetimeSteps
+        }
       />
 
-    ) : activeTab ===
-      "mealPlanner" ? (
-      <MealPlannerScreen
-        language={language}
+    );
+  }
+
+
+  // ==========================================================
+  // SUBSCRIPTION CHECKOUT
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "subscriptionCheckout"
+  ) {
+
+    screen = (
+
+      <SubscriptionCheckoutScreen
+        selectedPlan={
+          selectedPlan
+        }
+
+        subscriptionPlan={
+          subscriptionPlan
+        }
+
         goBack={() =>
-          setActiveTab("aiCoach")
+          setActiveTab(
+            "subscription"
+          )
+        }
+
+        onConfirm={
+          async (
+            plan
+          ) => {
+
+            applyMembershipPlan(
+              plan
+            );
+
+
+            await refreshVerifiedMembership();
+
+
+            setActiveTab(
+              "home"
+            );
+          }
         }
       />
 
-    ) : activeTab ===
-      "journeyMap" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // MEAL PLANNER
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "mealPlanner"
+  ) {
+
+    screen = (
+
+      <MealPlannerScreen
+        language={
+          language
+        }
+
+        goBack={() =>
+          setActiveTab(
+            "aiCoach"
+          )
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // GPS JOURNEY MAP
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "journeyMap"
+  ) {
+
+    const journeyObject =
+
+      typeof selectedJourney ===
+        "object" &&
+      selectedJourney
+
+        ? selectedJourney
+
+        : typeof lastJourney ===
+            "object" &&
+          lastJourney
+
+          ? lastJourney
+
+          : {
+
+              id:
+                selectedJourney ||
+                lastJourney ||
+                "",
+
+              title:
+                selectedJourney ||
+                lastJourney ||
+                "Legathon Journey",
+            };
+
+
+    screen = (
+
       <GPSJourneyMapScreen
-        language={language}
+        language={
+          language
+        }
+
         selectedJourney={
-          typeof selectedJourney ===
-          "object"
-            ? selectedJourney
-            : typeof lastJourney ===
-              "object"
-            ? lastJourney
-            : {
-                id:
-                  selectedJourney ||
-                  lastJourney ||
-                  "",
-                title:
-                  selectedJourney ||
-                  lastJourney ||
-                  "Legathon Journey",
-              }
+          journeyObject
         }
+
         activeJourney={
-          typeof selectedJourney ===
-          "object"
-            ? selectedJourney
-            : typeof lastJourney ===
-              "object"
-            ? lastJourney
-            : {
-                id:
-                  selectedJourney ||
-                  lastJourney ||
-                  "",
-                title:
-                  selectedJourney ||
-                  lastJourney ||
-                  "Legathon Journey",
-              }
+          journeyObject
         }
+
         journey={
-          typeof selectedJourney ===
-          "object"
-            ? selectedJourney
-            : typeof lastJourney ===
-              "object"
-            ? lastJourney
-            : {
-                id:
-                  selectedJourney ||
-                  lastJourney ||
-                  "",
-                title:
-                  selectedJourney ||
-                  lastJourney ||
-                  "Legathon Journey",
-              }
+          journeyObject
         }
+
         goBack={() =>
           setActiveTab(
             "journeyDetail"
           )
         }
+
         goToDetail={() =>
           setActiveTab(
             "journeyDetail"
           )
         }
+
         awardJourneyRewards={
           awardJourneyRewards
         }
+
         goToStory={(
           checkpointNumber
         ) => {
+
           setSelectedStoryCheckpoint(
             Number(
-              checkpointNumber || 1
+              checkpointNumber ||
+              1
             )
           );
+
 
           setActiveTab(
             "journeyStory"
@@ -803,25 +1907,57 @@ export default function App() {
         }}
       />
 
-    ) : activeTab ===
-      "journeyPreferences" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // JOURNEY PREFERENCES
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "journeyPreferences"
+  ) {
+
+    screen = (
+
       <JourneyPreferencesScreen
         goToSummary={() =>
           setActiveTab(
             "personalizationSummary"
           )
         }
+
         goBack={() =>
-          setActiveTab("home")
+          setActiveTab(
+            "home"
+          )
         }
       />
 
-    ) : activeTab ===
-      "personalizationSummary" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // PERSONALIZATION SUMMARY
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "personalizationSummary"
+  ) {
+
+    screen = (
+
       <PersonalizationSummaryScreen
         startLegacy={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         editPreferences={() =>
           setActiveTab(
             "journeyPreferences"
@@ -829,140 +1965,235 @@ export default function App() {
         }
       />
 
-    ) : activeTab === "paywall" ? (
-      <PurchaseConfirmationScreen
-        language={language}
-        item={{
-          title:
-            selectedPlan === "elite"
-              ? "Elite Membership"
-              : "Premium Membership",
+    );
+  }
 
-          price:
-            selectedPlan === "elite"
-              ? "$9.99/mo"
-              : "$4.99/mo",
 
-          type: "subscription",
-          plan: selectedPlan,
-        }}
-        goBack={() =>
-          setActiveTab("subscription")
-        }
-        goHome={() =>
-          setActiveTab("home")
-        }
-        goToInventory={() =>
-          setActiveTab("subscription")
-        }
-      />
+  // ==========================================================
+  // REWARDS
+  // ==========================================================
 
-    ) : activeTab === "rewards" ? (
+  else if (
+    activeTab ===
+    "rewards"
+  ) {
+
+    screen = (
+
       <RewardsScreen
-        language={language}
-        wCoinBalance={wCoinBalance}
-        addWCoins={addWCoins}
-      />
-          ) : activeTab ===
-      "avatarCenter" ? (
-      <AvatarCenterScreen
-        language={language}
-        goBack={goHome}
+        language={
+          language
+        }
+
+        wCoinBalance={
+          wCoinBalance
+        }
+
+        addWCoins={
+          addWCoins
+        }
       />
 
-    ) : activeTab === "more" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // AVATAR CENTER
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "avatarCenter"
+  ) {
+
+    screen = (
+
+      <AvatarCenterScreen
+        language={
+          language
+        }
+
+        goBack={
+          goHome
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // MORE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "more"
+  ) {
+
+    screen = (
+
       <MoreScreen
-        language={language}
+        language={
+          language
+        }
+
         goToProfile={() =>
-          setActiveTab("profile")
+          setActiveTab(
+            "profile"
+          )
         }
+
         goToSubscription={() =>
-          setActiveTab("subscription")
+          setActiveTab(
+            "subscription"
+          )
         }
+
         goToPassport={() =>
-          setActiveTab("passport")
+          setActiveTab(
+            "passport"
+          )
         }
+
         goToCertificate={() =>
-          setActiveTab("certificate")
+          setActiveTab(
+            "certificate"
+          )
         }
+
         goToWalkingAnalytics={() =>
           setActiveTab(
             "walkingAnalytics"
           )
         }
+
         goToAICoach={() =>
-          setActiveTab("aiCoach")
+          setActiveTab(
+            "aiCoach"
+          )
         }
+
         goToGPSJourneyMap={() =>
-          setActiveTab("journeyMap")
+          setActiveTab(
+            "journeyMap"
+          )
         }
+
         goToJourneyStory={() =>
-          setActiveTab("journeyStory")
+          setActiveTab(
+            "journeyStory"
+          )
         }
+
         goToLegathons={() =>
-          setActiveTab("legathons")
+          setActiveTab(
+            "legathons"
+          )
         }
+
         goToCommunity={() =>
-          setActiveTab("community")
+          setActiveTab(
+            "community"
+          )
         }
+
         goToLeaderboard={() =>
-          setActiveTab("leaderboard")
+          setActiveTab(
+            "leaderboard"
+          )
         }
+
         goToHallOfLegends={() =>
           setActiveTab(
             "hallOfLegends"
           )
         }
+
         goToDailyChallenge={() =>
           setActiveTab(
             "dailyChallenge"
           )
         }
+
         goToPhysicalStore={() =>
-          setActiveTab("physicalMerch")
+          setActiveTab(
+            "physicalMerch"
+          )
         }
+
         goToMarketplace={() =>
-          setActiveTab("physicalMerch")
+          setActiveTab(
+            "physicalMerch"
+          )
         }
+
         goToInventory={() =>
-          setActiveTab("physicalMerch")
+          setActiveTab(
+            "physicalMerch"
+          )
         }
+
         goToWCoinWallet={() =>
-          setActiveTab("wCoinWallet")
+          setActiveTab(
+            "wCoinWallet"
+          )
         }
+
         goToAvatarProfile={() =>
-          setActiveTab("avatarCenter")
+          setActiveTab(
+            "avatarCenter"
+          )
         }
+
         goToBreathing={() =>
-          setActiveTab("breathing")
+          setActiveTab(
+            "breathing"
+          )
         }
+
         goToBreathingAnalytics={() =>
           setActiveTab(
             "breathingAnalytics"
           )
         }
+
         selectedJourney={
-          selectedJourney || "selma"
+          selectedJourney ||
+          "selma"
         }
+
         goToLanguage={() =>
-          setActiveTab("language")
+          setActiveTab(
+            "language"
+          )
         }
+
         goToSettings={() =>
-          setActiveTab("settings")
+          setActiveTab(
+            "settings"
+          )
         }
+
         goToPrivacyPolicy={() =>
           setActiveTab(
             "privacyPolicy"
           )
         }
+
         goToAbout={() =>
-          setActiveTab("about")
+          setActiveTab(
+            "about"
+          )
         }
+
         goToWalkingFunction={() =>
           setActiveTab(
             "walkingFunction"
           )
         }
+
         goToJourneyPreferences={() =>
           setActiveTab(
             "journeyPreferences"
@@ -970,42 +2201,127 @@ export default function App() {
         }
       />
 
-    ) : activeTab === "passport" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // PASSPORT
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "passport"
+  ) {
+
+    screen = (
+
       <PassportScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+
         goToCertificate={() =>
-          setActiveTab("certificate")
+          setActiveTab(
+            "certificate"
+          )
         }
       />
 
-    ) : activeTab ===
-      "passportDetail" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // PASSPORT DETAIL
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "passportDetail"
+  ) {
+
+    screen = (
+
       <PassportDetailScreen
-        passportId={selectedPassport}
+        passportId={
+          selectedPassport
+        }
+
         goBack={() =>
-          setActiveTab("profile")
+          setActiveTab(
+            "profile"
+          )
         }
+
         goCertificate={() =>
-          setActiveTab("certificate")
+          setActiveTab(
+            "certificate"
+          )
         }
       />
 
-    ) : activeTab ===
-      "certificate" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // CERTIFICATE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "certificate"
+  ) {
+
+    screen = (
+
       <CertificateScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab === "profile" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // PROFILE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "profile"
+  ) {
+
+    screen = (
+
       <ProfileScreen
-        language={language}
-        goBack={goMore}
-        openPassport={(passportId) => {
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+
+        openPassport={(
+          passportId
+        ) => {
+
           setSelectedPassport(
             passportId
           );
+
 
           setActiveTab(
             "passportDetail"
@@ -1013,154 +2329,312 @@ export default function App() {
         }}
       />
 
-    ) : activeTab ===
-      "wCoinWallet" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // WCOIN WALLET
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "wCoinWallet"
+  ) {
+
+    screen = (
+
       <WCoinWalletScreen
-        language={language}
-        wCoinBalance={wCoinBalance}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        wCoinBalance={
+          wCoinBalance
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab ===
-  "subscription" ? (
-
-  <SubscriptionScreen
-
-    language={
-      language
-    }
-
-    subscriptionPlan={
-      subscriptionPlan
-    }
-
-    setSubscriptionPlan={
-      setSubscriptionPlan
-    }
-
-    goBack={
-      goMore
-    }
-
-    goToPaywall={(
-      plan
-    ) => {
-
-      setSelectedPlan(
-        plan
-      );
-
-      setActiveTab(
-        "subscriptionCheckout"
-      );
-    }}
-
-    onRestorePurchases={
-      restoreRevenueCatPurchases
-    }
-
-    goToPrivacyPolicy={
-      () =>
-        setActiveTab(
-          "privacyPolicy"
-        )
-    }
-
-  />
+    );
+  }
 
 
+  // ==========================================================
+  // SUBSCRIPTIONS
+  // ==========================================================
 
-    ) : activeTab ===
-      "hallOfLegends" ? (
+  else if (
+    activeTab ===
+    "subscription"
+  ) {
+
+    screen = (
+
+      <SubscriptionScreen
+        language={
+          language
+        }
+
+        subscriptionPlan={
+          subscriptionPlan
+        }
+
+        setSubscriptionPlan={
+          setSubscriptionPlan
+        }
+
+        goBack={
+          goMore
+        }
+
+        goToPaywall={(
+          plan
+        ) => {
+
+          setSelectedPlan(
+            plan
+          );
+
+
+          setActiveTab(
+            "subscriptionCheckout"
+          );
+        }}
+
+        onRestorePurchases={
+          handleRestorePurchases
+        }
+
+        goToPrivacyPolicy={() =>
+          setActiveTab(
+            "privacyPolicy"
+          )
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // HALL OF LEGENDS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "hallOfLegends"
+  ) {
+
+    screen = (
+
       <HallOfLegendsScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab ===
-      "walkingAnalytics" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // WALKING ANALYTICS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "walkingAnalytics"
+  ) {
+
+    screen = (
+
       <WalkingAnalyticsScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab ===
-      "walkingFunction" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // WALKING FUNCTION
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "walkingFunction"
+  ) {
+
+    screen = (
+
       <WalkingFunctionScreen
-        todaySteps={walkingData.steps}
-        liveSteps={walkingData.steps}
-        liveMiles={walkingData.miles}
+        todaySteps={
+          walkingData.steps
+        }
+
+        liveSteps={
+          walkingData.steps
+        }
+
+        liveMiles={
+          walkingData.miles
+        }
+
         walkingSeconds={
-          walkingData.walkingSeconds
+          walkingData
+            .walkingSeconds
         }
+
         walkingMinutes={
-          walkingData.walkingMinutes
+          walkingData
+            .walkingMinutes
         }
+
         paceMinutesPerMile={
-          walkingData.paceMinutesPerMile
+          walkingData
+            .paceMinutesPerMile
         }
+
         speedMph={
-          walkingData.speedMph
+          walkingData
+            .speedMph
         }
-        cadence={walkingData.cadence}
+
+        cadence={
+          walkingData
+            .cadence
+        }
+
         pedometerAvailable={
-          walkingData.isAvailable
+          walkingData
+            .isAvailable
         }
-        goBack={goMore}
+
+        goBack={
+          goMore
+        }
+
         goHome={() =>
-          setActiveTab("home")
+          setActiveTab(
+            "home"
+          )
         }
+
         goJourneys={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         goRewards={() =>
-          setActiveTab("rewards")
+          setActiveTab(
+            "rewards"
+          )
         }
+
         goMore={() =>
-          setActiveTab("more")
+          setActiveTab(
+            "more"
+          )
         }
       />
 
-    ) : activeTab === "aiCoach" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // AI WELLNESS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "aiCoach"
+  ) {
+
+    screen = (
+
       <AIWellnessMasterScreen
-        goToGPSJourneyMap={(params) => {
+        goToGPSJourneyMap={(
+          params
+        ) => {
+
           const journey =
             params?.journey ||
             params ||
             null;
 
-          if (journey) {
+
+          if (
+            journey
+          ) {
+
             setSelectedJourney(
               journey
             );
           }
 
-          setActiveTab("journeyMap");
+
+          setActiveTab(
+            "journeyMap"
+          );
         }}
+
         goToJourneys={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         goToBreathing={() =>
-          setActiveTab("breathing")
+          setActiveTab(
+            "breathing"
+          )
         }
+
         goToHydration={() =>
-          setActiveTab("hydration")
+          setActiveTab(
+            "hydration"
+          )
         }
+
         goToRecovery={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToSleep={() =>
-          setActiveTab("sleep")
+          setActiveTab(
+            "sleep"
+          )
         }
+
         goToWalkingAnalytics={() =>
           setActiveTab(
             "walkingAnalytics"
           )
         }
+
         goToMealPlanner={() =>
-          setActiveTab("mealPlanner")
+          setActiveTab(
+            "mealPlanner"
+          )
         }
-       
+
         goToAIConversation={() =>
           setActiveTab(
             "aiConversation"
@@ -1168,88 +2642,300 @@ export default function App() {
         }
       />
 
-    ) : activeTab === "community" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // COMMUNITY
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "community"
+  ) {
+
+    screen = (
+
       <CommunityScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+
+        goToAICoach={() =>
+          setActiveTab(
+            "aiConversation"
+          )
+        }
+
+        goToComments={(
+          post
+        ) => {
+
+          setSelectedCommunityPost(
+            post
+          );
+
+
+          setActiveTab(
+            "communityComments"
+          );
+        }}
       />
 
-    ) : activeTab ===
-      "leaderboard" ? (
-      <LeaderboardScreen
-        language={language}
-        goBack={goMore}
-      />
+    );
+  }
 
-    ) : activeTab ===
-      "dailyChallenge" ? (
-      <DailyChallengeScreen
-        language={language}
-        goBack={goMore}
-      />
 
-    ) : activeTab ===
-      "breathing" ? (
-      <BreathingScreen
-        language={language}
+  // ==========================================================
+  // COMMUNITY COMMENTS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "communityComments"
+  ) {
+
+    screen = (
+
+      <CommunityCommentsScreen
+        language={
+          language
+        }
+
+        post={
+          selectedCommunityPost
+        }
+
         goBack={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "community"
+          )
         }
       />
 
-    ) : activeTab ===
-      "breathingAnalytics" ? (
-      <BreathingAnalyticsScreen
-        language={language}
-        goBack={goMore}
+    );
+  }
+
+
+  // ==========================================================
+  // LEADERBOARD
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "leaderboard"
+  ) {
+
+    screen = (
+
+      <LeaderboardScreen
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab ===
-      "hydration" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // DAILY CHALLENGE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "dailyChallenge"
+  ) {
+
+    screen = (
+
+      <DailyChallengeScreen
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // BREATHING
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "breathing"
+  ) {
+
+    screen = (
+
+      <BreathingScreen
+        language={
+          language
+        }
+
+        goBack={() =>
+          setActiveTab(
+            "recovery"
+          )
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // BREATHING ANALYTICS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "breathingAnalytics"
+  ) {
+
+    screen = (
+
+      <BreathingAnalyticsScreen
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // HYDRATION
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "hydration"
+  ) {
+
+    screen = (
+
       <HydrationCoachScreen
         goBack={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToRecovery={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToAIWellness={() =>
-          setActiveTab("aiCoach")
+          setActiveTab(
+            "aiCoach"
+          )
         }
       />
 
-    ) : activeTab === "sleep" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // SLEEP
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "sleep"
+  ) {
+
+    screen = (
+
       <SleepCoachScreen
         goBack={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToRecovery={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToBreathing={() =>
-          setActiveTab("breathing")
+          setActiveTab(
+            "breathing"
+          )
         }
+
         goToAIWellness={() =>
-          setActiveTab("aiCoach")
+          setActiveTab(
+            "aiCoach"
+          )
         }
       />
 
-    ) : activeTab === "recovery" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // RECOVERY
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "recovery"
+  ) {
+
+    screen = (
+
       <RecoveryCoachScreen
         goBack={() =>
           setActiveTab(
             "aiConversation"
           )
         }
+
         goToBreathing={() =>
-          setActiveTab("breathing")
+          setActiveTab(
+            "breathing"
+          )
         }
+
         goToHydration={() =>
-          setActiveTab("hydration")
+          setActiveTab(
+            "hydration"
+          )
         }
+
         goToSleep={() =>
-          setActiveTab("sleep")
+          setActiveTab(
+            "sleep"
+          )
         }
+
         goToWalkingAnalytics={() =>
           setActiveTab(
             "walkingAnalytics"
@@ -1257,233 +2943,473 @@ export default function App() {
         }
       />
 
-    ) : activeTab ===
-      "aiConversation" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // AI CONVERSATION
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "aiConversation"
+  ) {
+
+    screen = (
+
       <AIConversationScreen
         goBack={() =>
-          setActiveTab("aiCoach")
+          setActiveTab(
+            "aiCoach"
+          )
         }
+
         goToGPSJourneyMap={() =>
-          setActiveTab("journeyMap")
+          setActiveTab(
+            "journeyMap"
+          )
         }
+
         goToJourneys={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         goToMealPlanner={() =>
-          setActiveTab("mealPlanner")
+          setActiveTab(
+            "mealPlanner"
+          )
         }
+
         goToHydration={() =>
-          setActiveTab("hydration")
+          setActiveTab(
+            "hydration"
+          )
         }
+
         goToRecovery={() =>
-          setActiveTab("recovery")
+          setActiveTab(
+            "recovery"
+          )
         }
+
         goToSleep={() =>
-          setActiveTab("sleep")
+          setActiveTab(
+            "sleep"
+          )
         }
+
         goToBreathing={() =>
-          setActiveTab("breathing")
+          setActiveTab(
+            "breathing"
+          )
         }
+
         wellness={{
+
           steps:
             Number(
-              walkingData?.steps || 0
+              walkingData
+                ?.steps ||
+              0
             ),
 
-          stepGoal: 7000,
+          stepGoal:
+            7000,
 
-          hydration: 0,
+          hydration:
+            0,
 
-          hydrationGoal: 100,
+          hydrationGoal:
+            100,
 
-          recovery: null,
+          recovery:
+            null,
 
-          sleepHours: null,
+          sleepHours:
+            null,
 
           journey:
-            selectedJourney?.title ||
+            selectedJourney
+              ?.title ||
             "",
 
           journeyProgress:
-            selectedJourney?.progress ||
+            selectedJourney
+              ?.progress ||
+
             selectedJourney
               ?.journeyProgress ||
+
             0,
 
           checkpoint:
             selectedJourney
               ?.currentCheckpoint ||
             "",
+
         }}
       />
 
-  ) : activeTab ===
-  "physicalMerch" ? (
-  <PhysicalMerchStoreScreen
-    language={language}
+    );
+  }
 
-    goBack={() =>
-      setActiveTab("wCoinWallet")
-    }
 
-    openItem={
-      openStoreItemDetail
-    }
+  // ==========================================================
+  // PHYSICAL MERCH STORE
+  // ==========================================================
 
-    goToPurchaseConfirmation={
-      goToPurchaseConfirmation
-    }
+  else if (
+    activeTab ===
+    "physicalMerch"
+  ) {
 
-    wCoinBalance={
-      wCoinBalance
-    }
+    screen = (
 
-    lifetimeSteps={
-      lifetimeSteps
-    }
+      <PhysicalMerchStoreScreen
+        language={
+          language
+        }
 
-    spendWCoins={
-      spendWCoins
-    }
-  />
+        goBack={() =>
+          setActiveTab(
+            "wCoinWallet"
+          )
+        }
 
-    ) : activeTab ===
-      "storeItemDetail" ? (
+        openItem={
+          openStoreItemDetail
+        }
+
+        goToPurchaseConfirmation={
+          goToPurchaseConfirmation
+        }
+
+        wCoinBalance={
+          wCoinBalance
+        }
+
+        lifetimeSteps={
+          lifetimeSteps
+        }
+      />
+
+    );
+  }
+
+
+  // ==========================================================
+  // STORE ITEM DETAIL
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "storeItemDetail"
+  ) {
+
+    screen = (
+
       <StoreItemDetailScreen
-        language={language}
-        item={selectedStoreItem}
+        language={
+          language
+        }
+
+        item={
+          selectedStoreItem
+        }
+
         goBack={() =>
           setActiveTab(
             "physicalMerch"
           )
         }
+
         goToPurchaseConfirmation={
           goToPurchaseConfirmation
         }
       />
 
-   ) : activeTab ===
-  "purchaseConfirmation" ? (
-<PurchaseConfirmationScreen
-  language={language}
-  item={selectedStoreItem}
-
-  userPlan={subscriptionPlan}
-  wCoinBalance={wCoinBalance}
-  spendWCoins={spendWCoins}
-
-  goBack={() =>
-    setActiveTab("physicalMerch")
+    );
   }
 
-  goHome={() =>
-    setActiveTab("home")
+
+  // ==========================================================
+  // PURCHASE CONFIRMATION / STRIPE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "purchaseConfirmation"
+  ) {
+
+    screen = (
+
+      <PurchaseConfirmationScreen
+        language={
+          language
+        }
+
+        item={
+          selectedStoreItem
+        }
+
+        userPlan={
+          subscriptionPlan
+        }
+
+        wCoinBalance={
+          wCoinBalance
+        }
+
+        refreshWCoinBalance={
+          refreshSecureWCoinBalance
+        }
+
+        goBack={() =>
+          setActiveTab(
+            "physicalMerch"
+          )
+        }
+
+        goHome={() =>
+          setActiveTab(
+            "home"
+          )
+        }
+
+        goToInventory={() =>
+          setActiveTab(
+            "physicalMerch"
+          )
+        }
+      />
+
+    );
   }
 
-  goToInventory={() =>
-    setActiveTab("physicalMerch")
-  }
-/>
-  
-  
-          ) : activeTab ===
-      "journeyStory" ? (
+
+  // ==========================================================
+  // JOURNEY STORY
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "journeyStory"
+  ) {
+
+    screen = (
+
       <JourneyStoryScreen
         route={{
+
           params: {
+
             journey:
+
               typeof selectedJourney ===
-              "object"
+                "object" &&
+              selectedJourney
+
                 ? selectedJourney
+
                 : typeof lastJourney ===
-                  "object"
-                ? lastJourney
-                : {
-                    id:
-                      selectedJourney ||
-                      lastJourney ||
-                      "",
-                  },
+                    "object" &&
+                  lastJourney
+
+                  ? lastJourney
+
+                  : {
+
+                      id:
+                        selectedJourney ||
+                        lastJourney ||
+                        "",
+                    },
 
             checkpoint:
               selectedStoryCheckpoint,
+
           },
         }}
-        lifetimeSteps={totalSteps}
+
+        lifetimeSteps={
+          totalSteps
+        }
+
         subscriptionPlan={
           subscriptionPlan
         }
-        goBack={() =>
-          setActiveTab("journeys")
-        }
-        goToProgress={(journey) => {
-          const journeyToContinue =
-            journey &&
-            typeof journey === "object"
-              ? journey
-              : typeof selectedJourney ===
-                "object"
-              ? selectedJourney
-              : typeof lastJourney ===
-                "object"
-              ? lastJourney
-              : null;
 
-          if (journeyToContinue) {
+        goBack={() =>
+          setActiveTab(
+            "journeys"
+          )
+        }
+
+        goToProgress={(
+          journey
+        ) => {
+
+          const journeyToContinue =
+
+            journey &&
+            typeof journey ===
+              "object"
+
+              ? journey
+
+              : typeof selectedJourney ===
+                  "object" &&
+                selectedJourney
+
+                ? selectedJourney
+
+                : typeof lastJourney ===
+                    "object" &&
+                  lastJourney
+
+                  ? lastJourney
+
+                  : null;
+
+
+          if (
+            journeyToContinue
+          ) {
+
             setSelectedJourney(
               journeyToContinue
             );
+
 
             setLastJourney(
               journeyToContinue
             );
           }
 
-          setActiveTab("journeyMap");
+
+          setActiveTab(
+            "journeyMap"
+          );
         }}
       />
 
-    ) : activeTab ===
-      "avatarProfile" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // AVATAR PROFILE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "avatarProfile"
+  ) {
+
+    screen = (
+
       <AvatarProfileScreen
-        language={language}
-        currentAvatar={equippedAvatar}
-        equippedAvatar={equippedAvatar}
-        goBack={goHome}
-        goToAvatarCenter={() =>
-          setActiveTab("avatarCenter")
+        language={
+          language
         }
+
+        currentAvatar={
+          equippedAvatar
+        }
+
+        equippedAvatar={
+          equippedAvatar
+        }
+
+        goBack={
+          goHome
+        }
+
+        goToAvatarCenter={() =>
+          setActiveTab(
+            "avatarCenter"
+          )
+        }
+
         changeAvatar={() =>
-          setActiveTab("avatarCenter")
+          setActiveTab(
+            "avatarCenter"
+          )
         }
       />
 
-    ) : activeTab ===
-      "worldPassport" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // WORLD PASSPORT
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "worldPassport"
+  ) {
+
+    screen = (
+
       <PassportScreen
-        language={language}
+        language={
+          language
+        }
+
         selectedPassport={
           selectedPassport
         }
+
         goBack={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         goToCertificate={() =>
-          setActiveTab("certificate")
+          setActiveTab(
+            "certificate"
+          )
         }
       />
 
-    ) : activeTab ===
-      "legathons" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // LEGATHONS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "legathons"
+  ) {
+
+    screen = (
+
       <MarathonScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
+
         goToWorldMarathonDetail={(
           marathonId
         ) => {
+
           setSelectedMarathonId(
             marathonId
           );
+
 
           setActiveTab(
             "worldMarathonDetail"
@@ -1491,30 +3417,58 @@ export default function App() {
         }}
       />
 
-    ) : activeTab ===
-      "worldMarathonDetail" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // WORLD MARATHON DETAIL
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "worldMarathonDetail"
+  ) {
+
+    screen = (
+
       <WorldMarathonDetailScreen
         marathonId={
           selectedMarathonId
         }
+
         goBack={() =>
-          setActiveTab("legathons")
+          setActiveTab(
+            "legathons"
+          )
         }
-        goToCertificate={(params) => {
+
+        goToCertificate={(
+          params
+        ) => {
+
           setSelectedMarathonId(
-            params?.marathonId ||
+            params
+              ?.marathonId ||
             selectedMarathonId
           );
+
 
           setActiveTab(
             "certificate"
           );
         }}
-        goToPassport={(params) => {
+
+        goToPassport={(
+          params
+        ) => {
+
           setSelectedMarathonId(
-            params?.marathonId ||
+            params
+              ?.marathonId ||
             selectedMarathonId
           );
+
 
           setActiveTab(
             "worldPassport"
@@ -1522,214 +3476,546 @@ export default function App() {
         }}
       />
 
-    ) : activeTab === "language" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // LANGUAGE
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "language"
+  ) {
+
+    screen = (
+
       <LanguageSelectionScreen
-        language={language}
-        setLanguage={setLanguage}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        setLanguage={
+          setLanguage
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab === "settings" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // SETTINGS
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "settings"
+  ) {
+
+    screen = (
+
       <SettingsScreen
-        language={language}
-        goBack={goMore}
-        goToLanguage={() =>
-          setActiveTab("language")
+        language={
+          language
         }
+
+        goBack={
+          goMore
+        }
+
+        goToLanguage={() =>
+          setActiveTab(
+            "language"
+          )
+        }
+
         goToPrivacy={() =>
           setActiveTab(
             "privacyPolicy"
           )
         }
+
         goToAbout={() =>
-          setActiveTab("about")
+          setActiveTab(
+            "about"
+          )
         }
       />
 
-    ) : activeTab ===
-      "privacyPolicy" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // PRIVACY
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "privacyPolicy"
+  ) {
+
+    screen = (
+
       <PrivacyPolicyScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : activeTab === "about" ? (
+    );
+  }
+
+
+  // ==========================================================
+  // ABOUT
+  // ==========================================================
+
+  else if (
+    activeTab ===
+    "about"
+  ) {
+
+    screen = (
+
       <AboutScreen
-        language={language}
-        goBack={goMore}
+        language={
+          language
+        }
+
+        goBack={
+          goMore
+        }
       />
 
-    ) : (
+    );
+  }
+
+
+  // ==========================================================
+  // FALLBACK HOME
+  // ==========================================================
+
+  else {
+
+    screen = (
+
       <WalkingDashboardScreen
-        language={language}
-        currentAvatar={equippedAvatar}
-        activeJourney={selectedJourney}
+        language={
+          language
+        }
+
+        currentAvatar={
+          equippedAvatar
+        }
+
+        activeJourney={
+          selectedJourney
+        }
+
         goToJourneys={() =>
-          setActiveTab("journeys")
+          setActiveTab(
+            "journeys"
+          )
         }
+
         goToGPSJourneyMap={() =>
-          setActiveTab("journeyMap")
+          setActiveTab(
+            "journeyMap"
+          )
         }
+
         goToPassport={() =>
-          setActiveTab("passport")
+          setActiveTab(
+            "passport"
+          )
         }
+
         goToAvatarProfile={() =>
           setActiveTab(
             "avatarProfile"
           )
         }
+
         goToRewards={() =>
-          setActiveTab("rewards")
+          setActiveTab(
+            "rewards"
+          )
         }
+
         goToWalkingAnalytics={() =>
           setActiveTab(
             "walkingAnalytics"
           )
         }
+
         goToLegathons={() =>
-          setActiveTab("legathons")
+          setActiveTab(
+            "legathons"
+          )
         }
       />
-    );
 
-  // ============================================================
+    );
+  }
+
+
+  // ==========================================================
   // MAIN APP LAYOUT
-  // ============================================================
+  // ==========================================================
+
+  const appLayout = (
+
+    <View
+      style={
+        styles.app
+      }
+    >
+
+      <View
+        style={
+          styles.screen
+        }
+      >
+
+        {screen}
+
+      </View>
+
+
+      <View
+        style={
+          styles.bottomNav
+        }
+      >
+
+        <NavButton
+          icon={
+            require(
+              "./assets/legathon/icons/legacyhome.png"
+            )
+          }
+
+          label="Home"
+
+          active={
+            activeTab ===
+            "home"
+          }
+
+          onPress={() =>
+            setActiveTab(
+              "home"
+            )
+          }
+        />
+
+
+        <NavButton
+          icon={
+            require(
+              "./assets/legathon/icons/passporthome.png"
+            )
+          }
+
+          label="Journeys"
+
+          active={
+            activeTab ===
+            "journeys"
+          }
+
+          onPress={() =>
+            setActiveTab(
+              "journeys"
+            )
+          }
+        />
+
+
+        <NavButton
+          icon={
+            require(
+              "./assets/legathon/icons/coin.png"
+            )
+          }
+
+          label="Rewards"
+
+          active={
+            activeTab ===
+            "rewards"
+          }
+
+          onPress={() =>
+            setActiveTab(
+              "rewards"
+            )
+          }
+        />
+
+
+        <NavButton
+          icon={
+            require(
+              "./assets/legathon/icons/morehome.png"
+            )
+          }
+
+          label="More"
+
+          active={
+            activeTab ===
+            "more"
+          }
+
+          onPress={() =>
+            setActiveTab(
+              "more"
+            )
+          }
+        />
+
+      </View>
+
+    </View>
+  );
+
+
+  // ==========================================================
+  // STRIPE PROVIDER
+  // ==========================================================
+
+  if (
+    !STRIPE_PUBLISHABLE_KEY
+  ) {
+
+    if (
+      __DEV__
+    ) {
+
+      console.warn(
+        "Stripe publishable key is missing. Add EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env file."
+      );
+    }
+
+
+    return appLayout;
+  }
+
 
   return (
-    <View style={styles.app}>
-      <View style={styles.screen}>
-        {screen}
-      </View>
 
-      <View style={styles.bottomNav}>
-        <NavButton
-          icon={require(
-            "./assets/legathon/icons/legacyhome.png"
-          )}
-          label="Home"
-          active={activeTab === "home"}
-          onPress={() =>
-            setActiveTab("home")
-          }
-        />
+    <StripeProvider
+      publishableKey={
+        STRIPE_PUBLISHABLE_KEY
+      }
+    >
 
-        <NavButton
-          icon={require(
-            "./assets/legathon/icons/passporthome.png"
-          )}
-          label="Journeys"
-          active={
-            activeTab === "journeys"
-          }
-          onPress={() =>
-            setActiveTab("journeys")
-          }
-        />
+      {appLayout}
 
-        <NavButton
-          icon={require(
-            "./assets/legathon/icons/coin.png"
-          )}
-          label="Rewards"
-          active={
-            activeTab === "rewards"
-          }
-          onPress={() =>
-            setActiveTab("rewards")
-          }
-        />
-
-        <NavButton
-          icon={require(
-            "./assets/legathon/icons/morehome.png"
-          )}
-          label="More"
-          active={activeTab === "more"}
-          onPress={() =>
-            setActiveTab("more")
-          }
-        />
-      </View>
-    </View>
+    </StripeProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  app: {
-    flex: 1,
-    backgroundColor: "#020611",
-  },
 
-  screen: {
-    flex: 1,
-    backgroundColor: "#020611",
-    paddingBottom: 98,
-  },
+// ============================================================
+// STYLES
+// ============================================================
 
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 98,
-    backgroundColor: "#03142D",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingTop: 10,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor:
-      "rgba(255, 215, 90, 0.55)",
-    shadowColor: "#FFD75A",
-    shadowOffset: {
-      width: 0,
-      height: -4,
+const styles =
+  StyleSheet.create({
+
+    app: {
+
+      flex:
+        1,
+
+      backgroundColor:
+        "#020611",
+
     },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 999,
-    zIndex: 999,
-  },
 
-  navButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-    marginHorizontal: 2,
-    borderRadius: 18,
-  },
 
-  navIconImage: {
-    width: 42,
-    height: 42,
-    resizeMode: "contain",
-    marginBottom: 3,
-  },
+    screen: {
 
-  activeNavIcon: {
-    transform: [
-      {
-        scale: 1.16,
+      flex:
+        1,
+
+      backgroundColor:
+        "#020611",
+
+      paddingBottom:
+        98,
+
+    },
+
+
+    bottomNav: {
+
+      position:
+        "absolute",
+
+      left:
+        0,
+
+      right:
+        0,
+
+      bottom:
+        0,
+
+      height:
+        98,
+
+      backgroundColor:
+        "#03142D",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "space-around",
+
+      paddingTop:
+        10,
+
+      paddingBottom:
+        24,
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "rgba(255, 215, 90, 0.55)",
+
+      shadowColor:
+        "#FFD75A",
+
+      shadowOffset: {
+
+        width:
+          0,
+
+        height:
+          -4,
+
       },
-    ],
-  },
 
-  navText: {
-    color: "#A8B6D4",
-    fontSize: 10,
-    fontWeight: "800",
-  },
+      shadowOpacity:
+        0.35,
 
-  activeNavText: {
-    color: "#FFD75A",
-    textShadowColor: "#FFD75A",
-    textShadowOffset: {
-      width: 0,
-      height: 0,
+      shadowRadius:
+        14,
+
+      elevation:
+        999,
+
+      zIndex:
+        999,
+
     },
-    textShadowRadius: 8,
-  },
-});
+
+
+    navButton: {
+
+      flex:
+        1,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      paddingVertical:
+        6,
+
+      marginHorizontal:
+        2,
+      borderRadius:
+        18,
+
+    },
+
+
+    navIconImage: {
+
+      width:
+        42,
+
+      height:
+        42,
+
+      resizeMode:
+        "contain",
+
+      marginBottom:
+        3,
+
+    },
+
+
+    activeNavIcon: {
+
+      transform: [
+        {
+          scale:
+            1.16,
+        },
+      ],
+
+    },
+
+
+    navText: {
+
+      color:
+        "#A8B6D4",
+
+      fontSize:
+        10,
+
+      fontWeight:
+        "800",
+
+    },
+
+
+    activeNavText: {
+
+      color:
+        "#FFD75A",
+
+      textShadowColor:
+        "#FFD75A",
+
+      textShadowOffset: {
+
+        width:
+          0,
+
+        height:
+          0,
+
+      },
+
+      textShadowRadius:
+        8,
+
+    },
+
+  });

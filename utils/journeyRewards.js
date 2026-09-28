@@ -1,11 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { addWCoins } from "./wcoinStorage";
+import { supabase } from "../lib/supabase";
 import { processRewards } from "./rewardManager";
 
 const JOURNEY_REWARDS_KEY = "LEGATHON_WALK_JOURNEY_REWARDS";
 const LEGACY_POINTS_KEY = "LEGATHON_WALK_LEGACY_POINTS";
 const AVATAR_XP_KEY = "LEGATHON_WALK_AVATAR_XP";
-
+const WCOIN_CACHE_KEY = "wCoinBalance";
 
 
 
@@ -1175,172 +1175,379 @@ export const hasClaimedJourneyReward = async journeyId => {
   return claimed === "true";
 };
 
-export const completeJourneyReward = async journeyId => {
-  const id = resolveJourneyRewardId(journeyId);
+export const completeJourneyReward =
+  async journeyId => {
 
-  if (!id) {
-    throw new Error(
-      `Unknown journey reward: ${journeyId}`
-    );
-  }
+    const resolvedId =
+      resolveJourneyRewardId(
+        journeyId
+      );
 
-  const reward = JOURNEY_REWARDS[id];
-
-  const claimed = await AsyncStorage.getItem(
-    rewardClaimKey(id)
-  );
-
-  if (claimed === "true") {
-    return {
-      awarded: false,
-      reward,
-    };
-  }
-
-  await AsyncStorage.setItem(
-    rewardClaimKey(id),
-    "pending"
-  );
-
-  try {
-  const coinsToAward = Math.max(
-    0,
-    Math.floor(
-      Number(reward?.wCoins || 0)
-    )
-  );
-
-  const rewardPoints = Math.max(
-    0,
-    Math.floor(
-      Number(reward?.rewardPoints || 0)
-    )
-  );
-
-  const avatarXP = Math.max(
-    0,
-    Math.floor(
-      Number(reward?.avatarXP || 0)
-    )
-  );
-
-
-const rewards = [];
-
-if (coinsToAward > 0) {
-  rewards.push({
-    type: "wcoins",
-    amount: coinsToAward,
-  });
-}
-
-if (rewardPoints > 0) {
-  rewards.push({
-    type: "points",
-    amount: rewardPoints,
-  });
-}
-
-if (reward?.tracksuit) {
-  rewards.push({
-    type: "tracksuit",
-    id: reward.tracksuit,
-  });
-}
-
-if (reward?.badge) {
-  rewards.push({
-    type: "badge",
-    id: reward.badge,
-  });
-}
-
-if (reward?.passport) {
-  rewards.push({
-    type: "passport",
-    id: reward.passport,
-  });
-}
-
-if (reward?.certificate) {
-  rewards.push({
-    type: "certificate",
-    id: reward.certificate,
-  });
-}
-
-if (reward?.rank) {
-  rewards.push({
-    type: "rank",
-    id: reward.rank,
-  });
-}
-
-await processRewards(rewards);
-  const walletResult = await addWCoins(
-    coinsToAward
-  );
-
-  const currentPoints =
-    await readNumber(
-      LEGACY_POINTS_KEY
-    );
-
-  const currentXP =
-    await readNumber(
-      AVATAR_XP_KEY
-    );
-
-  await AsyncStorage.multiSet([
-    [
-      LEGACY_POINTS_KEY,
-      String(
-        currentPoints +
-          rewardPoints
-      ),
-    ],
-    [
-      AVATAR_XP_KEY,
-      String(
-        currentXP +
-          avatarXP
-      ),
-    ],
-    [
-      rewardClaimKey(id),
-      "true",
-    ],
-  ]);
-
-  console.log(
-    "JOURNEY REWARD AWARDED:",
-    {
-      journeyId: id,
-      coinsToAward,
-      walletResult,
+    if (!resolvedId) {
+      throw new Error(
+        `No journey reward found for journey ID: ${journeyId}`
+      );
     }
-  );
 
-  return {
-  awarded: true,
-  reward,
-  addedWCoins:
-    Number(reward.wCoins || 0),
-  walletResult,
-};
-} catch (error) {
-  await AsyncStorage.removeItem(
-    rewardClaimKey(id)
-  );
 
-  console.log(
-    "COMPLETE JOURNEY REWARD ERROR:",
-    error
-  );
+    const reward =
+      JOURNEY_REWARDS[
+        resolvedId
+      ];
 
-  throw error;
-}
-};
+    const claimKey =
+      getClaimKey(
+        resolvedId
+      );
+
+
+    // ========================================================
+    // LOCAL CACHE CHECK
+    // ========================================================
+
+    const localClaim =
+      await AsyncStorage.getItem(
+        claimKey
+      );
+
+
+    if (
+      localClaim === "true"
+    ) {
+      return {
+        awarded: false,
+        alreadyClaimed: true,
+        journeyId:
+          resolvedId,
+        reward,
+      };
+    }
+
+
+    // ========================================================
+    // AUTHENTICATED USER
+    // ========================================================
+
+    const {
+      data: userData,
+      error: userError,
+    } =
+      await supabase.auth.getUser();
+
+
+    if (userError) {
+      throw userError;
+    }
+
+
+    const user =
+      userData?.user;
+
+
+    if (!user) {
+      return {
+        awarded: false,
+        alreadyClaimed: false,
+        requiresSignIn: true,
+        journeyId:
+          resolvedId,
+        reward,
+      };
+    }
+
+
+    // Mark pending locally while
+    // Supabase processes the claim.
+    await AsyncStorage.setItem(
+      claimKey,
+      "pending"
+    );
+
+
+    try {
+
+      // ======================================================
+      // SECURE SERVER CLAIM
+      // ======================================================
+
+      const {
+        data,
+        error,
+      } =
+        await supabase.rpc(
+          "claim_my_journey_reward",
+          {
+            p_journey_id:
+              resolvedId,
+          }
+        );
+
+
+      if (error) {
+        throw error;
+      }
+
+
+      const result =
+        Array.isArray(data)
+          ? data[0]
+          : data;
+
+
+      if (!result) {
+        throw new Error(
+          "Journey reward service returned no result."
+        );
+      }
+
+
+      const reason =
+        result.reason ||
+        null;
+
+
+      const newBalance =
+        result.new_balance ===
+          null ||
+        result.new_balance ===
+          undefined
+          ? null
+          : Number(
+              result.new_balance
+            );
+
+
+      // ======================================================
+      // SERVER SAYS IT WAS ALREADY CLAIMED
+      // ======================================================
+
+      if (
+        reason ===
+        "already-claimed"
+      ) {
+
+        await AsyncStorage.setItem(
+          claimKey,
+          "true"
+        );
+
+
+        if (
+          Number.isFinite(
+            newBalance
+          )
+        ) {
+          await AsyncStorage.setItem(
+            WCOIN_CACHE_KEY,
+            String(
+              newBalance
+            )
+          );
+        }
+
+
+        return {
+          awarded: false,
+
+          alreadyClaimed:
+            true,
+
+          journeyId:
+            resolvedId,
+
+          reward,
+
+          newBalance,
+
+          serverReason:
+            reason,
+        };
+      }
+
+
+      // ======================================================
+      // SERVER DID NOT APPROVE REWARD
+      // ======================================================
+
+      if (
+        result.claimed !== true
+      ) {
+
+        await AsyncStorage.removeItem(
+          claimKey
+        );
+
+
+        throw new Error(
+          reason ||
+          "Journey reward was not approved."
+        );
+      }
+
+
+      // ======================================================
+      // SERVER-APPROVED REWARD VALUES
+      // ======================================================
+
+      const serverWCoins =
+        Math.max(
+          0,
+          Number(
+            result.reward_wcoins ||
+            0
+          )
+        );
+
+
+      const serverPoints =
+        Math.max(
+          0,
+          Number(
+            result.reward_points ||
+            0
+          )
+        );
+
+
+      const serverAvatarXP =
+        Math.max(
+          0,
+          Number(
+            result.avatar_xp ||
+            0
+          )
+        );
+
+
+      // ======================================================
+      // UPDATE LOCAL NON-WALLET DATA
+      // ======================================================
+
+      const [
+        legacyPoints,
+        avatarXP,
+      ] =
+        await Promise.all([
+          readNumber(
+            LEGACY_POINTS_KEY
+          ),
+
+          readNumber(
+            AVATAR_XP_KEY
+          ),
+        ]);
+
+
+      const updates = [
+        [
+          LEGACY_POINTS_KEY,
+
+          String(
+            legacyPoints +
+            serverPoints
+          ),
+        ],
+
+        [
+          AVATAR_XP_KEY,
+
+          String(
+            avatarXP +
+            serverAvatarXP
+          ),
+        ],
+
+        [
+          claimKey,
+          "true",
+        ],
+      ];
+
+
+      // ======================================================
+      // CACHE THE SERVER BALANCE
+      //
+      // Supabase is the authority.
+      // AsyncStorage is only the local display cache.
+      // ======================================================
+
+      if (
+        Number.isFinite(
+          newBalance
+        )
+      ) {
+        updates.push([
+          WCOIN_CACHE_KEY,
+          String(
+            newBalance
+          ),
+        ]);
+      }
+
+
+      await AsyncStorage.multiSet(
+        updates
+      );
+
+
+      // ======================================================
+      // RETURN THE SAME SHAPE THE JOURNEY SCREEN EXPECTS
+      // ======================================================
+
+      return {
+        awarded: true,
+
+        alreadyClaimed:
+          false,
+
+        journeyId:
+          resolvedId,
+
+        addedWCoins:
+          serverWCoins,
+
+        newBalance,
+
+        walletResult: {
+          added:
+            serverWCoins,
+
+          balance:
+            newBalance,
+        },
+
+        reward: {
+          ...reward,
+
+          wCoins:
+            serverWCoins,
+
+          rewardPoints:
+            serverPoints,
+
+          avatarXP:
+            serverAvatarXP,
+        },
+
+        serverReason:
+          reason,
+      };
+
+    } catch (error) {
+
+      await AsyncStorage.removeItem(
+        claimKey
+      );
+
+      console.log(
+        "Secure Journey reward error:",
+        error
+      );
+
+      throw error;
+    }
+  };
+
 export const resetJourneyReward = async journeyId => {
   const id = resolveJourneyRewardId(journeyId);
 

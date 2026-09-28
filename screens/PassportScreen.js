@@ -111,35 +111,77 @@ function createProgressMap(savedData) {
 }
 
 function buildJourneyStamps(journey) {
-  if (
+  const defaults = [
+    "Start",
+    "Checkpoint 2",
+    "Checkpoint 3",
+    "Checkpoint 4",
+    "Finish",
+  ];
+
+  const source =
     Array.isArray(journey?.stamps) &&
-    journey.stamps.length > 0
-  ) {
-    return journey.stamps;
-  }
+    journey.stamps.length
+      ? journey.stamps
+      : Array.isArray(journey?.checkpoints)
+        ? journey.checkpoints
+        : [];
 
-  if (
-    Array.isArray(journey?.checkpoints) &&
-    journey.checkpoints.length > 0
-  ) {
-    return journey.checkpoints.map(
-      (checkpoint, index) =>
-        checkpoint?.title ??
-        checkpoint?.name ??
-        checkpoint?.label ??
-        `Checkpoint ${index + 1}`
+  return defaults.map((fallback, index) => {
+    const item =
+      source[index];
+
+    if (
+      typeof item === "string"
+    ) {
+      return item;
+    }
+
+    return (
+      item?.title ||
+      item?.name ||
+      item?.label ||
+      fallback
     );
+  });
+}
+function getUnlockedStampCount(
+  progress
+) {
+  const value =
+    clampProgress(
+      progress
+    );
+
+  // Matches Journey checkpoints:
+  //
+  // Stamp 1 = Journey started
+  // Stamp 2 = 25%
+  // Stamp 3 = 50%
+  // Stamp 4 = 75%
+  // Stamp 5 = 100%
+
+  if (value >= 100) {
+    return 5;
   }
 
-  const checkpointCount = Math.max(
-    1,
-    Number(journey?.checkpoints) || 5
-  );
+  if (value >= 75) {
+    return 4;
+  }
 
-  return Array.from(
-    { length: checkpointCount },
-    (_, index) => `Checkpoint ${index + 1}`
-  );
+  if (value >= 50) {
+    return 3;
+  }
+
+  if (value >= 25) {
+    return 2;
+  }
+
+  if (value > 0) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function getExplorerRank(completedJourneys) {
@@ -330,19 +372,19 @@ export default function PassportScreen({
     );
   }, [passports, selectedPassportId]);
 
-  const earnedStamps = useMemo(() => {
-    return passports.reduce(
-      (total, passport) => {
-        const unlocked = Math.floor(
-          (passport.progress / 100) *
-            passport.stamps.length
-        );
-
-        return total + unlocked;
-      },
-      0
-    );
-  }, [passports]);
+ const earnedStamps = useMemo(() => {
+  return passports.reduce(
+    (total, passport) => {
+      return (
+        total +
+        getUnlockedStampCount(
+          passport.progress
+        )
+      );
+    },
+    0
+  );
+}, [passports]);
 
   const completedJourneys = useMemo(() => {
     return passports.filter(
@@ -358,14 +400,12 @@ export default function PassportScreen({
 
   const explorerRank =
     getExplorerRank(completedJourneys);
-
-  const selectedUnlockedStamps =
-    selectedPassport
-      ? Math.floor(
-          (selectedPassport.progress / 100) *
-            selectedPassport.stamps.length
-        )
-      : 0;
+const selectedUnlockedStamps =
+  selectedPassport
+    ? getUnlockedStampCount(
+        selectedPassport.progress
+      )
+    : 0;
 
   return (
     <ImageBackground

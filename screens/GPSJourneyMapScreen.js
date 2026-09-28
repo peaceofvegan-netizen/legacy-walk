@@ -1512,7 +1512,7 @@ function JourneySession({
         ])
       );
 
-      const alreadyClaimed =
+      let alreadyClaimed =
         snapshot.current.rewardsClaimed ||
         flags[`journeyCompleted_${id}`] === "true" ||
         flags[`journeyRewarded_${id}`] === "true";
@@ -1524,17 +1524,30 @@ function JourneySession({
         const reward =
           await completeJourneyReward(id);
 
-        if (reward?.awarded) {
-          earnedCoins = nonnegative(
-            reward.addedWCoins ??
-              reward.walletResult?.added ??
-              reward.reward?.wCoins
-          );
-        } else {
-          throw new Error(
-            "The reward service did not confirm an award. Check your wallet before retrying."
-          );
-        }
+       if (reward?.awarded) {
+
+  earnedCoins = nonnegative(
+    reward.addedWCoins ??
+      reward.walletResult?.added ??
+      reward.reward?.wCoins
+  );
+
+} else if (reward?.alreadyClaimed) {
+
+  alreadyClaimed = true;
+
+} else if (reward?.requiresSignIn) {
+
+  throw new Error(
+    "Sign in to your Legathon account before claiming WCoin Journey rewards."
+  );
+
+} else {
+
+  throw new Error(
+    "The reward service did not confirm an award. Check your wallet before retrying."
+  );
+}
 
         const points = await addPoints({
           id: `journey_${id}_complete`,

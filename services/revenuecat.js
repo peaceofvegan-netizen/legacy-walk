@@ -7,6 +7,15 @@ import {
 import Purchases from
   "react-native-purchases";
 
+import {
+  supabase,
+} from "../lib/supabase";
+
+
+// ============================================================
+// LEGATHON WALK — REVENUECAT SERVICE
+// ============================================================
+
 
 // ============================================================
 // ENTITLEMENTS
@@ -24,7 +33,12 @@ export const ENTITLEMENTS = {
 
 
 // ============================================================
-// REVENUECAT API KEYS
+// REVENUECAT PUBLIC SDK KEYS
+//
+// These are PUBLIC RevenueCat SDK keys.
+// They are allowed in the mobile app.
+//
+// Never put a RevenueCat secret API key here.
 // ============================================================
 
 const IOS_KEY =
@@ -45,17 +59,120 @@ let configured =
   false;
 
 
+let configuredUserId =
+  null;
+
+
 // ============================================================
 // GET PLATFORM API KEY
 // ============================================================
 
 function getRevenueCatApiKey() {
 
-  return (
+  if (
     Platform.OS ===
     "ios"
-      ? IOS_KEY
-      : ANDROID_KEY
+  ) {
+
+    return IOS_KEY;
+  }
+
+
+  if (
+    Platform.OS ===
+    "android"
+  ) {
+
+    return ANDROID_KEY;
+  }
+
+
+  return null;
+}
+
+
+// ============================================================
+// GET CURRENT SUPABASE USER
+// ============================================================
+
+async function getCurrentSupabaseUser() {
+
+  try {
+
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .auth
+        .getUser();
+
+
+    if (
+      error
+    ) {
+
+      console.log(
+        "Supabase user lookup error:",
+        error
+      );
+
+
+      return null;
+    }
+
+
+    return (
+      data?.user ||
+      null
+    );
+
+  } catch (
+    error
+  ) {
+
+    console.log(
+      "Supabase user lookup error:",
+      error
+    );
+
+
+    return null;
+  }
+}
+
+
+// ============================================================
+// GET LEGATHON USER ID
+//
+// RevenueCat App User ID = Supabase auth UUID.
+//
+// This connects:
+//
+// Supabase user
+//       ↓
+// RevenueCat customer
+//       ↓
+// Premium / Elite entitlement
+//
+// ============================================================
+
+export async function getLegathonRevenueCatUserId() {
+
+  const user =
+    await getCurrentSupabaseUser();
+
+
+  if (
+    !user?.id
+  ) {
+
+    return null;
+  }
+
+
+  return String(
+    user.id
   );
 }
 
@@ -64,7 +181,7 @@ function getRevenueCatApiKey() {
 // READ PLAN FROM CUSTOMER INFO
 // ============================================================
 
-function getPlanFromCustomerInfo(
+export function getPlanFromCustomerInfo(
   customerInfo
 ) {
 
@@ -100,30 +217,66 @@ function getPlanFromCustomerInfo(
 
 
 // ============================================================
+// GET ACTIVE ENTITLEMENT
+// ============================================================
+
+function getActiveEntitlement(
+  customerInfo,
+  plan
+) {
+
+  if (
+    plan ===
+    "elite"
+  ) {
+
+    return (
+      customerInfo
+        ?.entitlements
+        ?.active
+        ?.[
+          ENTITLEMENTS.ELITE
+        ] ||
+      null
+    );
+  }
+
+
+  if (
+    plan ===
+    "premium"
+  ) {
+
+    return (
+      customerInfo
+        ?.entitlements
+        ?.active
+        ?.[
+          ENTITLEMENTS.PREMIUM
+        ] ||
+      null
+    );
+  }
+
+
+  return null;
+}
+
+
+// ============================================================
 // CONFIGURE REVENUECAT
 // ============================================================
 //
-// userId is OPTIONAL.
+// RevenueCat should normally be configured once.
 //
-// If no userId is supplied,
-// RevenueCat uses its anonymous App User ID.
-//
-// This is safer than giving every customer
-// the same hard-coded ID.
+// If a Supabase user is signed in, that UUID becomes
+// the RevenueCat App User ID.
 //
 // ============================================================
 
 export async function configureRevenueCat(
-  userId = null
+  suppliedUserId = null
 ) {
-
-  if (
-    configured
-  ) {
-
-    return true;
-  }
-
 
   const apiKey =
     getRevenueCatApiKey();
@@ -144,37 +297,139 @@ export async function configureRevenueCat(
   }
 
 
-  const config = {
-    apiKey,
-  };
+  // ----------------------------------------------------------
+  // REMOVE OLD SHARED USER
+  //
+  // Older Legathon checkout code used:
+  //
+  // configureRevenueCat("legathon-user")
+  //
+  // Never allow that shared ID again.
+  // ----------------------------------------------------------
+
+  let desiredUserId =
+    suppliedUserId;
 
 
   if (
-    userId
+    desiredUserId ===
+    "legathon-user"
   ) {
 
-    config.appUserID =
+    console.warn(
+      'Ignoring legacy shared RevenueCat ID "legathon-user".'
+    );
+
+
+    desiredUserId =
+      null;
+  }
+
+
+  if (
+    !desiredUserId
+  ) {
+
+    desiredUserId =
+      await getLegathonRevenueCatUserId();
+  }
+
+
+  if (
+    desiredUserId
+  ) {
+
+    desiredUserId =
       String(
-        userId
+        desiredUserId
       );
   }
 
 
-  Purchases.configure(
-    config
-  );
+  // ==========================================================
+  // FIRST CONFIGURATION
+  // ==========================================================
+
+  if (
+    !configured
+  ) {
+
+    const config = {
+      apiKey,
+    };
 
 
-  configured =
-    true;
+    if (
+      desiredUserId
+    ) {
+
+      config.appUserID =
+        desiredUserId;
+    }
 
 
-  console.log(
-    "RevenueCat configured",
-    userId
-      ? "with user ID"
-      : "anonymously"
-  );
+    Purchases.configure(
+      config
+    );
+
+
+    configured =
+      true;
+
+
+    configuredUserId =
+      desiredUserId ||
+      null;
+
+
+    console.log(
+      "RevenueCat configured",
+      configuredUserId
+        ? `for user ${configuredUserId}`
+        : "anonymously"
+    );
+
+
+    return true;
+  }
+
+
+  // ==========================================================
+  // SDK ALREADY CONFIGURED
+  //
+  // If user signs in after anonymous configuration,
+  // identify them using RevenueCat logIn().
+  // ==========================================================
+
+  if (
+    desiredUserId &&
+    configuredUserId !==
+      desiredUserId
+  ) {
+
+    const loginResult =
+      await Purchases
+        .logIn(
+          desiredUserId
+        );
+
+
+    configuredUserId =
+      desiredUserId;
+
+
+    console.log(
+      "RevenueCat user identified:",
+      desiredUserId
+    );
+
+
+    return (
+      loginResult
+        ?.customerInfo ||
+      true
+    );
+  }
 
 
   return true;
@@ -187,15 +442,124 @@ export async function configureRevenueCat(
 
 async function ensureRevenueCatConfigured() {
 
-  if (
-    configured
+  await configureRevenueCat();
+}
+
+
+// ============================================================
+// SECURE SUPABASE MEMBERSHIP SYNC
+//
+// IMPORTANT:
+//
+// The phone does NOT tell Supabase:
+// "I am premium."
+//
+// Instead, this calls a server Edge Function.
+//
+// The Edge Function will independently ask RevenueCat
+// for the user's real entitlement status.
+//
+// ============================================================
+
+export async function syncRevenueCatMembership() {
+
+  try {
+
+    const user =
+      await getCurrentSupabaseUser();
+
+
+    if (
+      !user?.id
+    ) {
+
+      console.log(
+        "RevenueCat membership sync skipped: user is not signed in."
+      );
+
+
+      return {
+        synced:
+          false,
+
+        plan:
+          "free",
+
+        reason:
+          "not-authenticated",
+      };
+    }
+
+
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .functions
+        .invoke(
+          "sync-revenuecat-membership",
+          {
+            body: {},
+          }
+        );
+
+
+    if (
+      error
+    ) {
+
+      console.log(
+        "RevenueCat membership sync error:",
+        error
+      );
+
+
+      return {
+        synced:
+          false,
+
+        reason:
+          "sync-error",
+
+        error,
+      };
+    }
+
+
+    console.log(
+      "RevenueCat membership synced:",
+      data
+    );
+
+
+    return (
+      data || {
+        synced:
+          false,
+      }
+    );
+
+  } catch (
+    error
   ) {
 
-    return;
+    console.log(
+      "RevenueCat membership sync error:",
+      error
+    );
+
+
+    return {
+      synced:
+        false,
+
+      reason:
+        "sync-error",
+
+      error,
+    };
   }
-
-
-  await configureRevenueCat();
 }
 
 
@@ -213,9 +577,69 @@ export async function getRevenueCatPlan() {
       .getCustomerInfo();
 
 
-  return getPlanFromCustomerInfo(
-    customerInfo
-  );
+  const plan =
+    getPlanFromCustomerInfo(
+      customerInfo
+    );
+
+
+  return plan;
+}
+
+
+// ============================================================
+// GET FULL MEMBERSHIP STATUS
+// ============================================================
+
+export async function getRevenueCatMembershipStatus() {
+
+  await ensureRevenueCatConfigured();
+
+
+  const customerInfo =
+    await Purchases
+      .getCustomerInfo();
+
+
+  const plan =
+    getPlanFromCustomerInfo(
+      customerInfo
+    );
+
+
+  const entitlement =
+    getActiveEntitlement(
+      customerInfo,
+      plan
+    );
+
+
+  return {
+
+    plan,
+
+    active:
+      plan !==
+      "free",
+
+    expirationDate:
+      entitlement
+        ?.expirationDate ||
+      null,
+
+    willRenew:
+      entitlement
+        ?.willRenew ??
+      false,
+
+    productIdentifier:
+      entitlement
+        ?.productIdentifier ||
+      null,
+
+    customerInfo,
+
+  };
 }
 
 
@@ -234,7 +658,8 @@ export async function loadOfferings() {
 
 
   return (
-    offerings?.current ||
+    offerings
+      ?.current ||
     null
   );
 }
@@ -268,9 +693,34 @@ export async function buyPackage(
       );
 
 
-  return getPlanFromCustomerInfo(
-    result?.customerInfo
-  );
+  const plan =
+    getPlanFromCustomerInfo(
+      result
+        ?.customerInfo
+    );
+
+
+  // ----------------------------------------------------------
+  // IMPORTANT:
+  //
+  // Purchase already succeeded in the App Store / Play Store.
+  //
+  // If Supabase sync temporarily fails, do NOT throw another
+  // purchase error that could make the customer pay twice.
+  // ----------------------------------------------------------
+
+  if (
+    plan ===
+      "premium" ||
+    plan ===
+      "elite"
+  ) {
+
+    await syncRevenueCatMembership();
+  }
+
+
+  return plan;
 }
 
 
@@ -305,5 +755,101 @@ export async function restoreRevenueCatPurchases() {
   );
 
 
+  // ----------------------------------------------------------
+  // Synchronize restored subscription with Supabase.
+  // ----------------------------------------------------------
+
+  await syncRevenueCatMembership();
+
+
   return restoredPlan;
+}
+
+
+// ============================================================
+// REFRESH CUSTOMER INFO + SERVER MEMBERSHIP
+// ============================================================
+
+export async function refreshRevenueCatMembership() {
+
+  await ensureRevenueCatConfigured();
+
+
+  const customerInfo =
+    await Purchases
+      .getCustomerInfo();
+
+
+  const plan =
+    getPlanFromCustomerInfo(
+      customerInfo
+    );
+
+
+  const serverSync =
+    await syncRevenueCatMembership();
+
+
+  return {
+
+    plan,
+
+    customerInfo,
+
+    serverSync,
+
+  };
+}
+
+
+// ============================================================
+// REVENUECAT LOGOUT
+//
+// Call this when a Legathon account signs out.
+//
+// RevenueCat will return to an anonymous customer.
+// ============================================================
+
+export async function logoutRevenueCatUser() {
+
+  if (
+    !configured
+  ) {
+
+    configuredUserId =
+      null;
+
+    return true;
+  }
+
+
+  try {
+
+    await Purchases
+      .logOut();
+
+
+    configuredUserId =
+      null;
+
+
+    console.log(
+      "RevenueCat user logged out."
+    );
+
+
+    return true;
+
+  } catch (
+    error
+  ) {
+
+    console.log(
+      "RevenueCat logout error:",
+      error
+    );
+
+
+    return false;
+  }
 }

@@ -1,7 +1,7 @@
 // screens/PurchaseConfirmationScreen.js
 
 import React, {
-  useMemo,
+  useEffect,
   useState,
 } from "react";
 
@@ -16,6 +16,20 @@ import {
   Alert,
 } from "react-native";
 
+import {
+  AddressSheet,
+  AddressSheetError,
+  useStripe,
+} from "@stripe/stripe-react-native";
+
+import {
+  getApparelItemById,
+} from "../assets/apparel/apparelCatalog";
+
+import {
+  supabase,
+} from "../lib/supabase";
+
 
 // ============================================================
 // LEGATHON WALK — PURCHASE CONFIRMATION
@@ -26,26 +40,37 @@ const WCOIN =
 
 
 // ============================================================
-// MERCHANDISE WCOIN RULES
+// WCOIN RULES
 // ============================================================
 //
-// Merchandise discount:
 // 100 W Coins = $1.00
 //
-// Maximum W Coin discount:
-// 15% of merchandise price
+// Maximum merchandise WCoin discount:
+// 15%
 //
-// Free members:
-// No W Coin merchandise discount
+// Free:
+// cannot use WCoins for merchandise
 //
-// Premium / Elite:
-// W Coin merchandise discount enabled
+// Premium:
+// 10% membership discount
+//
+// Elite:
+// 15% membership discount + free shipping
+//
+// IMPORTANT:
+//
+// Client calculations are DISPLAY ONLY.
+//
+// Final price, membership eligibility,
+// WCoin balance and shipping are verified server-side.
 //
 // ============================================================
 
-const WCOINS_PER_DISCOUNT_DOLLAR = 100;
+const WCOINS_PER_DISCOUNT_DOLLAR =
+  100;
 
-const MAX_WCOIN_DISCOUNT_RATE = 0.15;
+const MAX_WCOIN_DISCOUNT_RATE =
+  0.15;
 
 
 // ============================================================
@@ -56,6 +81,7 @@ function safeNumber(
   value,
   fallback = 0
 ) {
+
   if (
     value === null ||
     value === undefined ||
@@ -64,21 +90,47 @@ function safeNumber(
     return fallback;
   }
 
+
   const cleaned =
-    typeof value === "string"
+
+    typeof value ===
+    "string"
+
       ? value
           .replace("$", "")
           .replace("/mo", "")
           .replace(/,/g, "")
           .trim()
+
       : value;
 
-  const parsed =
-    Number(cleaned);
 
-  return Number.isFinite(parsed)
+  const parsed =
+    Number(
+      cleaned
+    );
+
+
+  return Number.isFinite(
+    parsed
+  )
     ? parsed
     : fallback;
+}
+
+
+// ============================================================
+// MONEY
+// ============================================================
+
+function money(
+  value
+) {
+
+  return `$${safeNumber(
+    value,
+    0
+  ).toFixed(2)}`;
 }
 
 
@@ -89,22 +141,30 @@ function safeNumber(
 function normalizePlan(
   plan
 ) {
+
   const value =
     String(
-      plan || "free"
+      plan ||
+      "free"
     ).toLowerCase();
 
 
   if (
-    value.includes("elite")
+    value.includes(
+      "elite"
+    )
   ) {
+
     return "elite";
   }
 
 
   if (
-    value.includes("premium")
+    value.includes(
+      "premium"
+    )
   ) {
+
     return "premium";
   }
 
@@ -120,16 +180,21 @@ function normalizePlan(
 function getPlanName(
   plan
 ) {
+
   if (
-    plan === "elite"
+    plan ===
+    "elite"
   ) {
+
     return "Elite";
   }
 
 
   if (
-    plan === "premium"
+    plan ===
+    "premium"
   ) {
+
     return "Premium";
   }
 
@@ -139,22 +204,27 @@ function getPlanName(
 
 
 // ============================================================
-// PLAN DISCOUNT
+// MEMBERSHIP DISCOUNT RATE
 // ============================================================
 
 function getMembershipDiscountRate(
   plan
 ) {
+
   if (
-    plan === "elite"
+    plan ===
+    "elite"
   ) {
+
     return 0.15;
   }
 
 
   if (
-    plan === "premium"
+    plan ===
+    "premium"
   ) {
+
     return 0.10;
   }
 
@@ -164,10 +234,93 @@ function getMembershipDiscountRate(
 
 
 // ============================================================
+// NORMALIZE SHIPPING ADDRESS
+// ============================================================
+
+function normalizeShippingDetails(
+  details
+) {
+
+  const address =
+    details?.address ||
+    {};
+
+
+  const rawCountry =
+    String(
+      address?.country ||
+      ""
+    ).trim();
+
+
+  const country =
+
+    rawCountry
+      .toLowerCase() ===
+      "united states"
+
+      ? "US"
+
+      : rawCountry
+          .toUpperCase();
+
+
+  return {
+
+    name:
+      String(
+        details?.name ||
+        ""
+      ).trim(),
+
+    phone:
+      String(
+        details?.phone ||
+        ""
+      ).trim(),
+
+    line1:
+      String(
+        address?.line1 ||
+        ""
+      ).trim(),
+
+    line2:
+      String(
+        address?.line2 ||
+        ""
+      ).trim(),
+
+    city:
+      String(
+        address?.city ||
+        ""
+      ).trim(),
+
+    state:
+      String(
+        address?.state ||
+        ""
+      ).trim(),
+
+    postalCode:
+      String(
+        address?.postalCode ||
+        ""
+      ).trim(),
+
+    country,
+
+  };
+}
+
+
+// ============================================================
 // MAIN SCREEN
 // ============================================================
 
 export default function PurchaseConfirmationScreen({
+
   language = "en",
 
   item = null,
@@ -182,12 +335,24 @@ export default function PurchaseConfirmationScreen({
 
   wCoinBalance = 0,
 
-  spendWCoins,
+  refreshWCoinBalance,
 
   onPurchaseComplete,
 
   shippingCost = 0,
+
 }) {
+
+  // ==========================================================
+  // STRIPE
+  // ==========================================================
+
+  const {
+    initPaymentSheet,
+    presentPaymentSheet,
+  } =
+    useStripe();
+
 
   // ==========================================================
   // STATE
@@ -196,25 +361,90 @@ export default function PurchaseConfirmationScreen({
   const [
     confirmed,
     setConfirmed,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
 
   const [
     useWCoins,
     setUseWCoins,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
 
   const [
     isProcessing,
     setIsProcessing,
-  ] = useState(false);
+  ] =
+    useState(
+      false
+    );
 
 
   const [
     coinsSpent,
     setCoinsSpent,
-  ] = useState(0);
+  ] =
+    useState(
+      0
+    );
+
+
+  const [
+    purchaseSummary,
+    setPurchaseSummary,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // SHIPPING STATE
+  // ==========================================================
+
+  const [
+    addressSheetVisible,
+    setAddressSheetVisible,
+  ] =
+    useState(
+      false
+    );
+
+
+  const [
+    shippingDetails,
+    setShippingDetails,
+  ] =
+    useState(
+      null
+    );
+
+
+  // ==========================================================
+  // REFRESH REAL SERVER WALLET
+  // ==========================================================
+
+  useEffect(
+    () => {
+
+      if (
+        typeof refreshWCoinBalance ===
+        "function"
+      ) {
+
+        refreshWCoinBalance();
+      }
+
+    },
+    [
+      refreshWCoinBalance,
+    ]
+  );
 
 
   // ==========================================================
@@ -222,19 +452,34 @@ export default function PurchaseConfirmationScreen({
   // ==========================================================
 
   const productName =
+
     item?.name ||
+
     item?.title ||
+
     "Legathon Walk Item";
+
+
+  const itemId =
+
+    item?.id ||
+
+    null;
 
 
   const price =
     Math.max(
+
       0,
 
       safeNumber(
+
         item?.price ??
-          item?.retailPrice ??
-          item?.amount,
+
+        item?.retailPrice ??
+
+        item?.amount,
+
         0
       )
     );
@@ -242,16 +487,72 @@ export default function PurchaseConfirmationScreen({
 
   const productCoinLimit =
     Math.max(
+
       0,
 
       Math.floor(
+
         safeNumber(
+
           item?.coins ??
-            item?.coinDiscount,
+
+          item?.coinDiscount,
+
           0
         )
       )
     );
+
+
+  // ==========================================================
+  // PRODUCT OPTIONS
+  // ==========================================================
+
+  const selectedColor =
+
+    item?.selectedColor ||
+
+    item?.color ||
+
+    null;
+
+
+  const selectedSize =
+
+    item?.selectedSize ||
+
+    item?.size ||
+
+    null;
+
+
+  // ==========================================================
+  // PRODUCT IMAGE
+  // ==========================================================
+
+  const catalogItem =
+    getApparelItemById(
+      item?.id
+    );
+
+
+  const productImage =
+
+    item
+      ?.imagesByColor
+      ?.[selectedColor] ||
+
+    catalogItem
+      ?.imagesByColor
+      ?.[selectedColor] ||
+
+    item
+      ?.image ||
+
+    catalogItem
+      ?.image ||
+
+    null;
 
 
   // ==========================================================
@@ -281,14 +582,18 @@ export default function PurchaseConfirmationScreen({
   // ==========================================================
 
   const membershipDiscount =
+
     price *
+
     membershipDiscountRate;
 
 
   const priceAfterMembership =
     Math.max(
+
       price -
-        membershipDiscount,
+      membershipDiscount,
+
       0
     );
 
@@ -299,9 +604,11 @@ export default function PurchaseConfirmationScreen({
 
   const availableWCoins =
     Math.max(
+
       0,
 
       Math.floor(
+
         safeNumber(
           wCoinBalance,
           0
@@ -315,8 +622,12 @@ export default function PurchaseConfirmationScreen({
   // ==========================================================
 
   const canUseWCoins =
-    normalizedPlan === "premium" ||
-    normalizedPlan === "elite";
+
+    normalizedPlan ===
+      "premium" ||
+
+    normalizedPlan ===
+      "elite";
 
 
   // ==========================================================
@@ -324,35 +635,48 @@ export default function PurchaseConfirmationScreen({
   // ==========================================================
 
   const maximumDollarDiscount =
+
     priceAfterMembership *
+
     MAX_WCOIN_DISCOUNT_RATE;
 
 
   const maximumCoinsByPrice =
     Math.floor(
+
       maximumDollarDiscount *
+
       WCOINS_PER_DISCOUNT_DOLLAR
     );
 
 
   const usableWCoins =
+
     canUseWCoins
+
       ? Math.min(
+
           availableWCoins,
+
           productCoinLimit,
+
           maximumCoinsByPrice
         )
+
       : 0;
 
 
   // ==========================================================
-  // WCOIN DISCOUNT
+  // DISPLAY WCOIN DISCOUNT
   // ==========================================================
 
   const wCoinDiscount =
+
     useWCoins
+
       ? usableWCoins /
         WCOINS_PER_DISCOUNT_DOLLAR
+
       : 0;
 
 
@@ -362,6 +686,7 @@ export default function PurchaseConfirmationScreen({
 
   const normalShipping =
     Math.max(
+
       0,
 
       safeNumber(
@@ -371,44 +696,554 @@ export default function PurchaseConfirmationScreen({
     );
 
 
-  // Elite receives free shipping.
   const finalShipping =
-    normalizedPlan === "elite"
+
+    normalizedPlan ===
+      "elite"
+
       ? 0
+
       : normalShipping;
 
 
   // ==========================================================
-  // FINAL PRICE
+  // DISPLAY TOTAL
+  //
+  // SERVER WILL RECALCULATE THIS.
   // ==========================================================
 
-  const finalPrice =
+  const displayFinalPrice =
     Math.max(
+
       priceAfterMembership -
-        wCoinDiscount +
-        finalShipping,
+
+      wCoinDiscount +
+
+      finalShipping,
+
       0
     );
 
 
   // ==========================================================
-  // ORDER NUMBER
+  // AUTHORITATIVE SUCCESS VALUES
   // ==========================================================
 
-  const orderNumber =
-    useMemo(() => {
+  const successOrderNumber =
 
-      const randomNumber =
-        Math.floor(
-          100000 +
-          Math.random() *
-            900000
+    purchaseSummary
+      ?.orderNumber ||
+
+    purchaseSummary
+      ?.order_number ||
+
+    "Confirmed";
+
+
+  const successItemPrice =
+    safeNumber(
+
+      purchaseSummary
+        ?.itemPrice ??
+
+      purchaseSummary
+        ?.item_price,
+
+      price
+    );
+
+
+  const successMembershipDiscount =
+    safeNumber(
+
+      purchaseSummary
+        ?.membershipDiscount ??
+
+      purchaseSummary
+        ?.membership_discount,
+
+      membershipDiscount
+    );
+
+
+  const successWCoinDiscount =
+    safeNumber(
+
+      purchaseSummary
+        ?.wCoinDiscount ??
+
+      purchaseSummary
+        ?.wcoin_discount,
+
+      wCoinDiscount
+    );
+
+
+  const successShipping =
+    safeNumber(
+
+      purchaseSummary
+        ?.shipping,
+
+      finalShipping
+    );
+
+
+  const successTotal =
+    safeNumber(
+
+      purchaseSummary
+        ?.total,
+
+      displayFinalPrice
+    );
+
+
+  // ==========================================================
+  // NORMALIZED SHIPPING
+  // ==========================================================
+
+  const normalizedShipping =
+    normalizeShippingDetails(
+      shippingDetails
+    );
+
+
+  // ==========================================================
+  // CREATE PAYMENT
+  // ==========================================================
+
+  async function createPayment() {
+
+    if (
+      !itemId
+    ) {
+
+      throw new Error(
+        "This merchandise item does not have a valid product ID."
+      );
+    }
+
+
+    const shipping =
+      normalizeShippingDetails(
+        shippingDetails
+      );
+
+
+    if (
+      !shipping.name ||
+      !shipping.line1 ||
+      !shipping.city ||
+      !shipping.state ||
+      !shipping.postalCode ||
+      !shipping.country
+    ) {
+
+      throw new Error(
+        "A complete shipping address is required."
+      );
+    }
+
+
+    const requestedWCoins =
+
+      useWCoins
+
+        ? usableWCoins
+
+        : 0;
+
+
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .functions
+        .invoke(
+          "create-merch-payment",
+          {
+            body: {
+
+              itemId,
+
+              useWCoins:
+                useWCoins ===
+                true,
+
+              requestedWCoins,
+
+              selectedColor,
+
+              selectedSize,
+
+              shipping,
+
+            },
+          }
         );
 
 
-      return `LW-${randomNumber}`;
+    if (
+      error
+    ) {
 
-    }, []);
+      console.log(
+        "CREATE MERCH PAYMENT ERROR:",
+        error
+      );
+
+
+      throw new Error(
+        error?.message ||
+        "Unable to start the merchandise payment."
+      );
+    }
+
+
+    if (
+      !data
+    ) {
+
+      throw new Error(
+        "The payment server returned no data."
+      );
+    }
+
+
+    if (
+      data?.success ===
+      false
+    ) {
+
+      throw new Error(
+
+        data?.message ||
+
+        data?.reason ||
+
+        "The merchandise payment could not be created."
+      );
+    }
+
+
+    const clientSecret =
+
+      data
+        ?.paymentIntentClientSecret ||
+
+      data
+        ?.payment_intent_client_secret ||
+
+      data
+        ?.clientSecret ||
+
+      data
+        ?.client_secret;
+
+
+    if (
+      !clientSecret
+    ) {
+
+      throw new Error(
+        "The payment server did not return a Stripe client secret."
+      );
+    }
+
+
+    return {
+
+      ...data,
+
+      clientSecret,
+
+      orderId:
+
+        data?.orderId ??
+
+        data?.order_id ??
+
+        null,
+
+      orderNumber:
+
+        data?.orderNumber ??
+
+        data?.order_number ??
+
+        null,
+
+    };
+  }
+
+
+  // ==========================================================
+  // FINALIZE PAYMENT
+  // ==========================================================
+
+  async function finalizePayment(
+    orderId
+  ) {
+
+    if (
+      !orderId
+    ) {
+
+      throw new Error(
+        "The payment completed but the order ID is missing."
+      );
+    }
+
+
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .functions
+        .invoke(
+          "finalize-merch-payment",
+          {
+            body: {
+              orderId,
+            },
+          }
+        );
+
+
+    if (
+      error
+    ) {
+
+      console.log(
+        "FINALIZE MERCH PAYMENT ERROR:",
+        error
+      );
+
+
+      throw new Error(
+        error?.message ||
+        "Your payment was received but the order could not be finalized."
+      );
+    }
+
+
+    if (
+      !data
+    ) {
+
+      throw new Error(
+        "Your payment was received but the server returned no order confirmation."
+      );
+    }
+
+
+    if (
+      data?.confirmed !==
+        true &&
+
+      data?.success !==
+        true
+    ) {
+
+      throw new Error(
+
+        data?.message ||
+
+        data?.reason ||
+
+        "Payment verification is still pending."
+      );
+    }
+
+
+    return data;
+  }
+
+
+  // ==========================================================
+  // CANCEL PENDING MERCH PAYMENT
+  // ==========================================================
+
+  async function cancelPendingPayment(
+    orderId
+  ) {
+
+    if (
+      !orderId
+    ) {
+
+      return null;
+    }
+
+
+    try {
+
+      const {
+        data,
+        error,
+      } =
+        await supabase
+          .functions
+          .invoke(
+            "cancel-merch-payment",
+            {
+              body: {
+                orderId,
+              },
+            }
+          );
+
+
+      if (
+        error
+      ) {
+
+        console.log(
+          "CANCEL MERCH PAYMENT ERROR:",
+          error
+        );
+
+
+        return {
+
+          success:
+            false,
+
+          error,
+
+        };
+      }
+
+
+      if (
+        data?.paymentSucceeded ===
+        true
+      ) {
+
+        return {
+
+          success:
+            false,
+
+          paymentSucceeded:
+            true,
+
+        };
+      }
+
+
+      if (
+        typeof refreshWCoinBalance ===
+        "function"
+      ) {
+
+        await refreshWCoinBalance();
+      }
+
+
+      return data;
+
+    } catch (
+      error
+    ) {
+
+      console.log(
+        "CANCEL PAYMENT ERROR:",
+        error
+      );
+
+
+      return {
+
+        success:
+          false,
+
+        error,
+
+      };
+    }
+  }
+
+
+  // ==========================================================
+  // COMPLETE ALREADY-SUCCEEDED PAYMENT
+  // ==========================================================
+
+  async function completeSuccessfulOrder(
+    createdOrder
+  ) {
+
+    const finalOrder =
+      await finalizePayment(
+        createdOrder
+          ?.orderId
+      );
+
+
+    setPurchaseSummary(
+      finalOrder
+    );
+
+
+    const finalCoins =
+      Math.max(
+
+        0,
+
+        Math.floor(
+
+          safeNumber(
+
+            finalOrder
+              ?.coinsSpent ??
+
+            finalOrder
+              ?.wcoinsSpent ??
+
+            finalOrder
+              ?.wcoins_spent,
+
+            0
+          )
+        )
+      );
+
+
+    setCoinsSpent(
+      finalCoins
+    );
+
+
+    if (
+      typeof refreshWCoinBalance ===
+      "function"
+    ) {
+
+      await refreshWCoinBalance();
+    }
+
+
+    if (
+      typeof onPurchaseComplete ===
+      "function"
+    ) {
+
+      await onPurchaseComplete(
+        finalOrder
+      );
+    }
+
+
+    setConfirmed(
+      true
+    );
+
+
+    return finalOrder;
+  }
 
 
   // ==========================================================
@@ -418,12 +1253,96 @@ export default function PurchaseConfirmationScreen({
   const confirmPurchase =
     async () => {
 
-      if (!item) {
+      if (
+        !item
+      ) {
 
         Alert.alert(
           "Item Unavailable",
           "Please return to the store and select an item."
         );
+
+
+        return;
+      }
+
+
+      if (
+        !itemId
+      ) {
+
+        Alert.alert(
+          "Item Unavailable",
+          "This merchandise item does not have a valid product ID."
+        );
+
+
+        return;
+      }
+
+
+      // ======================================================
+      // REQUIRE SHIPPING ADDRESS FIRST
+      // ======================================================
+
+      if (
+        !shippingDetails
+      ) {
+
+        setAddressSheetVisible(
+          true
+        );
+
+
+        return;
+      }
+
+
+      const shipping =
+        normalizeShippingDetails(
+          shippingDetails
+        );
+
+
+      if (
+        !shipping.name ||
+        !shipping.line1 ||
+        !shipping.city ||
+        !shipping.state ||
+        !shipping.postalCode ||
+        !shipping.country
+      ) {
+
+        Alert.alert(
+          "Shipping Address Required",
+          "Please enter a complete shipping address."
+        );
+
+
+        setAddressSheetVisible(
+          true
+        );
+
+
+        return;
+      }
+
+
+      if (
+        shipping.country !==
+        "US"
+      ) {
+
+        Alert.alert(
+          "U.S. Shipping Only",
+          "Legathon merchandise checkout is currently available for U.S. shipping addresses."
+        );
+
+
+        setAddressSheetVisible(
+          true
+        );
+
 
         return;
       }
@@ -432,6 +1351,7 @@ export default function PurchaseConfirmationScreen({
       if (
         isProcessing
       ) {
+
         return;
       }
 
@@ -441,142 +1361,224 @@ export default function PurchaseConfirmationScreen({
       );
 
 
+      let createdOrder =
+        null;
+
+
+      let stripePaymentCompleted =
+        false;
+
+
+      let reservationReleased =
+        false;
+
+
       try {
 
         // ====================================================
-        // SPEND WCOINS
+        // REFRESH SERVER WALLET
         // ====================================================
 
         if (
-          useWCoins &&
-          usableWCoins > 0
-        ) {
-
-          if (
-            typeof spendWCoins !==
-            "function"
-          ) {
-
-            throw new Error(
-              "W Coin redemption is not connected."
-            );
-          }
-
-
-          const success =
-            await spendWCoins(
-              usableWCoins
-            );
-
-
-          if (
-            success === false
-          ) {
-
-            throw new Error(
-              "The W Coin transaction could not be completed."
-            );
-          }
-
-
-          setCoinsSpent(
-            usableWCoins
-          );
-        }
-
-
-        // ====================================================
-        // PURCHASE RECORD
-        // ====================================================
-
-        const purchaseRecord = {
-
-          orderNumber,
-
-          itemId:
-            item?.id ||
-            null,
-
-          item:
-            item,
-
-          productName,
-
-          itemPrice:
-            Number(
-              price.toFixed(
-                2
-              )
-            ),
-
-          membership:
-            normalizedPlan,
-
-          membershipName:
-            planName,
-
-          membershipDiscount:
-            Number(
-              membershipDiscount.toFixed(
-                2
-              )
-            ),
-
-          wCoinsUsed:
-            useWCoins
-              ? usableWCoins
-              : 0,
-
-          wCoinDiscount:
-            Number(
-              wCoinDiscount.toFixed(
-                2
-              )
-            ),
-
-          shipping:
-            Number(
-              finalShipping.toFixed(
-                2
-              )
-            ),
-
-          total:
-            Number(
-              finalPrice.toFixed(
-                2
-              )
-            ),
-
-          purchasedAt:
-            new Date().toISOString(),
-        };
-
-
-        // ====================================================
-        // OPTIONAL PARENT HANDLER
-        // ====================================================
-
-        if (
-          typeof onPurchaseComplete ===
+          typeof refreshWCoinBalance ===
           "function"
         ) {
 
-          await onPurchaseComplete(
-            purchaseRecord
+          await refreshWCoinBalance();
+        }
+
+
+        // ====================================================
+        // CREATE SERVER ORDER + PAYMENT INTENT
+        // ====================================================
+
+        createdOrder =
+          await createPayment();
+
+
+        // ====================================================
+        // INITIALIZE STRIPE PAYMENT SHEET
+        // ====================================================
+
+        const {
+          error:
+            initError,
+        } =
+          await initPaymentSheet({
+
+            merchantDisplayName:
+              "Legathon Walk",
+
+            paymentIntentClientSecret:
+              createdOrder
+                .clientSecret,
+
+            defaultShippingDetails:
+              shippingDetails,
+
+            allowsDelayedPaymentMethods:
+              false,
+
+            style:
+              "automatic",
+
+          });
+
+
+        if (
+          initError
+        ) {
+
+          console.log(
+            "STRIPE INIT ERROR:",
+            initError
+          );
+
+
+          await cancelPendingPayment(
+            createdOrder
+              ?.orderId
+          );
+
+
+          reservationReleased =
+            true;
+
+
+          throw new Error(
+            initError?.message ||
+            "Unable to open the secure payment screen. Any reserved W Coins have been returned."
           );
         }
 
 
         // ====================================================
-        // SUCCESS
+        // PRESENT STRIPE PAYMENT SHEET
         // ====================================================
 
-        setConfirmed(
-          true
-        );
+        const {
+          error:
+            paymentError,
+        } =
+          await presentPaymentSheet();
 
-      } catch (error) {
+
+        if (
+          paymentError
+        ) {
+
+          console.log(
+            "STRIPE PAYMENT ERROR:",
+            paymentError
+          );
+
+
+          const paymentCode =
+            String(
+              paymentError
+                ?.code ||
+              ""
+            ).toLowerCase();
+
+
+          const cancelResult =
+            await cancelPendingPayment(
+              createdOrder
+                ?.orderId
+            );
+
+
+          reservationReleased =
+            true;
+
+
+          // ==================================================
+          // STRIPE MAY HAVE SUCCEEDED EVEN IF PHONE RETURNED
+          // AN ERROR.
+          // ==================================================
+
+          if (
+            cancelResult
+              ?.paymentSucceeded ===
+            true
+          ) {
+
+            stripePaymentCompleted =
+              true;
+
+
+            await completeSuccessfulOrder(
+              createdOrder
+            );
+
+
+            return;
+          }
+
+
+          if (
+            paymentCode.includes(
+              "cancel"
+            )
+          ) {
+
+            Alert.alert(
+              "Payment Canceled",
+              "Your payment was canceled. Any reserved W Coins have been returned to your wallet."
+            );
+
+
+            return;
+          }
+
+
+          throw new Error(
+            paymentError?.message ||
+            "The payment could not be completed. Any reserved W Coins have been returned."
+          );
+        }
+
+
+        // ====================================================
+        // PAYMENT SHEET RETURNED SUCCESS
+        // ====================================================
+
+        stripePaymentCompleted =
+          true;
+
+
+        // ====================================================
+        // VERIFY PAYMENT SERVER-SIDE
+        // ====================================================
+
+        try {
+
+          await completeSuccessfulOrder(
+            createdOrder
+          );
+
+        } catch (
+          finalizeError
+        ) {
+
+          console.log(
+            "PAYMENT FINALIZATION ERROR:",
+            finalizeError
+          );
+
+
+          Alert.alert(
+            "Payment Received",
+            "Stripe accepted your payment, but Legathon is still confirming the order. Do not submit another payment. Your order can be recovered from the Stripe payment record."
+          );
+
+
+          return;
+        }
+
+      } catch (
+        error
+      ) {
 
         console.log(
           "PURCHASE ERROR:",
@@ -584,11 +1586,35 @@ export default function PurchaseConfirmationScreen({
         );
 
 
+        // ====================================================
+        // FALLBACK RESERVATION RELEASE
+        //
+        // Only before Stripe has completed payment.
+        // ====================================================
+
+        if (
+          createdOrder
+            ?.orderId &&
+
+          stripePaymentCompleted !==
+            true &&
+
+          reservationReleased !==
+            true
+        ) {
+
+          await cancelPendingPayment(
+            createdOrder
+              .orderId
+          );
+        }
+
+
         Alert.alert(
           "Unable to Complete Purchase",
 
           error?.message ||
-            "Please try again."
+          "Please try again."
         );
 
       } finally {
@@ -604,9 +1630,12 @@ export default function PurchaseConfirmationScreen({
   // NO ITEM
   // ==========================================================
 
-  if (!item) {
+  if (
+    !item
+  ) {
 
     return (
+
       <SafeAreaView
         style={
           styles.safe
@@ -676,9 +1705,12 @@ export default function PurchaseConfirmationScreen({
   // PURCHASE SUCCESS
   // ==========================================================
 
-  if (confirmed) {
+  if (
+    confirmed
+  ) {
 
     return (
+
       <SafeAreaView
         style={
           styles.safe
@@ -702,10 +1734,6 @@ export default function PurchaseConfirmationScreen({
               styles.successCard
             }
           >
-
-            {/* =========================================== */}
-            {/* SUCCESS ICON */}
-            {/* =========================================== */}
 
             <View
               style={
@@ -738,13 +1766,9 @@ export default function PurchaseConfirmationScreen({
                 styles.successSub
               }
             >
-              Thank you for supporting Legathon Walk. Your order has been confirmed.
+              Thank you for supporting Legathon Walk. Your payment and order have been confirmed.
             </Text>
 
-
-            {/* =========================================== */}
-            {/* ORDER NUMBER */}
-            {/* =========================================== */}
 
             <View
               style={
@@ -766,15 +1790,11 @@ export default function PurchaseConfirmationScreen({
                   styles.orderNumber
                 }
               >
-                {orderNumber}
+                {successOrderNumber}
               </Text>
 
             </View>
 
-
-            {/* =========================================== */}
-            {/* ORDER */}
-            {/* =========================================== */}
 
             <View
               style={
@@ -782,11 +1802,11 @@ export default function PurchaseConfirmationScreen({
               }
             >
 
-              {item?.image && (
+              {productImage && (
 
                 <Image
                   source={
-                    item.image
+                    productImage
                   }
                   style={
                     styles.confirmImage
@@ -805,72 +1825,171 @@ export default function PurchaseConfirmationScreen({
               </Text>
 
 
+              {selectedColor && (
+
+                <Info
+                  label="Color"
+                  value={
+                    selectedColor
+                  }
+                />
+
+              )}
+
+
+              {selectedSize && (
+
+                <Info
+                  label="Size"
+                  value={
+                    selectedSize
+                  }
+                />
+
+              )}
+
+
               <Info
                 label="Item Price"
-
-                value={`$${price.toFixed(
-                  2
-                )}`}
+                value={
+                  money(
+                    successItemPrice
+                  )
+                }
               />
 
 
               <Info
                 label="Membership"
-
-                value={`${planName} Plan`}
+                value={
+                  `${planName} Plan`
+                }
               />
 
 
               <Info
                 label="Membership Discount"
-
-                value={`-$${membershipDiscount.toFixed(
-                  2
-                )}`}
+                value={
+                  `-${money(
+                    successMembershipDiscount
+                  )}`
+                }
               />
 
 
               <Info
                 label="W Coins Used"
-
                 value={
-                  coinsSpent.toLocaleString()
+                  coinsSpent
+                    .toLocaleString()
                 }
               />
 
 
               <Info
                 label="W Coin Discount"
-
-                value={`-$${wCoinDiscount.toFixed(
-                  2
-                )}`}
+                value={
+                  `-${money(
+                    successWCoinDiscount
+                  )}`
+                }
               />
 
 
               <Info
                 label="Shipping"
-
                 value={
-                  finalShipping === 0
+                  successShipping ===
+                  0
+
                     ? "Free"
-                    : `$${finalShipping.toFixed(
-                        2
-                      )}`
+
+                    : money(
+                        successShipping
+                      )
                 }
               />
 
 
               <Info
                 label="Estimated Delivery"
-
                 value="3–5 Business Days"
               />
 
 
-              {/* ========================================= */}
-              {/* TOTAL PAID */}
-              {/* ========================================= */}
+              {shippingDetails && (
+
+                <View
+                  style={
+                    styles.successShippingBox
+                  }
+                >
+
+                  <Text
+                    style={
+                      styles.successShippingTitle
+                    }
+                  >
+                    SHIPPING TO
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.successShippingName
+                    }
+                  >
+                    {normalizedShipping.name}
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.successShippingText
+                    }
+                  >
+                    {normalizedShipping.line1}
+                  </Text>
+
+
+                  {normalizedShipping.line2
+                    ? (
+
+                      <Text
+                        style={
+                          styles.successShippingText
+                        }
+                      >
+                        {normalizedShipping.line2}
+                      </Text>
+
+                    )
+                    : null}
+
+
+                  <Text
+                    style={
+                      styles.successShippingText
+                    }
+                  >
+                    {normalizedShipping.city},{" "}
+                    {normalizedShipping.state}{" "}
+                    {normalizedShipping.postalCode}
+                  </Text>
+
+
+                  <Text
+                    style={
+                      styles.successShippingText
+                    }
+                  >
+                    {normalizedShipping.country}
+                  </Text>
+
+                </View>
+
+              )}
+
 
               <View
                 style={
@@ -892,17 +2011,13 @@ export default function PurchaseConfirmationScreen({
                     styles.totalValue
                   }
                 >
-                  ${finalPrice.toFixed(
-                    2
+                  {money(
+                    successTotal
                   )}
                 </Text>
 
               </View>
 
-
-              {/* ========================================= */}
-              {/* STATUS */}
-              {/* ========================================= */}
 
               <View
                 style={
@@ -915,11 +2030,12 @@ export default function PurchaseConfirmationScreen({
                     styles.checkText
                   }
                 >
-                  ✓ Order Confirmed
+                  ✓ Stripe Payment Confirmed
                 </Text>
 
 
-                {coinsSpent > 0 && (
+                {coinsSpent >
+                  0 && (
 
                   <Text
                     style={
@@ -937,6 +2053,15 @@ export default function PurchaseConfirmationScreen({
                     styles.checkText
                   }
                 >
+                  ✓ Shipping Address Saved
+                </Text>
+
+
+                <Text
+                  style={
+                    styles.checkText
+                  }
+                >
                   ✓ Purchase Recorded
                 </Text>
 
@@ -944,10 +2069,6 @@ export default function PurchaseConfirmationScreen({
 
             </View>
 
-
-            {/* =========================================== */}
-            {/* HOME */}
-            {/* =========================================== */}
 
             <TouchableOpacity
               style={
@@ -968,10 +2089,6 @@ export default function PurchaseConfirmationScreen({
 
             </TouchableOpacity>
 
-
-            {/* =========================================== */}
-            {/* SHOP */}
-            {/* =========================================== */}
 
             <TouchableOpacity
               style={
@@ -1010,15 +2127,94 @@ export default function PurchaseConfirmationScreen({
 
 
   // ==========================================================
-  // CONFIRM PURCHASE SCREEN
+  // PURCHASE SCREEN
   // ==========================================================
 
   return (
+
     <SafeAreaView
       style={
         styles.safe
       }
     >
+
+      {/* ===================================================== */}
+      {/* STRIPE SHIPPING ADDRESS SHEET */}
+      {/* ===================================================== */}
+
+      <AddressSheet
+
+        visible={
+          addressSheetVisible
+        }
+
+        defaultValues={
+          shippingDetails ||
+          {
+            address: {
+              country:
+                "US",
+            },
+          }
+        }
+
+        additionalFields={{
+          phoneNumber:
+            "required",
+        }}
+
+        allowedCountries={[
+          "US",
+        ]}
+
+        primaryButtonTitle=
+          "USE THIS ADDRESS"
+
+        sheetTitle=
+          "Shipping Address"
+
+        onSubmit={async (
+          addressDetails
+        ) => {
+
+          setShippingDetails(
+            addressDetails
+          );
+
+
+          setAddressSheetVisible(
+            false
+          );
+        }}
+
+        onError={(
+          error
+        ) => {
+
+          console.log(
+            "ADDRESS SHEET ERROR:",
+            error
+          );
+
+
+          if (
+            error?.code ===
+            AddressSheetError.Failed
+          ) {
+
+            Alert.alert(
+              "Shipping Address",
+              "There was a problem saving the shipping address."
+            );
+          }
+
+
+          setAddressSheetVisible(
+            false
+          );
+        }}
+      />
+
 
       <ScrollView
         style={
@@ -1032,9 +2228,9 @@ export default function PurchaseConfirmationScreen({
         }
       >
 
-        {/* =============================================== */}
+        {/* =================================================== */}
         {/* BACK */}
-        {/* =============================================== */}
+        {/* =================================================== */}
 
         <TouchableOpacity
           onPress={
@@ -1042,6 +2238,9 @@ export default function PurchaseConfirmationScreen({
           }
           style={
             styles.backButton
+          }
+          disabled={
+            isProcessing
           }
         >
 
@@ -1056,9 +2255,9 @@ export default function PurchaseConfirmationScreen({
         </TouchableOpacity>
 
 
-        {/* =============================================== */}
+        {/* =================================================== */}
         {/* HEADER */}
-        {/* =============================================== */}
+        {/* =================================================== */}
 
         <Text
           style={
@@ -1078,9 +2277,9 @@ export default function PurchaseConfirmationScreen({
         </Text>
 
 
-        {/* =============================================== */}
+        {/* =================================================== */}
         {/* PRODUCT */}
-        {/* =============================================== */}
+        {/* =================================================== */}
 
         <View
           style={
@@ -1088,11 +2287,11 @@ export default function PurchaseConfirmationScreen({
           }
         >
 
-          {item?.image && (
+          {productImage && (
 
             <Image
               source={
-                item.image
+                productImage
               }
               style={
                 styles.productImage
@@ -1119,12 +2318,38 @@ export default function PurchaseConfirmationScreen({
             Official Legathon Walk Merchandise
           </Text>
 
+
+          {selectedColor && (
+
+            <Text
+              style={
+                styles.optionText
+              }
+            >
+              Color: {selectedColor}
+            </Text>
+
+          )}
+
+
+          {selectedSize && (
+
+            <Text
+              style={
+                styles.optionText
+              }
+            >
+              Size: {selectedSize}
+            </Text>
+
+          )}
+
         </View>
 
 
-        {/* =============================================== */}
-        {/* SUMMARY */}
-        {/* =============================================== */}
+        {/* =================================================== */}
+        {/* ORDER SUMMARY */}
+        {/* =================================================== */}
 
         <View
           style={
@@ -1143,40 +2368,41 @@ export default function PurchaseConfirmationScreen({
 
           <Info
             label="Item Price"
-
-            value={`$${price.toFixed(
-              2
-            )}`}
+            value={
+              money(
+                price
+              )
+            }
           />
 
 
-          {/* ============================================= */}
-          {/* MEMBERSHIP */}
-          {/* ============================================= */}
-
           <Info
             label="Membership"
-
-            value={`${planName} Plan`}
+            value={
+              `${planName} Plan`
+            }
           />
 
 
           <Info
             label="Membership Discount"
-
             value={
-              membershipDiscount > 0
-                ? `-$${membershipDiscount.toFixed(
-                    2
+
+              membershipDiscount >
+              0
+
+                ? `-${money(
+                    membershipDiscount
                   )}`
+
                 : "$0.00"
             }
           />
 
 
-          {/* ============================================= */}
+          {/* ================================================= */}
           {/* WCOIN */}
-          {/* ============================================= */}
+          {/* ================================================= */}
 
           <View
             style={
@@ -1206,8 +2432,8 @@ export default function PurchaseConfirmationScreen({
                     styles.infoValue
                   }
                 >
-                  -${wCoinDiscount.toFixed(
-                    2
+                  -{money(
+                    wCoinDiscount
                   )}
                 </Text>
 
@@ -1235,7 +2461,8 @@ export default function PurchaseConfirmationScreen({
                     styles.coinText
                   }
                 >
-                  {availableWCoins.toLocaleString()}
+                  {availableWCoins
+                    .toLocaleString()}
                 </Text>
 
               </View>
@@ -1243,12 +2470,9 @@ export default function PurchaseConfirmationScreen({
             </View>
 
 
-            {/* =========================================== */}
-            {/* APPLY WCOINS */}
-            {/* =========================================== */}
-
             {canUseWCoins &&
-              usableWCoins > 0 && (
+              usableWCoins >
+                0 && (
 
               <TouchableOpacity
                 style={[
@@ -1257,9 +2481,12 @@ export default function PurchaseConfirmationScreen({
                   useWCoins &&
                     styles.useCoinButtonActive,
                 ]}
+                disabled={
+                  isProcessing
+                }
                 onPress={() =>
                   setUseWCoins(
-                    (current) =>
+                    current =>
                       !current
                   )
                 }
@@ -1283,21 +2510,17 @@ export default function PurchaseConfirmationScreen({
                       styles.useCoinTextActive,
                   ]}
                 >
-
                   {useWCoins
-                    ? `${usableWCoins.toLocaleString()} W Coins Applied`
-                    : `Apply ${usableWCoins.toLocaleString()} W Coins`}
 
+                    ? `${usableWCoins.toLocaleString()} W Coins Applied`
+
+                    : `Apply ${usableWCoins.toLocaleString()} W Coins`}
                 </Text>
 
               </TouchableOpacity>
 
             )}
 
-
-            {/* =========================================== */}
-            {/* FREE USER */}
-            {/* =========================================== */}
 
             {!canUseWCoins && (
 
@@ -1312,12 +2535,9 @@ export default function PurchaseConfirmationScreen({
             )}
 
 
-            {/* =========================================== */}
-            {/* NO COINS */}
-            {/* =========================================== */}
-
             {canUseWCoins &&
-              usableWCoins === 0 && (
+              usableWCoins ===
+                0 && (
 
               <Text
                 style={
@@ -1329,36 +2549,39 @@ export default function PurchaseConfirmationScreen({
 
             )}
 
+
+            <Text
+              style={
+                styles.coinFinePrint
+              }
+            >
+              Final W Coin eligibility and discount are verified securely when checkout begins.
+            </Text>
+
           </View>
 
 
-          {/* ============================================= */}
-          {/* SHIPPING */}
-          {/* ============================================= */}
-
           <Info
             label="Shipping"
-
             value={
-              finalShipping === 0
+
+              finalShipping ===
+              0
+
                 ? "Free"
-                : `$${finalShipping.toFixed(
-                    2
-                  )}`
+
+                : money(
+                    finalShipping
+                  )
             }
           />
 
 
           <Info
             label="Estimated Delivery"
-
             value="3–5 Business Days"
           />
 
-
-          {/* ============================================= */}
-          {/* TOTAL */}
-          {/* ============================================= */}
 
           <View
             style={
@@ -1371,7 +2594,7 @@ export default function PurchaseConfirmationScreen({
                 styles.totalLabel
               }
             >
-              Total
+              Estimated Total
             </Text>
 
 
@@ -1380,8 +2603,8 @@ export default function PurchaseConfirmationScreen({
                 styles.totalValue
               }
             >
-              ${finalPrice.toFixed(
-                2
+              {money(
+                displayFinalPrice
               )}
             </Text>
 
@@ -1390,9 +2613,170 @@ export default function PurchaseConfirmationScreen({
         </View>
 
 
-        {/* =============================================== */}
-        {/* CONFIRM BUTTON */}
-        {/* =============================================== */}
+        {/* =================================================== */}
+        {/* SHIPPING ADDRESS */}
+        {/* =================================================== */}
+
+        <View
+          style={
+            styles.shippingCard
+          }
+        >
+
+          <Text
+            style={
+              styles.shippingTitle
+            }
+          >
+            Shipping Address
+          </Text>
+
+
+          {shippingDetails ? (
+
+            <>
+
+              <Text
+                style={
+                  styles.shippingName
+                }
+              >
+                {normalizedShipping.name}
+              </Text>
+
+
+              <Text
+                style={
+                  styles.shippingText
+                }
+              >
+                {normalizedShipping.line1}
+              </Text>
+
+
+              {normalizedShipping.line2
+                ? (
+
+                  <Text
+                    style={
+                      styles.shippingText
+                    }
+                  >
+                    {normalizedShipping.line2}
+                  </Text>
+
+                )
+                : null}
+
+
+              <Text
+                style={
+                  styles.shippingText
+                }
+              >
+                {normalizedShipping.city},{" "}
+                {normalizedShipping.state}{" "}
+                {normalizedShipping.postalCode}
+              </Text>
+
+
+              <Text
+                style={
+                  styles.shippingText
+                }
+              >
+                {normalizedShipping.country}
+              </Text>
+
+
+              {normalizedShipping.phone
+                ? (
+
+                  <Text
+                    style={
+                      styles.shippingText
+                    }
+                  >
+                    {normalizedShipping.phone}
+                  </Text>
+
+                )
+                : null}
+
+
+              <TouchableOpacity
+                style={
+                  styles.shippingButton
+                }
+                onPress={() =>
+                  setAddressSheetVisible(
+                    true
+                  )
+                }
+                disabled={
+                  isProcessing
+                }
+              >
+
+                <Text
+                  style={
+                    styles.shippingButtonText
+                  }
+                >
+                  CHANGE ADDRESS
+                </Text>
+
+              </TouchableOpacity>
+
+            </>
+
+          ) : (
+
+            <>
+
+              <Text
+                style={
+                  styles.shippingPrompt
+                }
+              >
+                Add the address where your Legathon Walk merchandise should be delivered.
+              </Text>
+
+
+              <TouchableOpacity
+                style={
+                  styles.shippingButton
+                }
+                onPress={() =>
+                  setAddressSheetVisible(
+                    true
+                  )
+                }
+                disabled={
+                  isProcessing
+                }
+              >
+
+                <Text
+                  style={
+                    styles.shippingButtonText
+                  }
+                >
+                  ADD SHIPPING ADDRESS
+                </Text>
+
+              </TouchableOpacity>
+
+            </>
+
+          )}
+
+        </View>
+
+
+        {/* =================================================== */}
+        {/* CHECKOUT BUTTON */}
+        {/* =================================================== */}
 
         <TouchableOpacity
           style={[
@@ -1414,11 +2798,15 @@ export default function PurchaseConfirmationScreen({
               styles.primaryButtonText
             }
           >
-
             {isProcessing
-              ? "PROCESSING..."
-              : "CONFIRM PURCHASE"}
 
+              ? "PROCESSING..."
+
+              : shippingDetails
+
+                ? "SECURE CHECKOUT"
+
+                : "ADD SHIPPING ADDRESS"}
           </Text>
 
         </TouchableOpacity>
@@ -1429,7 +2817,7 @@ export default function PurchaseConfirmationScreen({
             styles.purchaseNote
           }
         >
-          Review your order and discounts before confirming.
+          Your final price, membership discount, W Coin eligibility and shipping information are verified by Legathon Walk before Stripe opens.
         </Text>
 
 
@@ -1456,6 +2844,7 @@ function Info({
 }) {
 
   return (
+
     <View
       style={
         styles.infoRow
@@ -1492,26 +2881,46 @@ const styles =
   StyleSheet.create({
 
     safe: {
-      flex: 1,
-      backgroundColor: "#050A12",
+
+      flex:
+        1,
+
+      backgroundColor:
+        "#050A12",
+
     },
 
 
     container: {
-      flex: 1,
-      backgroundColor: "#050A12",
+
+      flex:
+        1,
+
+      backgroundColor:
+        "#050A12",
+
     },
 
 
     content: {
-      paddingHorizontal: 20,
-      paddingTop: 35,
-      paddingBottom: 150,
+
+      paddingHorizontal:
+        20,
+
+      paddingTop:
+        35,
+
+      paddingBottom:
+        150,
+
     },
 
 
     bottomSpace: {
-      height: 100,
+
+      height:
+        100,
+
     },
 
 
@@ -1520,15 +2929,27 @@ const styles =
     // ========================================================
 
     backButton: {
-      alignSelf: "flex-start",
-      marginBottom: 24,
+
+      alignSelf:
+        "flex-start",
+
+      marginBottom:
+        24,
+
     },
 
 
     back: {
-      color: "#E7C447",
-      fontSize: 22,
-      fontWeight: "900",
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        22,
+
+      fontWeight:
+        "900",
+
     },
 
 
@@ -1537,20 +2958,42 @@ const styles =
     // ========================================================
 
     kicker: {
-      color: "#A7F3D0",
-      fontSize: 13,
-      fontWeight: "900",
-      letterSpacing: 4,
-      marginBottom: 12,
+
+      color:
+        "#A7F3D0",
+
+      fontSize:
+        13,
+
+      fontWeight:
+        "900",
+
+      letterSpacing:
+        4,
+
+      marginBottom:
+        12,
+
     },
 
 
     title: {
-      color: "#FFFFFF",
-      fontSize: 42,
-      lineHeight: 48,
-      fontWeight: "900",
-      marginBottom: 24,
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        42,
+
+      lineHeight:
+        48,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        24,
+
     },
 
 
@@ -1559,39 +3002,105 @@ const styles =
     // ========================================================
 
     productCard: {
-      backgroundColor: "#0B182B",
-      borderRadius: 28,
-      padding: 24,
-      alignItems: "center",
-      marginBottom: 22,
-      borderWidth: 1,
-      borderColor: "#1E334A",
+
+      backgroundColor:
+        "#0B182B",
+
+      borderRadius:
+        28,
+
+      padding:
+        24,
+
+      alignItems:
+        "center",
+
+      marginBottom:
+        22,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#1E334A",
+
     },
 
 
     productImage: {
-      width: 230,
-      height: 230,
-      resizeMode: "contain",
-      marginBottom: 18,
+
+      width:
+        230,
+
+      height:
+        230,
+
+      resizeMode:
+        "contain",
+
+      marginBottom:
+        18,
+
     },
 
 
     productName: {
-      color: "#FFFFFF",
-      fontSize: 26,
-      lineHeight: 32,
-      fontWeight: "900",
-      textAlign: "center",
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        26,
+
+      lineHeight:
+        32,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
     },
 
 
     productSub: {
-      color: "#E7C447",
-      fontSize: 14,
-      fontWeight: "900",
-      marginTop: 8,
-      textAlign: "center",
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "900",
+
+      marginTop:
+        8,
+
+      textAlign:
+        "center",
+
+    },
+
+
+    optionText: {
+
+      color:
+        "#CBD5E1",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "800",
+
+      marginTop:
+        8,
+
+      textAlign:
+        "center",
+
     },
 
 
@@ -1600,137 +3109,445 @@ const styles =
     // ========================================================
 
     summaryCard: {
-      backgroundColor: "#0B182B",
-      borderRadius: 26,
-      padding: 22,
-      marginBottom: 24,
-      borderWidth: 1,
-      borderColor: "#1E334A",
+
+      backgroundColor:
+        "#0B182B",
+
+      borderRadius:
+        26,
+
+      padding:
+        22,
+
+      marginBottom:
+        24,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#1E334A",
+
     },
 
 
     sectionTitle: {
-      color: "#FFFFFF",
-      fontSize: 24,
-      fontWeight: "900",
-      marginBottom: 18,
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        24,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        18,
+
     },
 
 
     infoRow: {
-      marginBottom: 16,
+
+      marginBottom:
+        16,
+
     },
 
 
     infoLabel: {
-      color: "#94A3B8",
-      fontSize: 13,
-      fontWeight: "800",
-      marginBottom: 4,
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        13,
+
+      fontWeight:
+        "800",
+
+      marginBottom:
+        4,
+
     },
 
 
     infoValue: {
-      color: "#FFFFFF",
-      fontSize: 18,
-      fontWeight: "900",
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        18,
+
+      fontWeight:
+        "900",
+
     },
 
 
     // ========================================================
-    // WCOIN
+    // WCOINS
     // ========================================================
 
     wCoinCard: {
-      backgroundColor: "#071224",
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: "#233A51",
-      padding: 14,
-      marginBottom: 18,
+
+      backgroundColor:
+        "#071224",
+
+      borderRadius:
+        20,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#233A51",
+
+      padding:
+        14,
+
+      marginBottom:
+        18,
+
     },
 
 
     coinRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
     },
 
 
     coinPill: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#050A12",
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: "#E7C447",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      backgroundColor:
+        "#050A12",
+
+      borderRadius:
+        999,
+
+      paddingHorizontal:
+        14,
+
+      paddingVertical:
+        8,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#E7C447",
+
     },
 
 
     coinIcon: {
-      width: 26,
-      height: 26,
-      resizeMode: "contain",
-      marginRight: 8,
+
+      width:
+        26,
+
+      height:
+        26,
+
+      resizeMode:
+        "contain",
+
+      marginRight:
+        8,
+
     },
 
 
     coinText: {
-      color: "#E7C447",
-      fontSize: 18,
-      fontWeight: "900",
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        18,
+
+      fontWeight:
+        "900",
+
     },
 
 
     useCoinButton: {
-      minHeight: 50,
-      marginTop: 14,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: "#E7C447",
-      backgroundColor: "#101827",
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 12,
+
+      minHeight:
+        50,
+
+      marginTop:
+        14,
+
+      borderRadius:
+        18,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#E7C447",
+
+      backgroundColor:
+        "#101827",
+
+      flexDirection:
+        "row",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      paddingHorizontal:
+        12,
+
     },
 
 
     useCoinButtonActive: {
-      backgroundColor: "#E7C447",
+
+      backgroundColor:
+        "#E7C447",
+
     },
 
 
     useCoinIcon: {
-      width: 23,
-      height: 23,
-      resizeMode: "contain",
-      marginRight: 8,
+
+      width:
+        23,
+
+      height:
+        23,
+
+      resizeMode:
+        "contain",
+
+      marginRight:
+        8,
+
     },
 
 
     useCoinText: {
-      color: "#E7C447",
-      fontSize: 13,
-      fontWeight: "900",
-      textAlign: "center",
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        13,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
     },
 
 
     useCoinTextActive: {
-      color: "#050A12",
+
+      color:
+        "#050A12",
+
     },
 
 
     coinMessage: {
-      color: "#94A3B8",
-      fontSize: 12,
-      fontWeight: "700",
-      lineHeight: 18,
-      marginTop: 12,
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        12,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        18,
+
+      marginTop:
+        12,
+
+    },
+
+
+    coinFinePrint: {
+
+      color:
+        "#64748B",
+
+      fontSize:
+        11,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        17,
+
+      marginTop:
+        12,
+
+    },
+
+
+    // ========================================================
+    // SHIPPING CARD
+    // ========================================================
+
+    shippingCard: {
+
+      backgroundColor:
+        "#0B182B",
+
+      borderRadius:
+        24,
+
+      padding:
+        20,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#1E334A",
+
+      marginBottom:
+        22,
+
+    },
+
+
+    shippingTitle: {
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        22,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        12,
+
+    },
+
+
+    shippingPrompt: {
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        14,
+
+      lineHeight:
+        21,
+
+      fontWeight:
+        "700",
+
+    },
+
+
+    shippingName: {
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        17,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        6,
+
+    },
+
+
+    shippingText: {
+
+      color:
+        "#CBD5E1",
+
+      fontSize:
+        15,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        22,
+
+    },
+
+
+    shippingButton: {
+
+      minHeight:
+        48,
+
+      borderRadius:
+        18,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#E7C447",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      marginTop:
+        16,
+
+      paddingHorizontal:
+        16,
+
+    },
+
+
+    shippingButtonText: {
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "900",
+
     },
 
 
@@ -1739,27 +3556,56 @@ const styles =
     // ========================================================
 
     totalRow: {
-      borderTopWidth: 1,
-      borderTopColor: "#1E334A",
-      marginTop: 8,
-      paddingTop: 18,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "#1E334A",
+
+      marginTop:
+        8,
+
+      paddingTop:
+        18,
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
     },
 
 
     totalLabel: {
-      color: "#A7F3D0",
-      fontSize: 20,
-      fontWeight: "900",
+
+      color:
+        "#A7F3D0",
+
+      fontSize:
+        20,
+
+      fontWeight:
+        "900",
+
     },
 
 
     totalValue: {
-      color: "#FFFFFF",
-      fontSize: 30,
-      fontWeight: "900",
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        30,
+
+      fontWeight:
+        "900",
+
     },
 
 
@@ -1768,56 +3614,125 @@ const styles =
     // ========================================================
 
     primaryButton: {
-      backgroundColor: "#D4AF37",
-      borderRadius: 24,
-      minHeight: 60,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 4,
-      width: "100%",
-      paddingHorizontal: 16,
+
+      backgroundColor:
+        "#D4AF37",
+
+      borderRadius:
+        24,
+
+      minHeight:
+        60,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      marginTop:
+        4,
+
+      width:
+        "100%",
+
+      paddingHorizontal:
+        16,
+
     },
 
 
     primaryButtonText: {
-      color: "#050A12",
-      fontSize: 18,
-      fontWeight: "900",
+
+      color:
+        "#050A12",
+
+      fontSize:
+        18,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
     },
 
 
     processingButton: {
-      opacity: 0.55,
+
+      opacity:
+        0.55,
+
     },
 
 
     secondaryButton: {
-      borderWidth: 1,
-      borderColor: "#D4AF37",
-      borderRadius: 24,
-      minHeight: 60,
-      alignItems: "center",
-      justifyContent: "center",
-      marginTop: 14,
-      width: "100%",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#D4AF37",
+
+      borderRadius:
+        24,
+
+      minHeight:
+        60,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      marginTop:
+        14,
+
+      width:
+        "100%",
+
     },
 
 
     secondaryButtonText: {
-      color: "#D4AF37",
-      fontSize: 18,
-      fontWeight: "900",
+
+      color:
+        "#D4AF37",
+
+      fontSize:
+        18,
+
+      fontWeight:
+        "900",
+
     },
 
 
     purchaseNote: {
-      color: "#718096",
-      fontSize: 12,
-      fontWeight: "700",
-      lineHeight: 18,
-      textAlign: "center",
-      marginTop: 12,
-      paddingHorizontal: 18,
+
+      color:
+        "#718096",
+
+      fontSize:
+        12,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        18,
+
+      textAlign:
+        "center",
+
+      marginTop:
+        12,
+
+      paddingHorizontal:
+        18,
+
     },
 
 
@@ -1826,170 +3741,455 @@ const styles =
     // ========================================================
 
     successCard: {
-      backgroundColor: "#0B182B",
-      borderRadius: 30,
-      padding: 24,
-      alignItems: "center",
-      marginTop: 20,
-      borderWidth: 1,
-      borderColor: "#1E334A",
+
+      backgroundColor:
+        "#0B182B",
+
+      borderRadius:
+        30,
+
+      padding:
+        24,
+
+      alignItems:
+        "center",
+
+      marginTop:
+        20,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#1E334A",
+
     },
 
 
     successCircle: {
-      width: 82,
-      height: 82,
-      borderRadius: 41,
-      backgroundColor: "#A7F3D0",
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 18,
+
+      width:
+        82,
+
+      height:
+        82,
+
+      borderRadius:
+        41,
+
+      backgroundColor:
+        "#A7F3D0",
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      marginBottom:
+        18,
+
     },
 
 
     successCheck: {
-      color: "#050A12",
-      fontSize: 50,
-      fontWeight: "900",
+
+      color:
+        "#050A12",
+
+      fontSize:
+        50,
+
+      fontWeight:
+        "900",
+
     },
 
 
     successTitle: {
-      color: "#FFFFFF",
-      fontSize: 34,
-      lineHeight: 40,
-      fontWeight: "900",
-      textAlign: "center",
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        34,
+
+      lineHeight:
+        40,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
     },
 
 
     successSub: {
-      color: "#CBD5E1",
-      fontSize: 16,
-      fontWeight: "700",
-      textAlign: "center",
-      lineHeight: 24,
-      marginTop: 12,
-      marginBottom: 22,
+
+      color:
+        "#CBD5E1",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "700",
+
+      textAlign:
+        "center",
+
+      lineHeight:
+        24,
+
+      marginTop:
+        12,
+
+      marginBottom:
+        22,
+
     },
 
 
     orderNumberCard: {
-      width: "100%",
-      backgroundColor: "#071224",
-      borderRadius: 18,
-      padding: 15,
-      marginBottom: 16,
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: "#243A51",
+
+      width:
+        "100%",
+
+      backgroundColor:
+        "#071224",
+
+      borderRadius:
+        18,
+
+      padding:
+        15,
+
+      marginBottom:
+        16,
+
+      alignItems:
+        "center",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#243A51",
+
     },
 
 
     orderNumberLabel: {
-      color: "#94A3B8",
-      fontSize: 10,
-      fontWeight: "900",
-      letterSpacing: 2,
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        10,
+
+      fontWeight:
+        "900",
+
+      letterSpacing:
+        2,
+
     },
 
 
     orderNumber: {
-      color: "#E7C447",
-      fontSize: 24,
-      fontWeight: "900",
-      marginTop: 5,
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        24,
+
+      fontWeight:
+        "900",
+
+      marginTop:
+        5,
+
     },
 
 
     orderBox: {
-      width: "100%",
-      backgroundColor: "#071224",
-      borderRadius: 22,
-      padding: 18,
-      marginBottom: 24,
+
+      width:
+        "100%",
+
+      backgroundColor:
+        "#071224",
+
+      borderRadius:
+        22,
+
+      padding:
+        18,
+
+      marginBottom:
+        24,
+
     },
 
 
     confirmImage: {
-      width: 150,
-      height: 150,
-      resizeMode: "contain",
-      alignSelf: "center",
-      marginBottom: 12,
+
+      width:
+        150,
+
+      height:
+        150,
+
+      resizeMode:
+        "contain",
+
+      alignSelf:
+        "center",
+
+      marginBottom:
+        12,
+
     },
 
 
     confirmProductName: {
-      color: "#FFFFFF",
-      fontSize: 20,
-      lineHeight: 26,
-      fontWeight: "900",
-      textAlign: "center",
-      marginBottom: 20,
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        20,
+
+      lineHeight:
+        26,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
+      marginBottom:
+        20,
+
+    },
+
+
+    successShippingBox: {
+
+      marginTop:
+        10,
+
+      marginBottom:
+        16,
+
+      padding:
+        14,
+
+      borderRadius:
+        16,
+
+      backgroundColor:
+        "#0B182B",
+
+      borderWidth:
+        1,
+
+      borderColor:
+        "#1E334A",
+
+    },
+
+
+    successShippingTitle: {
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        11,
+
+      fontWeight:
+        "900",
+
+      letterSpacing:
+        2,
+
+      marginBottom:
+        8,
+
+    },
+
+
+    successShippingName: {
+
+      color:
+        "#E7C447",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        4,
+
+    },
+
+
+    successShippingText: {
+
+      color:
+        "#CBD5E1",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        20,
+
     },
 
 
     successTotalRow: {
-      borderTopWidth: 1,
-      borderTopColor: "#1E334A",
-      marginTop: 8,
-      paddingTop: 18,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "#1E334A",
+
+      marginTop:
+        8,
+
+      paddingTop:
+        18,
+
+      flexDirection:
+        "row",
+
+      justifyContent:
+        "space-between",
+
+      alignItems:
+        "center",
+
     },
 
 
     checkList: {
-      marginTop: 18,
-      borderTopWidth: 1,
-      borderTopColor: "#1E334A",
-      paddingTop: 16,
+
+      marginTop:
+        18,
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        "#1E334A",
+
+      paddingTop:
+        16,
+
     },
 
 
     checkText: {
-      color: "#A7F3D0",
-      fontSize: 14,
-      fontWeight: "900",
-      marginBottom: 8,
+
+      color:
+        "#A7F3D0",
+
+      fontSize:
+        14,
+
+      fontWeight:
+        "900",
+
+      marginBottom:
+        8,
+
     },
 
 
     // ========================================================
-    // EMPTY SCREEN
+    // EMPTY
     // ========================================================
 
     emptyScreen: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 28,
+
+      flex:
+        1,
+
+      alignItems:
+        "center",
+
+      justifyContent:
+        "center",
+
+      paddingHorizontal:
+        28,
+
     },
 
 
     emptyIcon: {
-      fontSize: 64,
-      marginBottom: 18,
+
+      fontSize:
+        64,
+
+      marginBottom:
+        18,
+
     },
 
 
     emptyTitle: {
-      color: "#FFFFFF",
-      fontSize: 30,
-      fontWeight: "900",
-      textAlign: "center",
+
+      color:
+        "#FFFFFF",
+
+      fontSize:
+        30,
+
+      fontWeight:
+        "900",
+
+      textAlign:
+        "center",
+
     },
 
 
     emptyText: {
-      color: "#94A3B8",
-      fontSize: 16,
-      fontWeight: "700",
-      lineHeight: 24,
-      textAlign: "center",
-      marginTop: 10,
-      marginBottom: 24,
+
+      color:
+        "#94A3B8",
+
+      fontSize:
+        16,
+
+      fontWeight:
+        "700",
+
+      lineHeight:
+        24,
+
+      textAlign:
+        "center",
+
+      marginTop:
+        10,
+
+      marginBottom:
+        24,
+
     },
+
   });
