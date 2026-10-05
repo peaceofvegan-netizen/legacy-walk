@@ -1,3 +1,5 @@
+// screens/MarathonScreen.js
+
 import React, {
   useCallback,
   useEffect,
@@ -10,6 +12,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Image,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -51,6 +54,10 @@ import {
 
 const SYNC_INTERVAL_MS = 2500;
 const GOLD = "#F7BE22";
+
+// Change this path if your official WCoin image
+// has a different filename.
+const WCOIN_IMAGE = require("../assets/wcoin.png");
 
 function safeNumber(value) {
   const parsed = Number(value);
@@ -134,8 +141,9 @@ function isMarathonActive(state, marathonId) {
 // PEDOMETER ACCESS
 // ============================================================
 
-async function requirePedometer(requestPermission = false) {
-  // This engine uses historical step counts from the iPhone.
+async function requirePedometer(
+  requestPermission = false
+) {
   if (Platform.OS !== "ios") {
     throw new Error(
       "This step engine currently supports iPhone. Android needs a compatible step-count source."
@@ -203,7 +211,6 @@ export default function MarathonScreen({
 
   const runOperation = useCallback(
     (operation, showErrorAlert = false) => {
-      // Background sync can wait for the next interval.
       if (
         !showErrorAlert &&
         pendingOperationsRef.current > 0
@@ -257,9 +264,7 @@ export default function MarathonScreen({
         pendingOperationsRef.current -= 1;
 
         if (mountedRef.current) {
-          setBusy(
-            pendingOperationsRef.current > 0
-          );
+          setBusy(pendingOperationsRef.current > 0);
         }
       });
     },
@@ -277,20 +282,15 @@ export default function MarathonScreen({
     let session =
       await loadLegathonSession();
 
-    const sessionMarathon =
-      MARATHON_CATALOG.find(
-        marathon =>
-          marathon.id === session?.marathonId
-      );
+    const sessionMarathon = MARATHON_CATALOG.find(
+      (marathon) =>
+        marathon.id === session?.marathonId
+    );
 
-    // Finish any session whose saved marathon is already complete.
     if (
       sessionMarathon &&
       session.status !== "completed" &&
-      getProgress(
-        sessionMarathon,
-        progressMap
-      ).completed
+      getProgress(sessionMarathon, progressMap).completed
     ) {
       const result =
         await completeLegathonSession(
@@ -349,8 +349,7 @@ export default function MarathonScreen({
 
     // The engine owns step persistence.
     // Do not add pedometer totals directly in this screen.
-    const result =
-      await syncTodaySteps();
+    const result = await syncTodaySteps();
 
     const routingFailed =
       safeNumber(result?.delta) > 0 &&
@@ -381,13 +380,11 @@ export default function MarathonScreen({
 
     if (result.completedNow === true) {
       const completedId =
-        result.marathonId ||
-        result.marathon?.id;
+        result.marathonId || result.marathon?.id;
 
       const completedMarathon =
         MARATHON_CATALOG.find(
-          marathon =>
-            marathon.id === completedId
+          (marathon) => marathon.id === completedId
         );
 
       if (
@@ -396,14 +393,10 @@ export default function MarathonScreen({
           completedMarathon,
           nextState.progressMap
         ).completed &&
-        !completionAlertsRef.current.has(
-          completedId
-        ) &&
+        !completionAlertsRef.current.has(completedId) &&
         mountedRef.current
       ) {
-        completionAlertsRef.current.add(
-          completedId
-        );
+        completionAlertsRef.current.add(completedId);
 
         Alert.alert(
           "Legathon Complete!",
@@ -431,30 +424,25 @@ export default function MarathonScreen({
       }
     }, SYNC_INTERVAL_MS);
 
-    const subscription =
-      AppState.addEventListener(
-        "change",
-        nextAppState => {
-          const previousAppState =
-            appStateRef.current;
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        const previousAppState =
+          appStateRef.current;
 
-          appStateRef.current =
-            nextAppState;
+        appStateRef.current = nextAppState;
 
-          if (
-            nextAppState === "active" &&
-            previousAppState !== "active"
-          ) {
-            void runOperation(
-              syncWalkingProgress
-            );
-          }
+        if (
+          nextAppState === "active" &&
+          previousAppState !== "active"
+        ) {
+          void runOperation(syncWalkingProgress);
         }
-      );
+      }
+    );
 
     return () => {
       mountedRef.current = false;
-
       clearInterval(interval);
       subscription.remove();
     };
@@ -465,10 +453,9 @@ export default function MarathonScreen({
   // ==========================================================
 
   const openMarathonDetails = useCallback(
-    marathonId => {
+    (marathonId) => {
       if (
-        typeof goToWorldMarathonDetail ===
-        "function"
+        typeof goToWorldMarathonDetail === "function"
       ) {
         goToWorldMarathonDetail(marathonId);
       }
@@ -481,7 +468,7 @@ export default function MarathonScreen({
   // ==========================================================
 
   const handleOpenMarathon = useCallback(
-    marathon => {
+    (marathon) => {
       void runOperation(async () => {
         const currentState =
           await refreshMarathonState();
@@ -516,18 +503,13 @@ export default function MarathonScreen({
         await requirePedometer(true);
 
         if (
-          !isMarathonActive(
-            currentState,
-            marathon.id
-          )
+          !isMarathonActive(currentState, marathon.id)
         ) {
           const shouldResume =
-            currentState.activeId ===
-              marathon.id &&
+            currentState.activeId === marathon.id &&
             currentState.session?.marathonId ===
               marathon.id &&
-            currentState.session?.status ===
-              "paused";
+            currentState.session?.status === "paused";
 
           const result = shouldResume
             ? await resumeLegathon()
@@ -544,8 +526,8 @@ export default function MarathonScreen({
             );
           }
 
-          // Establish the baseline immediately after
-          // the session resets the engine's checkpoint.
+          // Establish the baseline after the session
+          // resets the engine's checkpoint.
           const updatedState =
             await syncWalkingProgress();
 
@@ -582,14 +564,13 @@ export default function MarathonScreen({
   // ==========================================================
 
   const handleSessionAction = useCallback(
-    action => {
+    (action) => {
       void runOperation(async () => {
         const currentState =
           await syncWalkingProgress();
 
         if (
-          currentState.session?.status ===
-          "completed"
+          currentState.session?.status === "completed"
         ) {
           return;
         }
@@ -623,7 +604,7 @@ export default function MarathonScreen({
 
   const marathonRows = useMemo(
     () =>
-      MARATHON_CATALOG.map(marathon => ({
+      MARATHON_CATALOG.map((marathon) => ({
         marathon,
         progress: getProgress(
           marathon,
@@ -635,12 +616,11 @@ export default function MarathonScreen({
 
   const selectedMarathon =
     marathonRows.find(
-      row =>
-        row.marathon.id ===
-        screenState.activeId
+      (row) =>
+        row.marathon.id === screenState.activeId
     ) ||
     marathonRows.find(
-      row =>
+      (row) =>
         row.progress.unlocked &&
         !row.progress.completed
     );
@@ -659,37 +639,29 @@ export default function MarathonScreen({
         selectedMarathon.marathon.id
   );
 
-  const completedCount =
-    marathonRows.filter(
-      row => row.progress.completed
-    ).length;
+  const completedCount = marathonRows.filter(
+    (row) => row.progress.completed
+  ).length;
 
-  const unlockedCount =
-    marathonRows.filter(
-      row => row.progress.unlocked
-    ).length;
+  const unlockedCount = marathonRows.filter(
+    (row) => row.progress.unlocked
+  ).length;
 
-  const claimedMarathons =
-    marathonRows.filter(
-      row =>
-        row.progress.rewardClaimed === true
-    );
+  const claimedMarathons = marathonRows.filter(
+    (row) => row.progress.rewardClaimed === true
+  );
 
-  const claimedCoins =
-    claimedMarathons.reduce(
-      (total, row) =>
-        total +
-        safeNumber(row.marathon.rewardCoins),
-      0
-    );
+  const claimedCoins = claimedMarathons.reduce(
+    (total, row) =>
+      total + safeNumber(row.marathon.rewardCoins),
+    0
+  );
 
-  const claimedPoints =
-    claimedMarathons.reduce(
-      (total, row) =>
-        total +
-        safeNumber(row.marathon.rewardPoints),
-      0
-    );
+  const claimedPoints = claimedMarathons.reduce(
+    (total, row) =>
+      total + safeNumber(row.marathon.rewardPoints),
+    0
+  );
 
   // ==========================================================
   // LOADING SCREEN
@@ -727,8 +699,7 @@ export default function MarathonScreen({
             style={styles.backButton}
             accessibilityRole="button"
             disabled={
-              busy ||
-              typeof goBack !== "function"
+              busy || typeof goBack !== "function"
             }
             onPress={goBack}
           >
@@ -747,8 +718,8 @@ export default function MarathonScreen({
         </Text>
 
         <Text style={styles.bodyText}>
-          Walk global endurance challenges and
-          build your Legathon legacy.
+          Walk global endurance challenges and build
+          your Legathon legacy.
         </Text>
 
         {!!errorMessage && (
@@ -780,16 +751,16 @@ export default function MarathonScreen({
             {modeActive
               ? "Legathon Mode Active"
               : modePaused
-                ? "Legathon Paused"
-                : "Legathon Mode Ready"}
+              ? "Legathon Paused"
+              : "Legathon Mode Ready"}
           </Text>
 
           <Text style={styles.bodyText}>
             {modeActive
               ? `New walking steps count toward ${selectedMarathon.marathon.title}.`
               : modePaused
-                ? "Your progress is saved. Resume when you are ready."
-                : "Choose an unlocked challenge to begin."}
+              ? "Your progress is saved. Resume when you are ready."
+              : "Choose an unlocked challenge to begin."}
           </Text>
         </View>
 
@@ -810,8 +781,8 @@ export default function MarathonScreen({
                   {modeActive
                     ? "ACTIVE LEGATHON"
                     : modePaused
-                      ? "PAUSED LEGATHON"
-                      : "NEXT LEGATHON"}
+                    ? "PAUSED LEGATHON"
+                    : "NEXT LEGATHON"}
                 </Text>
 
                 <Text style={styles.heroTitle}>
@@ -819,12 +790,8 @@ export default function MarathonScreen({
                 </Text>
 
                 <Text style={styles.bodyText}>
-                  {selectedMarathon.marathon.city}
-                  ,{" "}
-                  {
-                    selectedMarathon.marathon
-                      .country
-                  }
+                  {selectedMarathon.marathon.city},{" "}
+                  {selectedMarathon.marathon.country}
                 </Text>
               </View>
             </View>
@@ -832,8 +799,7 @@ export default function MarathonScreen({
             <View style={styles.percentCircle}>
               <Text style={styles.percentValue}>
                 {Math.floor(
-                  selectedMarathon.progress
-                    .percent
+                  selectedMarathon.progress.percent
                 )}
                 %
               </Text>
@@ -867,8 +833,7 @@ export default function MarathonScreen({
 
               <MetricCard
                 value={formatNumber(
-                  selectedMarathon.progress
-                    .totalSteps -
+                  selectedMarathon.progress.totalSteps -
                     selectedMarathon.progress.steps
                 )}
                 label="Remaining"
@@ -881,8 +846,7 @@ export default function MarathonScreen({
               )}{" "}
               /{" "}
               {formatNumber(
-                selectedMarathon.progress
-                  .totalSteps
+                selectedMarathon.progress.totalSteps
               )}{" "}
               steps
             </Text>
@@ -894,8 +858,8 @@ export default function MarathonScreen({
               ).toFixed(2)}{" "}
               /{" "}
               {(
-                selectedMarathon.progress
-                  .totalSteps / STEPS_IN_ONE_MILE
+                selectedMarathon.progress.totalSteps /
+                STEPS_IN_ONE_MILE
               ).toFixed(2)}{" "}
               miles
             </Text>
@@ -905,20 +869,28 @@ export default function MarathonScreen({
                 COMPLETION REWARDS
               </Text>
 
-              <Text style={styles.goldText}>
-                🪙{" "}
-                {formatNumber(
-                  selectedMarathon.marathon
-                    .rewardCoins
-                )}{" "}
-                WCoins
-              </Text>
+              {/* OFFICIAL WCOIN IMAGE */}
+
+              <View style={styles.wcoinRewardRow}>
+                <Image
+                  source={WCOIN_IMAGE}
+                  style={styles.wcoinHeroIcon}
+                  resizeMode="contain"
+                  accessibilityLabel="WCoin"
+                />
+
+                <Text style={styles.wcoinHeroText}>
+                  {formatNumber(
+                    selectedMarathon.marathon.rewardCoins
+                  )}{" "}
+                  WCoins
+                </Text>
+              </View>
 
               <Text style={styles.bodyText}>
                 ⭐{" "}
                 {formatNumber(
-                  selectedMarathon.marathon
-                    .rewardPoints
+                  selectedMarathon.marathon.rewardPoints
                 )}{" "}
                 Legathon Points
               </Text>
@@ -926,8 +898,7 @@ export default function MarathonScreen({
               <Text style={styles.bodyText}>
                 ✨{" "}
                 {formatNumber(
-                  selectedMarathon.marathon
-                    .avatarXP
+                  selectedMarathon.marathon.avatarXP
                 )}{" "}
                 Avatar XP
               </Text>
@@ -940,8 +911,8 @@ export default function MarathonScreen({
                 modeActive
                   ? "Continue Legathon"
                   : modePaused
-                    ? "Resume Legathon"
-                    : "Activate Legathon"
+                  ? "Resume Legathon"
+                  : "Activate Legathon"
               }
               onPress={() =>
                 handleOpenMarathon(
@@ -998,16 +969,14 @@ export default function MarathonScreen({
         ) : (
           <View style={styles.card}>
             <Text style={styles.heroTitle}>
-              {completedCount ===
-                marathonRows.length &&
+              {completedCount === marathonRows.length &&
               marathonRows.length > 0
                 ? "All Legathons Complete!"
                 : "No challenge available"}
             </Text>
 
             <Text style={styles.bodyText}>
-              Your saved challenges are listed
-              below.
+              Your saved challenges are listed below.
             </Text>
           </View>
         )}
@@ -1026,6 +995,7 @@ export default function MarathonScreen({
           <MetricCard
             value={formatNumber(claimedCoins)}
             label="WCoins Claimed"
+            wcoin
           />
         </View>
 
@@ -1044,35 +1014,31 @@ export default function MarathonScreen({
         </Text>
 
         <Text style={styles.bodyText}>
-          Complete each unlocked challenge to
-          advance through the global Legathon
-          series.
+          Complete each unlocked challenge to advance
+          through the global Legathon series.
         </Text>
 
         {marathonRows.map(
           ({ marathon, progress }) => {
-            const isRunning =
-              isMarathonActive(
-                screenState,
-                marathon.id
-              );
+            const isRunning = isMarathonActive(
+              screenState,
+              marathon.id
+            );
 
             const isPaused =
-              screenState.session?.status ===
-                "paused" &&
+              screenState.session?.status === "paused" &&
               screenState.session?.marathonId ===
                 marathon.id;
 
-            const statusLabel =
-              progress.completed
-                ? "View"
-                : !progress.unlocked
-                  ? "Locked"
-                  : isRunning
-                    ? "Continue"
-                    : isPaused
-                      ? "Resume"
-                      : "Start";
+            const statusLabel = progress.completed
+              ? "View"
+              : !progress.unlocked
+              ? "Locked"
+              : isRunning
+              ? "Continue"
+              : isPaused
+              ? "Resume"
+              : "Start";
 
             return (
               <TouchableOpacity
@@ -1086,8 +1052,7 @@ export default function MarathonScreen({
                 style={[
                   styles.card,
                   styles.row,
-                  isRunning &&
-                    styles.activeCard,
+                  isRunning && styles.activeCard,
                   !progress.unlocked &&
                     styles.lockedCard,
                 ]}
@@ -1102,8 +1067,7 @@ export default function MarathonScreen({
                   </Text>
 
                   <Text style={styles.smallText}>
-                    {marathon.city},{" "}
-                    {marathon.country}
+                    {marathon.city}, {marathon.country}
                   </Text>
 
                   <Text style={styles.smallText}>
@@ -1119,22 +1083,30 @@ export default function MarathonScreen({
                     miles
                   </Text>
 
-                  <Text style={styles.rewardText}>
-                    🪙{" "}
-                    {formatNumber(
-                      marathon.rewardCoins
-                    )}{" "}
-                    WCoins
-                  </Text>
+                  {/* OFFICIAL WCOIN IMAGE */}
+
+                  <View style={styles.wcoinListRow}>
+                    <Image
+                      source={WCOIN_IMAGE}
+                      style={styles.wcoinListIcon}
+                      resizeMode="contain"
+                      accessibilityLabel="WCoin"
+                    />
+
+                    <Text style={styles.rewardText}>
+                      {formatNumber(
+                        marathon.rewardCoins
+                      )}{" "}
+                      WCoins
+                    </Text>
+                  </View>
 
                   <ProgressBar
                     percent={progress.percent}
                   />
 
                   {progress.completed && (
-                    <Text
-                      style={styles.successText}
-                    >
+                    <Text style={styles.successText}>
                       Completed
                       {progress.rewardClaimed
                         ? " • Rewards claimed"
@@ -1157,16 +1129,14 @@ export default function MarathonScreen({
           </Text>
 
           <Text style={styles.bodyText}>
-            Activation starts a new step
-            checkpoint. Keep your phone with you
-            while walking.
+            Activation starts a new step checkpoint.
+            Keep your phone with you while walking.
           </Text>
 
           <Text style={styles.bodyText}>
-            While active, new steps go to your
-            Legathon. Pausing returns step routing
-            to Journey mode and keeps your marathon
-            progress.
+            While active, new steps go to your Legathon.
+            Pausing returns step routing to Journey mode
+            and keeps your marathon progress.
           </Text>
 
           <Text style={styles.bodyText}>
@@ -1205,8 +1175,7 @@ function ActionButton({
       <Text
         style={[
           styles.actionButtonText,
-          primary &&
-            styles.primaryButtonText,
+          primary && styles.primaryButtonText,
         ]}
       >
         {label}
@@ -1233,9 +1202,22 @@ function ProgressBar({ percent }) {
   );
 }
 
-function MetricCard({ value, label }) {
+function MetricCard({
+  value,
+  label,
+  wcoin = false,
+}) {
   return (
     <View style={styles.metricCard}>
+      {wcoin && (
+        <Image
+          source={WCOIN_IMAGE}
+          style={styles.wcoinMetricIcon}
+          resizeMode="contain"
+          accessibilityLabel="WCoin"
+        />
+      )}
+
       <Text
         style={styles.metricValue}
         numberOfLines={1}
@@ -1439,6 +1421,45 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 
+  // OFFICIAL WCOIN IMAGE STYLES
+
+  wcoinRewardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  wcoinHeroIcon: {
+    width: 34,
+    height: 34,
+    marginRight: 9,
+  },
+
+  wcoinHeroText: {
+    flexShrink: 1,
+    color: GOLD,
+    fontSize: 19,
+    fontWeight: "800",
+  },
+
+  wcoinListRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 7,
+  },
+
+  wcoinListIcon: {
+    width: 24,
+    height: 24,
+    marginRight: 7,
+  },
+
+  wcoinMetricIcon: {
+    width: 30,
+    height: 30,
+    marginBottom: 8,
+  },
+
   actionButton: {
     minHeight: 50,
     borderWidth: 1.5,
@@ -1498,10 +1519,10 @@ const styles = StyleSheet.create({
   },
 
   rewardText: {
+    flexShrink: 1,
     color: GOLD,
     fontWeight: "800",
     fontSize: 14,
-    marginTop: 7,
   },
 
   statusText: {

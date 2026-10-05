@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ImageBackground,
   Image,
   TouchableOpacity,
   Alert,
@@ -47,27 +46,22 @@ const SHOE_ICON = require("../assets/apparel/w-shoe.png");
 const PROGRESS_KEY = "LEGACY_WALK_JOURNEY_PROGRESS";
 
 // Foreground walking filter.
-//
-// GPS cannot identify every slow-moving vehicle.
-// Unknown or stale GPS is deliberately rejected.
-// Indoor steps may be missed.
-//
-// Speeds are meters per second:
-// 2.5 m/s ≈ 5.6 mph
-// 4.0 m/s ≈ 8.9 mph
-
+// Unknown or stale GPS is rejected.
+// This screen does not implement background GPS tracking.
 export function createWalkingGate(clock = Date.now) {
   let lastFix = 0;
-  let slowSince = null;
   let previous = null;
   let generation = 0;
   let driving = false;
-  let latestSlow = false;
+  let slowSamples = 0;
+  let mediumFastSamples = 0;
+  let unknownSamples = 0;
 
-  function invalidate() {
+  function resetVerification() {
     generation += 1;
-    slowSince = null;
-    latestSlow = false;
+    slowSamples = 0;
+    mediumFastSamples = 0;
+    unknownSamples = 0;
   }
 
   function status() {
@@ -81,11 +75,7 @@ export function createWalkingGate(clock = Date.now) {
       return "Vehicle-speed movement — steps paused";
     }
 
-    if (
-      !latestSlow ||
-      slowSince === null ||
-      now - slowSince < 20000
-    ) {
+    if (slowSamples < 2) {
       return "Verifying walking speed";
     }
 
@@ -103,23 +93,28 @@ export function createWalkingGate(clock = Date.now) {
       now - time > 10000 ||
       time > now + 1000 ||
       !Number.isFinite(coords.accuracy) ||
-      coords.accuracy > 30 ||
+      coords.accuracy > 50 ||
       coords.accuracy < 0 ||
       !Number.isFinite(coords.latitude) ||
       !Number.isFinite(coords.longitude)
     ) {
-      invalidate();
-      lastFix = 0;
-      previous = null;
+      unknownSamples += 1;
+
+      if (unknownSamples >= 2) {
+        resetVerification();
+      }
+
       return;
     }
+
+    unknownSamples = 0;
 
     if (previous && time <= previous.timestamp) {
       return;
     }
 
     if (lastFix && time - lastFix > 10000) {
-      invalidate();
+      resetVerification();
     }
 
     let derivedSpeed = null;
@@ -131,10 +126,12 @@ export function createWalkingGate(clock = Date.now) {
         const radians = Math.PI / 180;
 
         const latitudeDifference =
-          (coords.latitude - previous.coords.latitude) * radians;
+          (coords.latitude - previous.coords.latitude) *
+          radians;
 
         const longitudeDifference =
-          (coords.longitude - previous.coords.longitude) * radians;
+          (coords.longitude - previous.coords.longitude) *
+          radians;
 
         const haversine =
           Math.sin(latitudeDifference / 2) ** 2 +
@@ -147,7 +144,6 @@ export function createWalkingGate(clock = Date.now) {
           2 *
           Math.asin(Math.sqrt(Math.min(1, haversine)));
 
-        // Subtract reported uncertainty to reduce GPS-drift errors.
         derivedSpeed =
           Math.max(
             0,
@@ -171,31 +167,47 @@ export function createWalkingGate(clock = Date.now) {
         ? derivedSpeed
         : Math.max(reportedSpeed, derivedSpeed ?? 0);
 
-    if (speed === null || speed > 2.5) {
-      invalidate();
+    if (speed === null) {
+      unknownSamples += 1;
 
-      if (speed !== null && speed >= 4) {
-        driving = true;
+      if (unknownSamples >= 2) {
+        resetVerification();
       }
 
       return;
     }
 
-    latestSlow = true;
+    unknownSamples = 0;
 
-    if (slowSince === null) {
-      slowSince = time;
+    if (speed >= 4) {
+      driving = true;
+      resetVerification();
+      return;
     }
 
-    if (time - slowSince >= 20000) {
+    if (speed > 2.8) {
+      mediumFastSamples += 1;
+      slowSamples = 0;
+
+      if (mediumFastSamples >= 2) {
+        resetVerification();
+      }
+
+      return;
+    }
+
+    mediumFastSamples = 0;
+    slowSamples = Math.min(slowSamples + 1, 2);
+
+    if (slowSamples >= 2) {
       driving = false;
     }
   }
 
   function ticket() {
-    // A stale interval breaks the uninterrupted verification window.
     if (clock() - lastFix > 10000) {
-      invalidate();
+      resetVerification();
+      lastFix = 0;
     }
 
     return status() === "Walking verified"
@@ -211,15 +223,11 @@ export function createWalkingGate(clock = Date.now) {
 }
 
 // Serialize journey operations across screen remounts.
-// A newly opened journey waits for the previous journey's saves.
-
 let journeyWork = Promise.resolve();
 
 function enqueueJourneyWork(operation) {
   const result = journeyWork.then(operation);
-
   journeyWork = result.catch(() => {});
-
   return result;
 }
 
@@ -278,9 +286,6 @@ function checkpointFor(steps, goal) {
         1 + Math.floor((steps / goal) * 4)
       );
 }
-
-// Each journey gets a separate component instance.
-// This prevents one journey's state from appearing in another.
 
 export default function GPSJourneyMapScreen(props) {
   const raw =
@@ -454,9 +459,6 @@ function JourneySession({
     }
   }
 
-  // Called only within the serialized journey queue.
-  // Never save a default zero before restoration finishes.
-
   async function persistNow() {
     if (!snapshot.current) {
       return;
@@ -566,9 +568,6 @@ function JourneySession({
       JSON.stringify(updatedList)
     );
 
-    // Do not overwrite daily or lifetime totals with
-    // this journey's cumulative total.
-
     errorRef.current = "";
 
     if (mounted.current) {
@@ -581,11 +580,9 @@ function JourneySession({
     return enqueueJourneyWork(persistNow);
   }
 
-  // Restore this journey before starting any sensor.
-
+  // Restore before starting sensors or saving defaults.
   React.useEffect(() => {
     mounted.current = true;
-
     let cancelled = false;
 
     enqueueJourneyWork(async () => {
@@ -630,11 +627,9 @@ function JourneySession({
 
       const stories =
         stats.shownStories ??
-        (
-          values[storyKey]
-            ? JSON.parse(values[storyKey])
-            : []
-        );
+        (values[storyKey]
+          ? JSON.parse(values[storyKey])
+          : []);
 
       if (!Array.isArray(stories)) {
         throw new Error(
@@ -695,10 +690,8 @@ function JourneySession({
     return () => {
       cancelled = true;
       mounted.current = false;
-
       stopSensor();
 
-      // Accepted events already queued finish before this save.
       if (snapshot.current) {
         save().catch(error =>
           console.error(
@@ -731,11 +724,7 @@ function JourneySession({
 
   const liveMiles = steps / 2000;
   const liveCalories = Math.round(steps * 0.04);
-
-  const remainingSteps = Math.max(
-    totalSteps - steps,
-    0
-  );
+  const remainingSteps = Math.max(totalSteps - steps, 0);
 
   const currentCheckpoint = checkpointFor(
     steps,
@@ -747,9 +736,7 @@ function JourneySession({
     Math.floor(secondsActive / 60) % 60,
     secondsActive % 60,
   ]
-    .map(number =>
-      String(number).padStart(2, "0")
-    )
+    .map(number => String(number).padStart(2, "0"))
     .join(":");
 
   const routeTitle =
@@ -760,19 +747,11 @@ function JourneySession({
     currentJourney.description ||
     "Walk anywhere. Every step moves you closer to completing your Legathon Journey.";
 
-  const routeKey = currentJourney.routeKey || id;
-
-  const imageValue =
-    getRouteImage?.(routeKey) ||
-    ROUTE_IMAGES?.[routeKey] ||
-    currentJourney.routeImage ||
-    currentJourney.image ||
-    ROUTE_IMAGES?.selma;
-
-  const routeImage =
-    typeof imageValue === "string"
-      ? { uri: imageValue }
-      : imageValue;
+   const routeImage = getRouteImage(
+  currentJourney,
+  id,
+  normalizedJourneyId
+);
 
   const journeyData =
     journeyMaps?.[id] ||
@@ -793,44 +772,35 @@ function JourneySession({
     "Finish",
   ];
 
-  const checkpoints = defaults.map(
-    (fallback, index) => {
-      const item = Array.isArray(names)
-        ? names[index]
-        : null;
+  const checkpoints = defaults.map((fallback, index) => {
+    const item = Array.isArray(names)
+      ? names[index]
+      : null;
 
-      const threshold = Math.ceil(
-        (totalSteps * index) / 4
-      );
+    const threshold = Math.ceil(
+      (totalSteps * index) / 4
+    );
 
-      return {
-        id: index + 1,
-        title:
-          typeof item === "string"
-            ? item
-            : item?.title ||
-              item?.name ||
-              item?.label ||
-              fallback,
-        complete: ready && steps >= threshold,
-        active:
-          ready &&
-          index + 1 === currentCheckpoint &&
-          steps < totalSteps,
-      };
-    }
-  );
+    return {
+      id: index + 1,
+      title:
+        typeof item === "string"
+          ? item
+          : item?.title ||
+            item?.name ||
+            item?.label ||
+            fallback,
+      complete: ready && steps >= threshold,
+      active:
+        ready &&
+        index + 1 === currentCheckpoint &&
+        steps < totalSteps,
+    };
+  });
 
   const completedCheckpoints = checkpoints.filter(
     point => point.complete
   ).length;
-
-  const markerPositions = checkpoints.map(
-    (_, index) => `${5 + (index / 4) * 88}%`
-  );
-
-  const shoeLeft =
-    `${5 + Math.min(1, steps / totalSteps) * 88}%`;
 
   async function awardReachedCheckpoints() {
     const highest = checkpointFor(
@@ -861,14 +831,6 @@ function JourneySession({
         );
     }
   }
-
-  // Foreground GPS and pedometer session.
-  //
-  // Raw readings always advance the local sensor baseline.
-  // Rejected vehicle readings cannot be credited afterward.
-  //
-  // Accepted deltas wait six seconds before being credited.
-  // A disqualifying GPS reading cancels pending deltas.
 
   React.useEffect(() => {
     if (
@@ -914,10 +876,7 @@ function JourneySession({
           return;
         }
 
-        const accepted = Math.min(
-          delta,
-          available
-        );
+        const accepted = Math.min(delta, available);
 
         const result =
           await addRegularJourneySteps(accepted);
@@ -934,7 +893,6 @@ function JourneySession({
           );
         }
 
-        // Only credit the amount confirmed by the engine.
         const credited = Math.min(
           accepted,
           Math.max(
@@ -1025,7 +983,7 @@ function JourneySession({
           await Location.watchPositionAsync(
             {
               accuracy: Location.Accuracy.High,
-              timeInterval: 2000,
+              timeInterval: 1000,
               distanceInterval: 0,
             },
             fix => {
@@ -1056,7 +1014,6 @@ function JourneySession({
           }
 
           const ticket = gate.ticket();
-
           setWalkingStatus(gate.status());
 
           if (ticket === null) {
@@ -1117,7 +1074,6 @@ function JourneySession({
                 ? 0
                 : value - lastReading;
 
-            // Always advance, even when steps are rejected.
             lastReading = value;
 
             if (
@@ -1142,9 +1098,7 @@ function JourneySession({
 
         if (!cancelled) {
           stopSensor();
-
           snapshot.current.isTracking = false;
-
           publish();
 
           setSensorError(
@@ -1170,8 +1124,6 @@ function JourneySession({
     appState,
   ]);
 
-  // Only verified foreground tracking increases active time.
-
   React.useEffect(() => {
     if (!isTracking) {
       return;
@@ -1187,7 +1139,6 @@ function JourneySession({
       }
 
       snapshot.current.secondsActive += 1;
-
       publish();
 
       if (snapshot.current.secondsActive % 5 === 0) {
@@ -1197,9 +1148,6 @@ function JourneySession({
 
     return () => clearInterval(timer);
   }, [isTracking]);
-
-  // Save when leaving, changing screens, or backgrounding.
-  // This screen does not implement background GPS tracking.
 
   React.useEffect(() => {
     const listener = AppState.addEventListener(
@@ -1252,9 +1200,7 @@ function JourneySession({
 
         runAction(async () => {
           await persistNow();
-
           allowNavigation.current = true;
-
           navigation.dispatch(event.data.action);
         });
       }
@@ -1275,7 +1221,6 @@ function JourneySession({
 
     busyRef.current = true;
     setBusy(true);
-
     stopSensor();
 
     try {
@@ -1377,10 +1322,7 @@ function JourneySession({
       return;
     }
 
-    const number = checkpointFor(
-      steps,
-      totalSteps
-    );
+    const number = checkpointFor(steps, totalSteps);
 
     if (!view.shownStories.includes(number)) {
       openCheckpointStory(number);
@@ -1408,7 +1350,6 @@ function JourneySession({
         shownStories: [],
       };
 
-      // Save an explicit zero so old progress cannot return.
       await AsyncStorage.setItem(
         `journeyStats_${id}`,
         JSON.stringify({
@@ -1420,7 +1361,6 @@ function JourneySession({
       await resetJourneyProgress(id);
       await persistNow();
 
-      // Keep reward and checkpoint claim ledgers.
       Alert.alert(
         "Journey Reset",
         "Progress was reset. Previously claimed rewards were kept. Tap Resume Tracking to walk again."
@@ -1440,7 +1380,6 @@ function JourneySession({
       );
 
       snapshot.current.isTracking = false;
-
       await persistNow();
     });
   }
@@ -1524,30 +1463,23 @@ function JourneySession({
         const reward =
           await completeJourneyReward(id);
 
-       if (reward?.awarded) {
-
-  earnedCoins = nonnegative(
-    reward.addedWCoins ??
-      reward.walletResult?.added ??
-      reward.reward?.wCoins
-  );
-
-} else if (reward?.alreadyClaimed) {
-
-  alreadyClaimed = true;
-
-} else if (reward?.requiresSignIn) {
-
-  throw new Error(
-    "Sign in to your Legathon account before claiming WCoin Journey rewards."
-  );
-
-} else {
-
-  throw new Error(
-    "The reward service did not confirm an award. Check your wallet before retrying."
-  );
-}
+        if (reward?.awarded) {
+          earnedCoins = nonnegative(
+            reward.addedWCoins ??
+              reward.walletResult?.added ??
+              reward.reward?.wCoins
+          );
+        } else if (reward?.alreadyClaimed) {
+          alreadyClaimed = true;
+        } else if (reward?.requiresSignIn) {
+          throw new Error(
+            "Sign in to your Legathon account before claiming WCoin Journey rewards."
+          );
+        } else {
+          throw new Error(
+            "The reward service did not confirm an award. Check your wallet before retrying."
+          );
+        }
 
         const points = await addPoints({
           id: `journey_${id}_complete`,
@@ -1635,8 +1567,6 @@ function JourneySession({
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      pointerEvents={busy ? "none" : "auto"}
     >
       <View style={styles.header}>
         <TouchableOpacity
@@ -1768,66 +1698,25 @@ function JourneySession({
         </Text>
       </View>
 
-      <ImageBackground
-        source={routeImage}
-        style={styles.routeCard}
-        imageStyle={styles.routeImage}
-      >
-        <View style={styles.routeOverlay}>
-          <View style={styles.routeProgressTrack}>
-            <View
-              style={[
-                styles.routeProgressFill,
-                {
-                  width: `${Math.min(progress, 100)}%`,
-                },
-              ]}
-            />
-          </View>
+           {routeImage != null ? (
+        <AlignedRouteArtwork
+          source={routeImage}
+          checkpoints={checkpoints}
+          progress={steps / totalSteps}
+          artworkPoints={currentJourney.routeArtworkPoints}
+        />
+      ) : (
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>
+            Route card unavailable
+          </Text>
 
-          <View
-            style={[
-              styles.movingShoe,
-              {
-                left: shoeLeft,
-              },
-            ]}
-          >
-            <Image
-              source={SHOE_ICON}
-              style={styles.movingShoeImage}
-            />
-          </View>
-
-          <View style={styles.checkpointTrack}>
-            {checkpoints.map((point, index) => (
-              <View
-                key={point.id}
-                style={[
-                  styles.checkpoint,
-                  {
-                    left: markerPositions[index],
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.checkCircle,
-                    point.complete &&
-                      styles.checkCircleComplete,
-                    point.active &&
-                      styles.checkCircleCurrent,
-                  ]}
-                >
-                  <Text style={styles.checkNumber}>
-                    {point.id === 5 ? "🏁" : point.id}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
+          <Text style={styles.subtitle}>
+            The route artwork for {routeTitle} has not
+            been connected yet.
+          </Text>
         </View>
-      </ImageBackground>
+      )}
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>
@@ -2030,6 +1919,221 @@ function JourneySession({
         </Text>
       </TouchableOpacity>
     </ScrollView>
+  );
+}
+
+// Coordinates are fractions of the full image.
+// x: horizontal position, 0 = left and 1 = right.
+// y: vertical position, 0 = top and 1 = bottom.
+//
+// These are starting positions for the five-shoe cards.
+// Individual journeys can override them using
+// routeArtworkPoints with exactly five { x, y } objects.
+const DEFAULT_ARTWORK_POINTS = [
+  { x: 0.13, y: 0.83 },
+  { x: 0.32, y: 0.83 },
+  { x: 0.50, y: 0.83 },
+  { x: 0.68, y: 0.83 },
+  { x: 0.87, y: 0.83 },
+];
+
+function AlignedRouteArtwork({
+  source,
+  checkpoints,
+  progress,
+  artworkPoints,
+}) {
+  const resolved = Image.resolveAssetSource(source);
+
+  const knownRatio =
+    resolved?.width > 0 && resolved?.height > 0
+      ? resolved.width / resolved.height
+      : null;
+
+  const uri = resolved?.uri;
+
+  const [remoteSize, setRemoteSize] = React.useState(null);
+  const [width, setWidth] = React.useState(0);
+
+  const aspectRatio =
+    knownRatio ||
+    (remoteSize?.uri === uri
+      ? remoteSize.ratio
+      : null) ||
+    1.5;
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    if (!knownRatio && uri) {
+      Image.getSize(
+        uri,
+        (imageWidth, imageHeight) => {
+          if (
+            !cancelled &&
+            imageWidth > 0 &&
+            imageHeight > 0
+          ) {
+            setRemoteSize({
+              uri,
+              ratio: imageWidth / imageHeight,
+            });
+          }
+        },
+        () => {}
+      );
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uri, knownRatio]);
+
+  const validPoints =
+    Array.isArray(artworkPoints) &&
+    artworkPoints.length === 5 &&
+    artworkPoints.every(
+      point =>
+        Number.isFinite(point?.x) &&
+        Number.isFinite(point?.y) &&
+        point.x >= 0 &&
+        point.x <= 1 &&
+        point.y >= 0 &&
+        point.y <= 1
+    );
+
+  const points = validPoints
+    ? artworkPoints
+    : DEFAULT_ARTWORK_POINTS;
+
+  const fraction = Math.max(
+    0,
+    Math.min(1, Number(progress) || 0)
+  );
+
+  const segment = Math.min(
+    3,
+    Math.floor(fraction * 4)
+  );
+
+  const t = fraction * 4 - segment;
+  const from = points[segment];
+  const to = points[segment + 1];
+
+  const shoe = {
+    x: from.x + (to.x - from.x) * t,
+    y: from.y + (to.y - from.y) * t,
+  };
+
+  const height = width / aspectRatio;
+
+  const markerSize = Math.max(
+    18,
+    Math.min(34, width * 0.055)
+  );
+
+  const shoeSize = markerSize * 0.9;
+
+  return (
+    <View
+      style={[
+        styles.routeCard,
+        { aspectRatio },
+      ]}
+      onLayout={event =>
+        setWidth(event.nativeEvent.layout.width)
+      }
+    >
+  <Image
+  source={source}
+  resizeMode="contain"
+  accessibilityLabel="Journey route artwork"
+  style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  }}
+/>
+
+      {width > 0 && (
+      <View
+  pointerEvents="none"
+  style={{
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  }}
+>
+          {checkpoints.map((point, index) => (
+            <View
+              key={point.id}
+              accessible
+              accessibilityLabel={
+                `Checkpoint ${point.id}: ${point.title}. ` +
+                (point.active
+                  ? "Current"
+                  : point.complete
+                    ? "Reached"
+                    : "Upcoming")
+              }
+              style={[
+                styles.checkCircle,
+                point.complete &&
+                  styles.checkCircleComplete,
+                point.active &&
+                  styles.checkCircleCurrent,
+                {
+                  position: "absolute",
+                  left:
+                    points[index].x * width -
+                    markerSize / 2,
+                  top:
+                    points[index].y * height -
+                    markerSize / 2,
+                  width: markerSize,
+                  height: markerSize,
+                  borderRadius: markerSize / 2,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.checkNumber,
+                  {
+                    fontSize: markerSize * 0.46,
+                  },
+                ]}
+                allowFontScaling={false}
+              >
+                {point.id === 5 ? "🏁" : point.id}
+              </Text>
+            </View>
+          ))}
+
+          <Image
+            source={SHOE_ICON}
+            resizeMode="contain"
+            style={{
+              position: "absolute",
+              width: shoeSize,
+              height: shoeSize,
+              left:
+                shoe.x * width -
+                shoeSize / 2,
+              top:
+                shoe.y * height -
+                markerSize / 2 -
+                shoeSize -
+                2,
+            }}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -2239,61 +2343,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
   },
+
+  // Height comes from the actual image aspect ratio.
   routeCard: {
-    height: 360,
-    borderRadius: 28,
+    width: "100%",
+    borderRadius: 18,
     overflow: "hidden",
     marginBottom: 18,
     backgroundColor: "#0E1A2B",
-    borderWidth: 1,
-    borderColor: "rgba(212,175,55,0.35)",
-  },
-  routeImage: {
-    resizeMode: "cover",
-  },
-  routeOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    padding: 18,
-    paddingBottom: 36,
-    backgroundColor: "rgba(0,0,0,0.25)",
-  },
-  routeProgressTrack: {
-    position: "absolute",
-    left: "5%",
-    right: "5%",
-    bottom: 130,
-    height: 8,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  routeProgressFill: {
-    height: "100%",
-    backgroundColor: "#D4AF37",
-    borderRadius: 10,
-  },
-  movingShoe: {
-    position: "absolute",
-    bottom: 118,
-    marginLeft: -14,
-    zIndex: 20,
-  },
-  movingShoeImage: {
-    width: 28,
-    height: 28,
-    resizeMode: "contain",
-  },
-  checkpointTrack: {
-    height: 70,
-    position: "relative",
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  checkpoint: {
-    position: "absolute",
-    top: 22,
-    marginLeft: -19,
   },
   checkCircle: {
     width: 38,

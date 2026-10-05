@@ -12,7 +12,31 @@ import {
 
 import { translate } from "../i18n/i18n";
 
-const WCOIN = require("../assets/wcoin.png");
+// ======================================================
+// LEGATHON CUSTOM MORE SCREEN ICONS
+// ======================================================
+
+const MORE_ICONS = {
+  profile: require("../assets/more-icons/profile.png"),
+  avatarProfile: require("../assets/more-icons/avatar-profile.png"),
+  passport: require("../assets/more-icons/passport.png"),
+
+  walkingAnalytics: require("../assets/more-icons/walking-analytics.png"),
+  walkingPace: require("../assets/more-icons/walking-pace.png"),
+  journeyPreference: require("../assets/more-icons/journey-preference.png"),
+  aiCoach: require("../assets/more-icons/ai.png"),
+  legathons: require("../assets/more-icons/legathon.png"),
+
+  community: require("../assets/more-icons/community.png"),
+  leaderboard: require("../assets/more-icons/leaderboard.png"),
+  hallOfLegends: require("../assets/more-icons/hall-of-legends.png"),
+
+  marketplace: require("../assets/more-icons/marketplace.png"),
+  wcoinWallet: require("../assets/more-icons/wcoin-wallet.png"),
+  subscription: require("../assets/more-icons/subscription.png"),
+
+  settings: require("../assets/more-icons/settings.png"),
+};
 
 export default function MoreScreen({
   language = "en",
@@ -45,14 +69,15 @@ export default function MoreScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* ==================================================
+            HEADER
+        ================================================== */}
+
         <Text style={styles.kicker}>
           LEGATHON WALK
         </Text>
 
-        <Text style={styles.title}>
-          {translate(language, "more")}
-        </Text>
-
+       
         <View style={styles.heroCard}>
           <Text style={styles.heroTitle}>
             YOUR LEGATHON HUB
@@ -65,11 +90,13 @@ export default function MoreScreen({
           </Text>
         </View>
 
-        <Section
-          title="LEGATHON IDENTITY"
-        >
+        {/* ==================================================
+            LEGATHON IDENTITY
+        ================================================== */}
+
+        <Section title="LEGATHON IDENTITY">
           <MenuItem
-            icon="👤"
+            image={MORE_ICONS.profile}
             title={translate(
               language,
               "profile"
@@ -78,7 +105,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="🧍"
+            image={MORE_ICONS.avatarProfile}
             title={translate(
               language,
               "avatarProfile"
@@ -87,7 +114,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="🛂"
+            image={MORE_ICONS.passport}
             title={translate(
               language,
               "passport"
@@ -96,6 +123,10 @@ export default function MoreScreen({
           />
         </Section>
 
+        {/* ==================================================
+            WALK TOOLS
+        ================================================== */}
+
         <Section
           title={translate(
             language,
@@ -103,7 +134,7 @@ export default function MoreScreen({
           )}
         >
           <MenuItem
-            icon="📊"
+            image={MORE_ICONS.walkingAnalytics}
             title={translate(
               language,
               "walkingAnalytics"
@@ -112,21 +143,19 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="🚶"
+            image={MORE_ICONS.walkingPace}
             title="Walking Pace & Function"
             onPress={goToWalkingFunction}
           />
 
           <MenuItem
-            icon="⚙️"
+            image={MORE_ICONS.journeyPreference}
             title="Journey Preferences"
-            onPress={
-              goToJourneyPreferences
-            }
+            onPress={goToJourneyPreferences}
           />
 
           <MenuItem
-            icon="🧠"
+            image={MORE_ICONS.aiCoach}
             title={translate(
               language,
               "aiCoach"
@@ -135,7 +164,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="🏃"
+            image={MORE_ICONS.legathons}
             title={translate(
               language,
               "legathons"
@@ -144,6 +173,10 @@ export default function MoreScreen({
           />
         </Section>
 
+        {/* ==================================================
+            COMMUNITY
+        ================================================== */}
+
         <Section
           title={translate(
             language,
@@ -151,7 +184,7 @@ export default function MoreScreen({
           )}
         >
           <MenuItem
-            icon="👥"
+            image={MORE_ICONS.community}
             title={translate(
               language,
               "community"
@@ -160,7 +193,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="🏆"
+            image={MORE_ICONS.leaderboard}
             title={translate(
               language,
               "leaderboard"
@@ -169,7 +202,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="👑"
+            image={MORE_ICONS.hallOfLegends}
             title={translate(
               language,
               "hallOfLegends"
@@ -178,6 +211,10 @@ export default function MoreScreen({
           />
         </Section>
 
+        {/* ==================================================
+            STORE & WALLET
+        ================================================== */}
+
         <Section
           title={translate(
             language,
@@ -185,7 +222,7 @@ export default function MoreScreen({
           )}
         >
           <MenuItem
-            icon="🛍️"
+            image={MORE_ICONS.marketplace}
             title={translate(
               language,
               "marketplace"
@@ -194,7 +231,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            image={WCOIN}
+            image={MORE_ICONS.wcoinWallet}
             title={translate(
               language,
               "wCoinWallet"
@@ -203,7 +240,7 @@ export default function MoreScreen({
           />
 
           <MenuItem
-            icon="⭐"
+            image={MORE_ICONS.subscription}
             title={translate(
               language,
               "subscription"
@@ -212,6 +249,10 @@ export default function MoreScreen({
           />
         </Section>
 
+        {/* ==================================================
+            APP
+        ================================================== */}
+
         <Section
           title={translate(
             language,
@@ -219,7 +260,7 @@ export default function MoreScreen({
           )}
         >
           <MenuItem
-            icon="⚙️"
+            image={MORE_ICONS.settings}
             title={translate(
               language,
               "settings"
@@ -233,6 +274,10 @@ export default function MoreScreen({
     </SafeAreaView>
   );
 }
+
+// ======================================================
+// SECTION
+// ======================================================
 
 function Section({
   title,
@@ -249,8 +294,11 @@ function Section({
   );
 }
 
+// ======================================================
+// MENU ITEM
+// ======================================================
+
 function MenuItem({
-  icon,
   image,
   title,
   onPress,
@@ -261,18 +309,18 @@ function MenuItem({
       onPress={onPress}
       activeOpacity={0.8}
     >
-      {image ? (
+      <View style={styles.iconContainer}>
         <Image
           source={image}
           style={styles.menuImage}
+          resizeMode="contain"
         />
-      ) : (
-        <Text style={styles.icon}>
-          {icon}
-        </Text>
-      )}
+      </View>
 
-      <Text style={styles.menuText}>
+      <Text
+        style={styles.menuText}
+        numberOfLines={2}
+      >
         {title}
       </Text>
 
@@ -282,6 +330,10 @@ function MenuItem({
     </TouchableOpacity>
   );
 }
+
+// ======================================================
+// STYLES
+// ======================================================
 
 const styles = StyleSheet.create({
   safe: {
@@ -307,12 +359,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  title: {
-    color: "#FFFFFF",
-    fontSize: 58,
-    fontWeight: "900",
-    marginBottom: 24,
-  },
+ 
 
   heroCard: {
     backgroundColor: "#0B182B",
@@ -354,23 +401,31 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: "#1E334A",
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+
     marginBottom: 14,
+
     flexDirection: "row",
     alignItems: "center",
+
+    minHeight: 104,
   },
 
-  icon: {
-    fontSize: 34,
-    width: 55,
+  // Holds every custom Legathon icon
+  iconContainer: {
+    width: 72,
+    height: 72,
+    marginRight: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
+  // Actual PNG
   menuImage: {
-    width: 38,
-    height: 38,
-    resizeMode: "contain",
-    marginRight: 17,
+    width: 72,
+    height: 72,
   },
 
   menuText: {
@@ -378,13 +433,14 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 25,
     fontWeight: "900",
+    lineHeight: 30,
   },
 
   arrow: {
     color: "#D4AF37",
     fontSize: 48,
     fontWeight: "900",
-    marginLeft: 12,
+    marginLeft: 10,
   },
 
   bottomSpace: {

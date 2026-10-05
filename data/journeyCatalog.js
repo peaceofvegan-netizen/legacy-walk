@@ -2391,24 +2391,25 @@ const rawJourneys = [
 
 
   createJourney({
-    id:
-      "world-peace",
-    title:
-      "World Peace Walk",
-    subtitle:
-      "Celebrate unity, compassion, and cooperation through a global community walking experience.",
-    category:
-      "Awareness Journeys",
-    country:
-      "Global",
-    location:
-      "Worldwide",
-    miles:
-      25,
-    difficulty:
-      DIFFICULTY.ADVANCED,
-  }),
+  id: "world-peace",
 
+  title: "World Peace Walk",
+
+  subtitle:
+    "Celebrate unity, compassion, and cooperation through a global community walking experience.",
+
+  category: "Awareness Journeys",
+
+  country: "Global",
+
+  location: "Worldwide",
+
+  miles: 25,
+
+  image: require("../assets/journeys/world-peace-walk.png"),
+
+  difficulty: DIFFICULTY.ADVANCED,
+}),
 
   // ==========================================================
   // HISTORIC CULTURES / CIVIL RIGHTS
