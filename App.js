@@ -14,8 +14,7 @@ import {
   Image,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   StripeProvider,
@@ -28,6 +27,7 @@ import {
 
 import {
   loadLanguage,
+  translate,
 } from "./i18n/i18n";
 
 import {
@@ -37,7 +37,6 @@ import {
 import {
   getWCoins,
 } from "./utils/wcoinStorage";
-
 
 // ============================================================
 // SCREENS
@@ -169,7 +168,6 @@ import WCoinWalletScreen
 import JourneyStoryScreen
   from "./screens/JourneyStoryScreen";
 
-
 // ============================================================
 // REVENUECAT
 // ============================================================
@@ -180,7 +178,6 @@ import {
   restoreRevenueCatPurchases,
 } from "./services/revenuecat";
 
-
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -188,12 +185,10 @@ import {
 const WCOIN_KEY =
   "wCoinBalance";
 
-
 const STRIPE_PUBLISHABLE_KEY =
   process.env
     .EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
   "";
-
 
 // ============================================================
 // NAV BUTTON
@@ -205,28 +200,14 @@ function NavButton({
   active,
   onPress,
 }) {
-
   return (
-
     <TouchableOpacity
-      style={
-        styles.navButton
-      }
-
-      onPress={
-        onPress
-      }
-
-      activeOpacity={
-        0.75
-      }
+      style={styles.navButton}
+      onPress={onPress}
+      activeOpacity={0.75}
     >
-
       <Image
-        source={
-          icon
-        }
-
+        source={icon}
         style={[
           styles.navIconImage,
 
@@ -234,7 +215,6 @@ function NavButton({
             styles.activeNavIcon,
         ]}
       />
-
 
       <Text
         style={[
@@ -244,22 +224,17 @@ function NavButton({
             styles.activeNavText,
         ]}
       >
-
         {label}
-
       </Text>
-
     </TouchableOpacity>
   );
 }
-
 
 // ============================================================
 // APP
 // ============================================================
 
 export default function App() {
-
   // ==========================================================
   // NAVIGATION
   // ==========================================================
@@ -271,7 +246,6 @@ export default function App() {
     useState(
       "home"
     );
-
 
   // ==========================================================
   // WALKING
@@ -285,10 +259,8 @@ export default function App() {
       0
     );
 
-
   const walkingData =
     useStepCounter();
-
 
   const [
     totalSteps,
@@ -297,7 +269,6 @@ export default function App() {
     useState(
       0
     );
-
 
   // ==========================================================
   // LANGUAGE
@@ -311,7 +282,6 @@ export default function App() {
       "en"
     );
 
-
   // ==========================================================
   // JOURNEYS
   // ==========================================================
@@ -324,7 +294,6 @@ export default function App() {
       null
     );
 
-
   const [
     selectedJourney,
     setSelectedJourney,
@@ -333,7 +302,6 @@ export default function App() {
       null
     );
 
-
   const [
     selectedStoryCheckpoint,
     setSelectedStoryCheckpoint,
@@ -341,7 +309,6 @@ export default function App() {
     useState(
       1
     );
-
 
   // ==========================================================
   // STORE
@@ -355,7 +322,6 @@ export default function App() {
       null
     );
 
-
   // ==========================================================
   // COMMUNITY
   // ==========================================================
@@ -367,7 +333,6 @@ export default function App() {
     useState(
       null
     );
-
 
   // ==========================================================
   // PASSPORT
@@ -381,7 +346,6 @@ export default function App() {
       null
     );
 
-
   // ==========================================================
   // AVATAR
   // ==========================================================
@@ -393,7 +357,6 @@ export default function App() {
     useState(
       null
     );
-
 
   // ==========================================================
   // SUBSCRIPTION
@@ -407,7 +370,6 @@ export default function App() {
       "free"
     );
 
-
   const [
     isPremium,
     setIsPremium,
@@ -416,7 +378,6 @@ export default function App() {
       false
     );
 
-
   const [
     selectedPlan,
     setSelectedPlan,
@@ -424,7 +385,6 @@ export default function App() {
     useState(
       null
     );
-
 
   // ==========================================================
   // WCOINS
@@ -438,7 +398,6 @@ export default function App() {
       0
     );
 
-
   // ==========================================================
   // MARATHON
   // ==========================================================
@@ -451,7 +410,6 @@ export default function App() {
       "nyc"
     );
 
-
   // ==========================================================
   // VERIFIED MEMBERSHIP
   // ==========================================================
@@ -461,7 +419,6 @@ export default function App() {
       (
         incomingPlan
       ) => {
-
         const value =
           String(
             incomingPlan ||
@@ -469,41 +426,26 @@ export default function App() {
           )
             .toLowerCase();
 
-
         const plan =
-
-          value ===
-            "elite"
-
+          value === "elite"
             ? "elite"
-
-            : value ===
-              "premium"
-
+            : value === "premium"
               ? "premium"
-
               : "free";
-
 
         setSubscriptionPlan(
           plan
         );
 
-
         setIsPremium(
-          plan ===
-            "premium" ||
-
-          plan ===
-            "elite"
+          plan === "premium" ||
+          plan === "elite"
         );
-
 
         return plan;
       },
       []
     );
-
 
   // ==========================================================
   // REFRESH VERIFIED MEMBERSHIP
@@ -512,28 +454,16 @@ export default function App() {
   const refreshVerifiedMembership =
     useCallback(
       async () => {
-
         try {
-
-          // RevenueCat identifies the customer
-          // using the current Supabase UUID.
-
           await configureRevenueCat();
-
 
           const result =
             await refreshRevenueCatMembership();
-
 
           console.log(
             "Membership refresh result:",
             result
           );
-
-
-          // --------------------------------------------------
-          // Prefer server-verified RevenueCat → Supabase result.
-          // --------------------------------------------------
 
           if (
             result
@@ -541,7 +471,6 @@ export default function App() {
               ?.synced ===
             true
           ) {
-
             return applyMembershipPlan(
               result
                 .serverSync
@@ -549,35 +478,24 @@ export default function App() {
             );
           }
 
-
-          // --------------------------------------------------
-          // RevenueCat fallback for app display.
-          // Server checkout still performs its own verification.
-          // --------------------------------------------------
-
           if (
             result?.plan
           ) {
-
             return applyMembershipPlan(
               result.plan
             );
           }
 
-
           return applyMembershipPlan(
             "free"
           );
-
         } catch (
           error
         ) {
-
           console.log(
             "Membership refresh error:",
             error
           );
-
 
           return applyMembershipPlan(
             "free"
@@ -589,7 +507,6 @@ export default function App() {
       ]
     );
 
-
   // ==========================================================
   // SECURE WCOIN BALANCE
   // ==========================================================
@@ -597,17 +514,13 @@ export default function App() {
   const refreshSecureWCoinBalance =
     useCallback(
       async () => {
-
         try {
-
           const balance =
             await getWCoins();
-
 
           const normalized =
             Math.max(
               0,
-
               Math.floor(
                 Number(
                   balance
@@ -615,23 +528,18 @@ export default function App() {
               )
             );
 
-
           setWCoinBalance(
             normalized
           );
 
-
           return normalized;
-
         } catch (
           error
         ) {
-
           console.log(
             "Secure WCoin refresh error:",
             error
           );
-
 
           return 0;
         }
@@ -639,30 +547,23 @@ export default function App() {
       []
     );
 
-
   // ==========================================================
   // LEGACY LOCAL WCOIN AWARD
-  //
-  // Retained because older reward screens may still call it.
-  // Merchandise purchases DO NOT use this function.
   // ==========================================================
 
   async function addWCoins(
     amount
   ) {
-
     const saved =
       await AsyncStorage
         .getItem(
           WCOIN_KEY
         );
 
-
     const current =
       Number(
         saved || 0
       );
-
 
     const updated =
       current +
@@ -670,33 +571,27 @@ export default function App() {
         amount || 0
       );
 
-
     await AsyncStorage
       .setItem(
         WCOIN_KEY,
-
         String(
           updated
         )
       );
 
-
     setWCoinBalance(
       updated
     );
-
 
     console.log(
       "Saved WCoins:",
       updated
     );
 
-
     alert(
       `W Coins now: ${updated}`
     );
   }
-
 
   // ==========================================================
   // JOURNEY REWARD FALLBACK
@@ -705,18 +600,14 @@ export default function App() {
   async function awardJourneyRewards(
     journey
   ) {
-
     if (
       !journey?.id
     ) {
-
       return false;
     }
 
-
     const rewardKey =
       `journeyRewarded_${journey.id}`;
-
 
     const alreadyRewarded =
       await AsyncStorage
@@ -724,20 +615,16 @@ export default function App() {
           rewardKey
         );
 
-
     if (
       alreadyRewarded ===
       "true"
     ) {
-
       alert(
         "Journey reward already claimed."
       );
 
-
       return false;
     }
-
 
     const points =
       Number(
@@ -746,7 +633,6 @@ export default function App() {
         0
       );
 
-
     const coins =
       Number(
         journey
@@ -754,13 +640,11 @@ export default function App() {
         0
       );
 
-
     const savedPoints =
       await AsyncStorage
         .getItem(
           "rewardPoints"
         );
-
 
     const updatedPoints =
       Number(
@@ -769,16 +653,13 @@ export default function App() {
       ) +
       points;
 
-
     await AsyncStorage
       .setItem(
         "rewardPoints",
-
         String(
           updatedPoints
         )
       );
-
 
     await AsyncStorage
       .setItem(
@@ -786,36 +667,29 @@ export default function App() {
         "true"
       );
 
-
     if (
       coins >
       0
     ) {
-
       await addWCoins(
         coins
       );
     }
 
-
     alert(
       `Journey Complete!\n+${points} Legathon Points\n+${coins} W Coins\nPassport Stamp Unlocked`
     );
-
 
     setSelectedPassport(
       journey
     );
 
-
     setActiveTab(
       "worldPassport"
     );
 
-
     return true;
   }
-
 
   // ==========================================================
   // GLOBAL STEP ROUTER
@@ -827,63 +701,49 @@ export default function App() {
         .currentState
     );
 
-
   const stepSyncRunningRef =
     useRef(
       false
     );
-
 
   const stepSyncTimerRef =
     useRef(
       null
     );
 
-
   const runGlobalStepSync =
     useCallback(
       async () => {
-
         if (
           stepSyncRunningRef
             .current
         ) {
-
           return;
         }
-
 
         stepSyncRunningRef
           .current =
           true;
 
-
         try {
-
           const available =
             await isStepTrackingAvailable();
-
 
           if (
             !available
           ) {
-
             return;
           }
-
 
           const result =
             await syncTodaySteps();
 
-
           if (
             __DEV__
           ) {
-
             console.log(
               "[GLOBAL STEP ROUTER]",
               {
-
                 delta:
                   result
                     ?.delta ??
@@ -903,22 +763,17 @@ export default function App() {
                   result
                     ?.synced ===
                   true,
-
               }
             );
           }
-
         } catch (
           error
         ) {
-
           console.log(
             "Global step router error:",
             error
           );
-
         } finally {
-
           stepSyncRunningRef
             .current =
             false;
@@ -927,22 +782,18 @@ export default function App() {
       []
     );
 
-
   // ==========================================================
   // INITIAL STEP SYNC
   // ==========================================================
 
   useEffect(
     () => {
-
       runGlobalStepSync();
-
     },
     [
       runGlobalStepSync,
     ]
   );
-
 
   // ==========================================================
   // APP-WIDE STEP SYNC
@@ -950,66 +801,51 @@ export default function App() {
 
   useEffect(
     () => {
-
       const startStepSync =
         () => {
-
           if (
             stepSyncTimerRef
               .current
           ) {
-
             return;
           }
 
-
           stepSyncTimerRef
             .current =
-
             setInterval(
               () => {
-
                 runGlobalStepSync();
-
               },
               5000
             );
         };
 
-
       const stopStepSync =
         () => {
-
           if (
             !stepSyncTimerRef
               .current
           ) {
-
             return;
           }
-
 
           clearInterval(
             stepSyncTimerRef
               .current
           );
 
-
           stepSyncTimerRef
             .current =
             null;
         };
-
 
       if (
         AppState
           .currentState ===
         "active"
       ) {
-
         startStepSync();
       }
-
 
       const subscription =
         AppState
@@ -1019,29 +855,24 @@ export default function App() {
             (
               nextState
             ) => {
-
               const previousState =
                 appStateRef
                   .current;
-
 
               appStateRef
                 .current =
                 nextState;
 
-
               if (
                 nextState ===
                 "active"
               ) {
-
                 runGlobalStepSync();
 
                 startStepSync();
 
                 return;
               }
-
 
               if (
                 previousState ===
@@ -1055,7 +886,6 @@ export default function App() {
                     "background"
                 )
               ) {
-
                 runGlobalStepSync();
 
                 stopStepSync();
@@ -1063,21 +893,17 @@ export default function App() {
             }
           );
 
-
       return () => {
-
         stopStepSync();
 
         subscription
           .remove();
       };
-
     },
     [
       runGlobalStepSync,
     ]
   );
-
 
   // ==========================================================
   // LOAD LANGUAGE
@@ -1085,28 +911,21 @@ export default function App() {
 
   useEffect(
     () => {
-
       async function initLanguage() {
-
         try {
-
           const savedLanguage =
             await loadLanguage();
-
 
           if (
             savedLanguage
           ) {
-
             setLanguage(
               savedLanguage
             );
           }
-
         } catch (
           error
         ) {
-
           console.log(
             "Language load error:",
             error
@@ -1114,13 +933,10 @@ export default function App() {
         }
       }
 
-
       initLanguage();
-
     },
     []
   );
-
 
   // ==========================================================
   // LOAD VERIFIED MEMBERSHIP WHEN APP OPENS
@@ -1128,40 +944,30 @@ export default function App() {
 
   useEffect(
     () => {
-
       let mounted =
         true;
 
-
       async function loadMembership() {
-
         if (
           !mounted
         ) {
-
           return;
         }
-
 
         await refreshVerifiedMembership();
       }
 
-
       loadMembership();
 
-
       return () => {
-
         mounted =
           false;
       };
-
     },
     [
       refreshVerifiedMembership,
     ]
   );
-
 
   // ==========================================================
   // REFRESH MEMBERSHIP WHEN APP RETURNS
@@ -1169,7 +975,6 @@ export default function App() {
 
   useEffect(
     () => {
-
       const subscription =
         AppState
           .addEventListener(
@@ -1178,30 +983,24 @@ export default function App() {
             (
               nextState
             ) => {
-
               if (
                 nextState ===
                 "active"
               ) {
-
                 refreshVerifiedMembership();
               }
             }
           );
 
-
       return () => {
-
         subscription
           .remove();
       };
-
     },
     [
       refreshVerifiedMembership,
     ]
   );
-
 
   // ==========================================================
   // LOAD WCOINS
@@ -1209,15 +1008,12 @@ export default function App() {
 
   useEffect(
     () => {
-
       refreshSecureWCoinBalance();
-
     },
     [
       refreshSecureWCoinBalance,
     ]
   );
-
 
   // ==========================================================
   // REFRESH WCOINS WHEN APP RETURNS
@@ -1225,7 +1021,6 @@ export default function App() {
 
   useEffect(
     () => {
-
       const subscription =
         AppState
           .addEventListener(
@@ -1234,30 +1029,24 @@ export default function App() {
             (
               nextState
             ) => {
-
               if (
                 nextState ===
                 "active"
               ) {
-
                 refreshSecureWCoinBalance();
               }
             }
           );
 
-
       return () => {
-
         subscription
           .remove();
       };
-
     },
     [
       refreshSecureWCoinBalance,
     ]
   );
-
 
   // ==========================================================
   // LOAD LAST JOURNEY
@@ -1265,42 +1054,33 @@ export default function App() {
 
   useEffect(
     () => {
-
       async function loadLastJourney() {
-
         try {
-
           const saved =
             await AsyncStorage
               .getItem(
                 "lastJourney"
               );
 
-
           if (
             saved
           ) {
-
             const journey =
               JSON.parse(
                 saved
               );
 
-
             setLastJourney(
               journey
             );
-
 
             setSelectedJourney(
               journey
             );
           }
-
         } catch (
           error
         ) {
-
           console.log(
             "Last journey load error:",
             error
@@ -1308,13 +1088,10 @@ export default function App() {
         }
       }
 
-
       loadLastJourney();
-
     },
     []
   );
-
 
   // ==========================================================
   // NAVIGATION HELPERS
@@ -1322,36 +1099,29 @@ export default function App() {
 
   const goHome =
     () => {
-
       setActiveTab(
         "home"
       );
     };
 
-
   const goMore =
     () => {
-
       setActiveTab(
         "more"
       );
     };
 
-
   const openJourneyDetail =
     async (
       journey
     ) => {
-
       setSelectedJourney(
         journey
       );
 
-
       setLastJourney(
         journey
       );
-
 
       await AsyncStorage
         .setItem(
@@ -1361,28 +1131,23 @@ export default function App() {
             journey
           )
         );
-
 
       setActiveTab(
         "journeyDetail"
       );
     };
 
-
   const openGPSJourneyMap =
     async (
       journey
     ) => {
-
       setSelectedJourney(
         journey
       );
 
-
       setLastJourney(
         journey
       );
-
 
       await AsyncStorage
         .setItem(
@@ -1393,89 +1158,71 @@ export default function App() {
           )
         );
 
-
       setActiveTab(
         "journeyMap"
       );
     };
 
-
   const openStoreItemDetail =
     (
       item
     ) => {
-
       setSelectedStoreItem(
         item
       );
-
 
       setActiveTab(
         "storeItemDetail"
       );
     };
 
-
   const goToPurchaseConfirmation =
     (
       item
     ) => {
-
       setSelectedStoreItem(
         item
       );
-
 
       setActiveTab(
         "purchaseConfirmation"
       );
     };
 
-
   // ==========================================================
   // RESTORE REVENUECAT PURCHASES
   // ==========================================================
 
   async function handleRestorePurchases() {
-
     try {
-
       const restoredPlan =
         await restoreRevenueCatPurchases();
-
 
       const plan =
         applyMembershipPlan(
           restoredPlan
         );
 
-
       await refreshVerifiedMembership();
 
-
       return plan;
-
     } catch (
       error
     ) {
-
       console.log(
         "Restore purchases error:",
         error
       );
 
-
       return "free";
     }
   }
-
 
   // ==========================================================
   // SCREEN ROUTER
   // ==========================================================
 
   let screen;
-
 
   // ==========================================================
   // HOME
@@ -1485,13 +1232,9 @@ export default function App() {
     activeTab ===
     "home"
   ) {
-
     screen = (
-
       <WalkingDashboardScreen
-        language={
-          language
-        }
+        language={language}
 
         currentAvatar={
           equippedAvatar
@@ -1508,22 +1251,17 @@ export default function App() {
         }
 
         goToGPSJourneyMap={() => {
-
           const journeyToOpen =
             lastJourney ||
             selectedJourney;
 
-
           if (
             journeyToOpen
           ) {
-
             openGPSJourneyMap(
               journeyToOpen
             );
-
           } else {
-
             setActiveTab(
               "journeys"
             );
@@ -1560,10 +1298,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // JOURNEYS
@@ -1573,13 +1309,9 @@ export default function App() {
     activeTab ===
     "journeys"
   ) {
-
     screen = (
-
       <JourneysScreen
-        language={
-          language
-        }
+        language={language}
 
         activeJourney={
           selectedJourney
@@ -1611,10 +1343,8 @@ export default function App() {
           subscriptionPlan
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // JOURNEY DETAIL
@@ -1624,10 +1354,10 @@ export default function App() {
     activeTab ===
     "journeyDetail"
   ) {
-
     screen = (
-
       <JourneyDetailScreen
+        language={language}
+
         journey={
           selectedJourney
         }
@@ -1641,9 +1371,7 @@ export default function App() {
         startJourney={(
           journey
         ) => {
-
           const requiredPlan =
-
             journey?.accessLevel ||
 
             (
@@ -1652,7 +1380,6 @@ export default function App() {
                 : "free"
             );
 
-
           const currentPlan =
             String(
               subscriptionPlan ||
@@ -1660,9 +1387,7 @@ export default function App() {
             )
               .toLowerCase();
 
-
           const canStart =
-
             requiredPlan ===
               "free" ||
 
@@ -1687,34 +1412,27 @@ export default function App() {
                 "elite"
             );
 
-
           if (
             !canStart
           ) {
-
             setSelectedJourney(
               journey
             );
-
 
             setActiveTab(
               "subscription"
             );
 
-
             return;
           }
-
 
           setSelectedJourney(
             journey
           );
 
-
           setLastJourney(
             journey
           );
-
 
           setActiveTab(
             "journeyMap"
@@ -1735,10 +1453,8 @@ export default function App() {
           lifetimeSteps
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // SUBSCRIPTION CHECKOUT
@@ -1748,10 +1464,10 @@ export default function App() {
     activeTab ===
     "subscriptionCheckout"
   ) {
-
     screen = (
-
       <SubscriptionCheckoutScreen
+        language={language}
+
         selectedPlan={
           selectedPlan
         }
@@ -1770,14 +1486,11 @@ export default function App() {
           async (
             plan
           ) => {
-
             applyMembershipPlan(
               plan
             );
 
-
             await refreshVerifiedMembership();
-
 
             setActiveTab(
               "home"
@@ -1785,10 +1498,8 @@ export default function App() {
           }
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // MEAL PLANNER
@@ -1798,13 +1509,9 @@ export default function App() {
     activeTab ===
     "mealPlanner"
   ) {
-
     screen = (
-
       <MealPlannerScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={() =>
           setActiveTab(
@@ -1812,10 +1519,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // GPS JOURNEY MAP
@@ -1825,9 +1530,7 @@ export default function App() {
     activeTab ===
     "journeyMap"
   ) {
-
     const journeyObject =
-
       typeof selectedJourney ===
         "object" &&
       selectedJourney
@@ -1841,7 +1544,6 @@ export default function App() {
           ? lastJourney
 
           : {
-
               id:
                 selectedJourney ||
                 lastJourney ||
@@ -1853,13 +1555,9 @@ export default function App() {
                 "Legathon Journey",
             };
 
-
     screen = (
-
       <GPSJourneyMapScreen
-        language={
-          language
-        }
+        language={language}
 
         selectedJourney={
           journeyObject
@@ -1892,7 +1590,6 @@ export default function App() {
         goToStory={(
           checkpointNumber
         ) => {
-
           setSelectedStoryCheckpoint(
             Number(
               checkpointNumber ||
@@ -1900,16 +1597,13 @@ export default function App() {
             )
           );
 
-
           setActiveTab(
             "journeyStory"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // JOURNEY PREFERENCES
@@ -1919,10 +1613,10 @@ export default function App() {
     activeTab ===
     "journeyPreferences"
   ) {
-
     screen = (
-
       <JourneyPreferencesScreen
+        language={language}
+
         goToSummary={() =>
           setActiveTab(
             "personalizationSummary"
@@ -1935,10 +1629,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PERSONALIZATION SUMMARY
@@ -1948,10 +1640,10 @@ export default function App() {
     activeTab ===
     "personalizationSummary"
   ) {
-
     screen = (
-
       <PersonalizationSummaryScreen
+        language={language}
+
         startLegacy={() =>
           setActiveTab(
             "journeys"
@@ -1964,10 +1656,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // REWARDS
@@ -1977,13 +1667,9 @@ export default function App() {
     activeTab ===
     "rewards"
   ) {
-
     screen = (
-
       <RewardsScreen
-        language={
-          language
-        }
+        language={language}
 
         wCoinBalance={
           wCoinBalance
@@ -1993,10 +1679,8 @@ export default function App() {
           addWCoins
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // AVATAR CENTER
@@ -2006,22 +1690,16 @@ export default function App() {
     activeTab ===
     "avatarCenter"
   ) {
-
     screen = (
-
       <AvatarCenterScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goHome
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // MORE
@@ -2031,13 +1709,9 @@ export default function App() {
     activeTab ===
     "more"
   ) {
-
     screen = (
-
       <MoreScreen
-        language={
-          language
-        }
+        language={language}
 
         goToProfile={() =>
           setActiveTab(
@@ -2200,10 +1874,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PASSPORT
@@ -2213,13 +1885,9 @@ export default function App() {
     activeTab ===
     "passport"
   ) {
-
     screen = (
-
       <PassportScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
@@ -2231,10 +1899,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PASSPORT DETAIL
@@ -2244,10 +1910,10 @@ export default function App() {
     activeTab ===
     "passportDetail"
   ) {
-
     screen = (
-
       <PassportDetailScreen
+        language={language}
+
         passportId={
           selectedPassport
         }
@@ -2264,10 +1930,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // CERTIFICATE
@@ -2277,22 +1941,16 @@ export default function App() {
     activeTab ===
     "certificate"
   ) {
-
     screen = (
-
       <CertificateScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PROFILE
@@ -2302,13 +1960,9 @@ export default function App() {
     activeTab ===
     "profile"
   ) {
-
     screen = (
-
       <ProfileScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
@@ -2317,21 +1971,17 @@ export default function App() {
         openPassport={(
           passportId
         ) => {
-
           setSelectedPassport(
             passportId
           );
-
 
           setActiveTab(
             "passportDetail"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // WCOIN WALLET
@@ -2341,13 +1991,9 @@ export default function App() {
     activeTab ===
     "wCoinWallet"
   ) {
-
     screen = (
-
       <WCoinWalletScreen
-        language={
-          language
-        }
+        language={language}
 
         wCoinBalance={
           wCoinBalance
@@ -2357,10 +2003,8 @@ export default function App() {
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // SUBSCRIPTIONS
@@ -2370,13 +2014,9 @@ export default function App() {
     activeTab ===
     "subscription"
   ) {
-
     screen = (
-
       <SubscriptionScreen
-        language={
-          language
-        }
+        language={language}
 
         subscriptionPlan={
           subscriptionPlan
@@ -2393,11 +2033,9 @@ export default function App() {
         goToPaywall={(
           plan
         ) => {
-
           setSelectedPlan(
             plan
           );
-
 
           setActiveTab(
             "subscriptionCheckout"
@@ -2414,10 +2052,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // HALL OF LEGENDS
@@ -2427,22 +2063,16 @@ export default function App() {
     activeTab ===
     "hallOfLegends"
   ) {
-
     screen = (
-
       <HallOfLegendsScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // WALKING ANALYTICS
@@ -2452,22 +2082,16 @@ export default function App() {
     activeTab ===
     "walkingAnalytics"
   ) {
-
     screen = (
-
       <WalkingAnalyticsScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // WALKING FUNCTION
@@ -2477,10 +2101,10 @@ export default function App() {
     activeTab ===
     "walkingFunction"
   ) {
-
     screen = (
-
       <WalkingFunctionScreen
+        language={language}
+
         todaySteps={
           walkingData.steps
         }
@@ -2551,10 +2175,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // AI WELLNESS
@@ -2564,29 +2186,25 @@ export default function App() {
     activeTab ===
     "aiCoach"
   ) {
-
     screen = (
-
       <AIWellnessMasterScreen
+        language={language}
+
         goToGPSJourneyMap={(
           params
         ) => {
-
           const journey =
             params?.journey ||
             params ||
             null;
 
-
           if (
             journey
           ) {
-
             setSelectedJourney(
               journey
             );
           }
-
 
           setActiveTab(
             "journeyMap"
@@ -2641,10 +2259,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // COMMUNITY
@@ -2654,13 +2270,9 @@ export default function App() {
     activeTab ===
     "community"
   ) {
-
     screen = (
-
       <CommunityScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
@@ -2675,21 +2287,17 @@ export default function App() {
         goToComments={(
           post
         ) => {
-
           setSelectedCommunityPost(
             post
           );
-
 
           setActiveTab(
             "communityComments"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // COMMUNITY COMMENTS
@@ -2699,13 +2307,9 @@ export default function App() {
     activeTab ===
     "communityComments"
   ) {
-
     screen = (
-
       <CommunityCommentsScreen
-        language={
-          language
-        }
+        language={language}
 
         post={
           selectedCommunityPost
@@ -2717,10 +2321,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // LEADERBOARD
@@ -2730,22 +2332,16 @@ export default function App() {
     activeTab ===
     "leaderboard"
   ) {
-
     screen = (
-
       <LeaderboardScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // DAILY CHALLENGE
@@ -2755,22 +2351,16 @@ export default function App() {
     activeTab ===
     "dailyChallenge"
   ) {
-
     screen = (
-
       <DailyChallengeScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // BREATHING
@@ -2780,13 +2370,9 @@ export default function App() {
     activeTab ===
     "breathing"
   ) {
-
     screen = (
-
       <BreathingScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={() =>
           setActiveTab(
@@ -2794,10 +2380,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // BREATHING ANALYTICS
@@ -2807,22 +2391,16 @@ export default function App() {
     activeTab ===
     "breathingAnalytics"
   ) {
-
     screen = (
-
       <BreathingAnalyticsScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // HYDRATION
@@ -2832,10 +2410,10 @@ export default function App() {
     activeTab ===
     "hydration"
   ) {
-
     screen = (
-
       <HydrationCoachScreen
+        language={language}
+
         goBack={() =>
           setActiveTab(
             "recovery"
@@ -2854,10 +2432,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // SLEEP
@@ -2867,10 +2443,10 @@ export default function App() {
     activeTab ===
     "sleep"
   ) {
-
     screen = (
-
       <SleepCoachScreen
+        language={language}
+
         goBack={() =>
           setActiveTab(
             "recovery"
@@ -2895,10 +2471,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // RECOVERY
@@ -2908,10 +2482,10 @@ export default function App() {
     activeTab ===
     "recovery"
   ) {
-
     screen = (
-
       <RecoveryCoachScreen
+        language={language}
+
         goBack={() =>
           setActiveTab(
             "aiConversation"
@@ -2942,10 +2516,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // AI CONVERSATION
@@ -2955,10 +2527,10 @@ export default function App() {
     activeTab ===
     "aiConversation"
   ) {
-
     screen = (
-
       <AIConversationScreen
+        language={language}
+
         goBack={() =>
           setActiveTab(
             "aiCoach"
@@ -3008,7 +2580,6 @@ export default function App() {
         }
 
         wellness={{
-
           steps:
             Number(
               walkingData
@@ -3049,13 +2620,10 @@ export default function App() {
             selectedJourney
               ?.currentCheckpoint ||
             "",
-
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // PHYSICAL MERCH STORE
@@ -3065,13 +2633,9 @@ export default function App() {
     activeTab ===
     "physicalMerch"
   ) {
-
     screen = (
-
       <PhysicalMerchStoreScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={() =>
           setActiveTab(
@@ -3095,10 +2659,8 @@ export default function App() {
           lifetimeSteps
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // STORE ITEM DETAIL
@@ -3108,13 +2670,9 @@ export default function App() {
     activeTab ===
     "storeItemDetail"
   ) {
-
     screen = (
-
       <StoreItemDetailScreen
-        language={
-          language
-        }
+        language={language}
 
         item={
           selectedStoreItem
@@ -3130,10 +2688,8 @@ export default function App() {
           goToPurchaseConfirmation
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PURCHASE CONFIRMATION / STRIPE
@@ -3143,13 +2699,9 @@ export default function App() {
     activeTab ===
     "purchaseConfirmation"
   ) {
-
     screen = (
-
       <PurchaseConfirmationScreen
-        language={
-          language
-        }
+        language={language}
 
         item={
           selectedStoreItem
@@ -3185,10 +2737,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // JOURNEY STORY
@@ -3198,16 +2748,13 @@ export default function App() {
     activeTab ===
     "journeyStory"
   ) {
-
     screen = (
-
       <JourneyStoryScreen
+        language={language}
+
         route={{
-
           params: {
-
             journey:
-
               typeof selectedJourney ===
                 "object" &&
               selectedJourney
@@ -3221,7 +2768,6 @@ export default function App() {
                   ? lastJourney
 
                   : {
-
                       id:
                         selectedJourney ||
                         lastJourney ||
@@ -3230,7 +2776,6 @@ export default function App() {
 
             checkpoint:
               selectedStoryCheckpoint,
-
           },
         }}
 
@@ -3251,9 +2796,7 @@ export default function App() {
         goToProgress={(
           journey
         ) => {
-
           const journeyToContinue =
-
             journey &&
             typeof journey ===
               "object"
@@ -3274,31 +2817,25 @@ export default function App() {
 
                   : null;
 
-
           if (
             journeyToContinue
           ) {
-
             setSelectedJourney(
               journeyToContinue
             );
-
 
             setLastJourney(
               journeyToContinue
             );
           }
 
-
           setActiveTab(
             "journeyMap"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // AVATAR PROFILE
@@ -3308,13 +2845,9 @@ export default function App() {
     activeTab ===
     "avatarProfile"
   ) {
-
     screen = (
-
       <AvatarProfileScreen
-        language={
-          language
-        }
+        language={language}
 
         currentAvatar={
           equippedAvatar
@@ -3340,10 +2873,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // WORLD PASSPORT
@@ -3353,13 +2884,9 @@ export default function App() {
     activeTab ===
     "worldPassport"
   ) {
-
     screen = (
-
       <PassportScreen
-        language={
-          language
-        }
+        language={language}
 
         selectedPassport={
           selectedPassport
@@ -3377,10 +2904,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // LEGATHONS
@@ -3390,13 +2915,9 @@ export default function App() {
     activeTab ===
     "legathons"
   ) {
-
     screen = (
-
       <MarathonScreen
-        language={
-          language
-        }
+        language={language}
 
         goBack={
           goMore
@@ -3405,21 +2926,17 @@ export default function App() {
         goToWorldMarathonDetail={(
           marathonId
         ) => {
-
           setSelectedMarathonId(
             marathonId
           );
-
 
           setActiveTab(
             "worldMarathonDetail"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // WORLD MARATHON DETAIL
@@ -3429,10 +2946,10 @@ export default function App() {
     activeTab ===
     "worldMarathonDetail"
   ) {
-
     screen = (
-
       <WorldMarathonDetailScreen
+        language={language}
+
         marathonId={
           selectedMarathonId
         }
@@ -3446,13 +2963,11 @@ export default function App() {
         goToCertificate={(
           params
         ) => {
-
           setSelectedMarathonId(
             params
               ?.marathonId ||
             selectedMarathonId
           );
-
 
           setActiveTab(
             "certificate"
@@ -3462,23 +2977,19 @@ export default function App() {
         goToPassport={(
           params
         ) => {
-
           setSelectedMarathonId(
             params
               ?.marathonId ||
             selectedMarathonId
           );
 
-
           setActiveTab(
             "worldPassport"
           );
         }}
       />
-
     );
   }
-
 
   // ==========================================================
   // LANGUAGE
@@ -3488,9 +2999,7 @@ export default function App() {
     activeTab ===
     "language"
   ) {
-
     screen = (
-
       <LanguageSelectionScreen
         language={
           language
@@ -3504,10 +3013,8 @@ export default function App() {
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // SETTINGS
@@ -3517,9 +3024,7 @@ export default function App() {
     activeTab ===
     "settings"
   ) {
-
     screen = (
-
       <SettingsScreen
         language={
           language
@@ -3547,10 +3052,8 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // PRIVACY
@@ -3560,9 +3063,7 @@ export default function App() {
     activeTab ===
     "privacyPolicy"
   ) {
-
     screen = (
-
       <PrivacyPolicyScreen
         language={
           language
@@ -3572,10 +3073,8 @@ export default function App() {
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // ABOUT
@@ -3585,9 +3084,7 @@ export default function App() {
     activeTab ===
     "about"
   ) {
-
     screen = (
-
       <AboutScreen
         language={
           language
@@ -3597,19 +3094,15 @@ export default function App() {
           goMore
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // FALLBACK HOME
   // ==========================================================
 
   else {
-
     screen = (
-
       <WalkingDashboardScreen
         language={
           language
@@ -3665,48 +3158,41 @@ export default function App() {
           )
         }
       />
-
     );
   }
-
 
   // ==========================================================
   // MAIN APP LAYOUT
   // ==========================================================
 
   const appLayout = (
-
     <View
       style={
         styles.app
       }
     >
-
       <View
         style={
           styles.screen
         }
       >
-
         {screen}
-
       </View>
-
 
       <View
         style={
           styles.bottomNav
         }
       >
-
         <NavButton
-          icon={
-            require(
-              "./assets/legathon/icons/legacyhome.png"
-            )
-          }
+          icon={require(
+            "./assets/legathon/icons/legacyhome.png"
+          )}
 
-          label="Home"
+          label={translate(
+            language,
+            "home"
+          )}
 
           active={
             activeTab ===
@@ -3720,15 +3206,15 @@ export default function App() {
           }
         />
 
-
         <NavButton
-          icon={
-            require(
-              "./assets/legathon/icons/passporthome.png"
-            )
-          }
+          icon={require(
+            "./assets/legathon/icons/passporthome.png"
+          )}
 
-          label="Journeys"
+          label={translate(
+            language,
+            "journeys"
+          )}
 
           active={
             activeTab ===
@@ -3742,15 +3228,15 @@ export default function App() {
           }
         />
 
-
         <NavButton
-          icon={
-            require(
-              "./assets/legathon/icons/coin.png"
-            )
-          }
+          icon={require(
+            "./assets/legathon/icons/coin.png"
+          )}
 
-          label="Rewards"
+          label={translate(
+            language,
+            "rewards"
+          )}
 
           active={
             activeTab ===
@@ -3764,15 +3250,15 @@ export default function App() {
           }
         />
 
-
         <NavButton
-          icon={
-            require(
-              "./assets/legathon/icons/morehome.png"
-            )
-          }
+          icon={require(
+            "./assets/legathon/icons/morehome.png"
+          )}
 
-          label="More"
+          label={translate(
+            language,
+            "more"
+          )}
 
           active={
             activeTab ===
@@ -3785,12 +3271,9 @@ export default function App() {
             )
           }
         />
-
       </View>
-
     </View>
   );
-
 
   // ==========================================================
   // STRIPE PROVIDER
@@ -3799,35 +3282,27 @@ export default function App() {
   if (
     !STRIPE_PUBLISHABLE_KEY
   ) {
-
     if (
       __DEV__
     ) {
-
       console.warn(
         "Stripe publishable key is missing. Add EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env file."
       );
     }
 
-
     return appLayout;
   }
 
-
   return (
-
     <StripeProvider
       publishableKey={
         STRIPE_PUBLISHABLE_KEY
       }
     >
-
       {appLayout}
-
     </StripeProvider>
   );
 }
-
 
 // ============================================================
 // STYLES
@@ -3835,48 +3310,27 @@ export default function App() {
 
 const styles =
   StyleSheet.create({
-
     app: {
-
-      flex:
-        1,
-
+      flex: 1,
       backgroundColor:
         "#020611",
-
     },
-
 
     screen: {
-
-      flex:
-        1,
-
+      flex: 1,
       backgroundColor:
         "#020611",
-
-      paddingBottom:
-        98,
-
+      paddingBottom: 98,
     },
 
-
     bottomNav: {
+      position: "absolute",
 
-      position:
-        "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
 
-      left:
-        0,
-
-      right:
-        0,
-
-      bottom:
-        0,
-
-      height:
-        98,
+      height: 98,
 
       backgroundColor:
         "#03142D",
@@ -3890,14 +3344,10 @@ const styles =
       justifyContent:
         "space-around",
 
-      paddingTop:
-        10,
+      paddingTop: 10,
+      paddingBottom: 24,
 
-      paddingBottom:
-        24,
-
-      borderTopWidth:
-        1,
+      borderTopWidth: 1,
 
       borderTopColor:
         "rgba(255, 215, 90, 0.55)",
@@ -3906,13 +3356,8 @@ const styles =
         "#FFD75A",
 
       shadowOffset: {
-
-        width:
-          0,
-
-        height:
-          -4,
-
+        width: 0,
+        height: -4,
       },
 
       shadowOpacity:
@@ -3926,14 +3371,10 @@ const styles =
 
       zIndex:
         999,
-
     },
 
-
     navButton: {
-
-      flex:
-        1,
+      flex: 1,
 
       alignItems:
         "center",
@@ -3946,43 +3387,32 @@ const styles =
 
       marginHorizontal:
         2,
+
       borderRadius:
         18,
-
     },
 
-
     navIconImage: {
-
-      width:
-        42,
-
-      height:
-        42,
+      width: 42,
+      height: 42,
 
       resizeMode:
         "contain",
 
       marginBottom:
         3,
-
     },
 
-
     activeNavIcon: {
-
       transform: [
         {
           scale:
             1.16,
         },
       ],
-
     },
 
-
     navText: {
-
       color:
         "#A8B6D4",
 
@@ -3991,12 +3421,9 @@ const styles =
 
       fontWeight:
         "800",
-
     },
 
-
     activeNavText: {
-
       color:
         "#FFD75A",
 
@@ -4004,18 +3431,11 @@ const styles =
         "#FFD75A",
 
       textShadowOffset: {
-
-        width:
-          0,
-
-        height:
-          0,
-
+        width: 0,
+        height: 0,
       },
 
       textShadowRadius:
         8,
-
     },
-
   });

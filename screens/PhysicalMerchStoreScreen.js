@@ -17,8 +17,6 @@ import {
   SafeAreaView,
 } from "react-native";
 
-
-
 import {
   getWCoins,
 } from "../utils/wcoinStorage";
@@ -30,6 +28,7 @@ import {
 
 // ============================================================
 // LEGATHON WALK — PHYSICAL MERCH STORE
+// MULTILINGUAL
 // ============================================================
 
 const WCOIN =
@@ -41,6 +40,433 @@ const MAIN_CATEGORIES = [
   "Womens",
   "Accessories",
 ];
+
+
+// ============================================================
+// TRANSLATIONS
+// ============================================================
+
+const TEXT = {
+  en: {
+    back: "Back",
+    storeKicker: "LEGATHON WALK STORE",
+    officialStore: "Official Store",
+    storeSubtitle:
+      "Premium apparel, accessories, and exclusive Legathon Walk gear.",
+
+    wCoinBalance: "W COIN BALANCE",
+    walletSubtitle:
+      "Use W Coins toward eligible Legathon gear and merchandise.",
+
+    lifetimeProgress:
+      "LIFETIME WALKING PROGRESS",
+    lifetimeSteps: "Lifetime Steps",
+
+    mens: "Men",
+    womens: "Women",
+    accessories: "Accessories",
+
+    mensCollection: "Men's Collection",
+    womensCollection: "Women's Collection",
+    accessoriesCollection: "Accessories",
+
+    locked: "LOCKED",
+    unlockAt: "UNLOCK AT",
+    steps: "steps",
+
+    wCoinsAvailable: "W Coins available",
+    moreWCoinsNeeded: "More W Coins needed",
+
+    buyRedeem: "Buy / Redeem",
+    lockedButton: "Locked",
+
+    gear: "Gear",
+    legathonItem: "Legathon Item",
+  },
+
+
+  es: {
+    back: "Atrás",
+    storeKicker: "TIENDA LEGATHON WALK",
+    officialStore: "Tienda Oficial",
+    storeSubtitle:
+      "Ropa premium, accesorios y productos exclusivos de Legathon Walk.",
+
+    wCoinBalance: "SALDO DE W COINS",
+    walletSubtitle:
+      "Usa W Coins en productos y artículos Legathon elegibles.",
+
+    lifetimeProgress:
+      "PROGRESO TOTAL DE CAMINATA",
+    lifetimeSteps: "Pasos Totales",
+
+    mens: "Hombres",
+    womens: "Mujeres",
+    accessories: "Accesorios",
+
+    mensCollection: "Colección para Hombres",
+    womensCollection: "Colección para Mujeres",
+    accessoriesCollection: "Accesorios",
+
+    locked: "BLOQUEADO",
+    unlockAt: "DESBLOQUEAR EN",
+    steps: "pasos",
+
+    wCoinsAvailable: "W Coins disponibles",
+    moreWCoinsNeeded: "Se necesitan más W Coins",
+
+    buyRedeem: "Comprar / Canjear",
+    lockedButton: "Bloqueado",
+
+    gear: "Equipo",
+    legathonItem: "Artículo Legathon",
+  },
+
+
+  fr: {
+    back: "Retour",
+    storeKicker: "BOUTIQUE LEGATHON WALK",
+    officialStore: "Boutique Officielle",
+    storeSubtitle:
+      "Vêtements premium, accessoires et équipements exclusifs Legathon Walk.",
+
+    wCoinBalance: "SOLDE W COINS",
+    walletSubtitle:
+      "Utilisez vos W Coins pour les articles Legathon éligibles.",
+
+    lifetimeProgress:
+      "PROGRESSION DE MARCHE TOTALE",
+    lifetimeSteps: "Pas Totaux",
+
+    mens: "Hommes",
+    womens: "Femmes",
+    accessories: "Accessoires",
+
+    mensCollection: "Collection Hommes",
+    womensCollection: "Collection Femmes",
+    accessoriesCollection: "Accessoires",
+
+    locked: "VERROUILLÉ",
+    unlockAt: "DÉBLOQUER À",
+    steps: "pas",
+
+    wCoinsAvailable: "W Coins disponibles",
+    moreWCoinsNeeded:
+      "Plus de W Coins nécessaires",
+
+    buyRedeem: "Acheter / Échanger",
+    lockedButton: "Verrouillé",
+
+    gear: "Équipement",
+    legathonItem: "Article Legathon",
+  },
+
+
+  de: {
+    back: "Zurück",
+    storeKicker: "LEGATHON WALK SHOP",
+    officialStore: "Offizieller Shop",
+    storeSubtitle:
+      "Premium-Bekleidung, Accessoires und exklusive Legathon Walk-Ausrüstung.",
+
+    wCoinBalance: "W COIN GUTHABEN",
+    walletSubtitle:
+      "Verwende W Coins für berechtigte Legathon-Ausrüstung und Merchandise.",
+
+    lifetimeProgress:
+      "GESAMTER WALKING-FORTSCHRITT",
+    lifetimeSteps: "Gesamtschritte",
+
+    mens: "Herren",
+    womens: "Damen",
+    accessories: "Accessoires",
+
+    mensCollection: "Herrenkollektion",
+    womensCollection: "Damenkollektion",
+    accessoriesCollection: "Accessoires",
+
+    locked: "GESPERRT",
+    unlockAt: "FREISCHALTEN BEI",
+    steps: "Schritten",
+
+    wCoinsAvailable: "W Coins verfügbar",
+    moreWCoinsNeeded:
+      "Mehr W Coins erforderlich",
+
+    buyRedeem: "Kaufen / Einlösen",
+    lockedButton: "Gesperrt",
+
+    gear: "Ausrüstung",
+    legathonItem: "Legathon Artikel",
+  },
+
+
+  pt: {
+    back: "Voltar",
+    storeKicker: "LOJA LEGATHON WALK",
+    officialStore: "Loja Oficial",
+    storeSubtitle:
+      "Roupas premium, acessórios e equipamentos exclusivos Legathon Walk.",
+
+    wCoinBalance: "SALDO DE W COINS",
+    walletSubtitle:
+      "Use W Coins em equipamentos e produtos Legathon elegíveis.",
+
+    lifetimeProgress:
+      "PROGRESSO TOTAL DE CAMINHADA",
+    lifetimeSteps: "Passos Totais",
+
+    mens: "Masculino",
+    womens: "Feminino",
+    accessories: "Acessórios",
+
+    mensCollection: "Coleção Masculina",
+    womensCollection: "Coleção Feminina",
+    accessoriesCollection: "Acessórios",
+
+    locked: "BLOQUEADO",
+    unlockAt: "DESBLOQUEAR EM",
+    steps: "passos",
+
+    wCoinsAvailable: "W Coins disponíveis",
+    moreWCoinsNeeded:
+      "Mais W Coins necessários",
+
+    buyRedeem: "Comprar / Resgatar",
+    lockedButton: "Bloqueado",
+
+    gear: "Equipamento",
+    legathonItem: "Item Legathon",
+  },
+
+
+  ja: {
+    back: "戻る",
+    storeKicker: "LEGATHON WALK ストア",
+    officialStore: "公式ストア",
+    storeSubtitle:
+      "プレミアムウェア、アクセサリー、Legathon Walk限定ギア。",
+
+    wCoinBalance: "W COIN 残高",
+    walletSubtitle:
+      "対象のLegathonギアや商品にW Coinsを使用できます。",
+
+    lifetimeProgress:
+      "累計ウォーキング進捗",
+    lifetimeSteps: "累計歩数",
+
+    mens: "メンズ",
+    womens: "レディース",
+    accessories: "アクセサリー",
+
+    mensCollection: "メンズコレクション",
+    womensCollection: "レディースコレクション",
+    accessoriesCollection: "アクセサリー",
+
+    locked: "ロック中",
+    unlockAt: "解除条件",
+    steps: "歩",
+
+    wCoinsAvailable: "W Coins 使用可能",
+    moreWCoinsNeeded:
+      "W Coins がさらに必要です",
+
+    buyRedeem: "購入 / 交換",
+    lockedButton: "ロック中",
+
+    gear: "ギア",
+    legathonItem: "Legathon アイテム",
+  },
+
+
+  ko: {
+    back: "뒤로",
+    storeKicker: "LEGATHON WALK 스토어",
+    officialStore: "공식 스토어",
+    storeSubtitle:
+      "프리미엄 의류, 액세서리 및 Legathon Walk 전용 장비.",
+
+    wCoinBalance: "W COIN 잔액",
+    walletSubtitle:
+      "W Coins를 사용하여 대상 Legathon 장비와 상품을 구매하세요.",
+
+    lifetimeProgress:
+      "누적 걷기 진행도",
+    lifetimeSteps: "누적 걸음 수",
+
+    mens: "남성",
+    womens: "여성",
+    accessories: "액세서리",
+
+    mensCollection: "남성 컬렉션",
+    womensCollection: "여성 컬렉션",
+    accessoriesCollection: "액세서리",
+
+    locked: "잠김",
+    unlockAt: "잠금 해제",
+    steps: "걸음",
+
+    wCoinsAvailable: "W Coins 사용 가능",
+    moreWCoinsNeeded:
+      "W Coins가 더 필요합니다",
+
+    buyRedeem: "구매 / 교환",
+    lockedButton: "잠김",
+
+    gear: "장비",
+    legathonItem: "Legathon 상품",
+  },
+
+
+  zh: {
+    back: "返回",
+    storeKicker: "LEGATHON WALK 商店",
+    officialStore: "官方商店",
+    storeSubtitle:
+      "高级服装、配饰和 Legathon Walk 独家装备。",
+
+    wCoinBalance: "W COIN 余额",
+    walletSubtitle:
+      "使用 W Coins 购买符合条件的 Legathon 装备和商品。",
+
+    lifetimeProgress:
+      "累计步行进度",
+    lifetimeSteps: "累计步数",
+
+    mens: "男士",
+    womens: "女士",
+    accessories: "配饰",
+
+    mensCollection: "男士系列",
+    womensCollection: "女士系列",
+    accessoriesCollection: "配饰",
+
+    locked: "已锁定",
+    unlockAt: "解锁条件",
+    steps: "步",
+
+    wCoinsAvailable: "W Coins 可用",
+    moreWCoinsNeeded:
+      "需要更多 W Coins",
+
+    buyRedeem: "购买 / 兑换",
+    lockedButton: "已锁定",
+
+    gear: "装备",
+    legathonItem: "Legathon 商品",
+  },
+
+
+  it: {
+    back: "Indietro",
+    storeKicker: "NEGOZIO LEGATHON WALK",
+    officialStore: "Negozio Ufficiale",
+    storeSubtitle:
+      "Abbigliamento premium, accessori e prodotti esclusivi Legathon Walk.",
+
+    wCoinBalance: "SALDO W COINS",
+    walletSubtitle:
+      "Usa W Coins per articoli e prodotti Legathon idonei.",
+
+    lifetimeProgress:
+      "PROGRESSO TOTALE DI CAMMINATA",
+    lifetimeSteps: "Passi Totali",
+
+    mens: "Uomo",
+    womens: "Donna",
+    accessories: "Accessori",
+
+    mensCollection: "Collezione Uomo",
+    womensCollection: "Collezione Donna",
+    accessoriesCollection: "Accessori",
+
+    locked: "BLOCCATO",
+    unlockAt: "SBLOCCA A",
+    steps: "passi",
+
+    wCoinsAvailable: "W Coins disponibili",
+    moreWCoinsNeeded:
+      "Servono più W Coins",
+
+    buyRedeem: "Acquista / Riscatta",
+    lockedButton: "Bloccato",
+
+    gear: "Equipaggiamento",
+    legathonItem: "Articolo Legathon",
+  },
+
+
+  ar: {
+    back: "رجوع",
+    storeKicker: "متجر LEGATHON WALK",
+    officialStore: "المتجر الرسمي",
+    storeSubtitle:
+      "ملابس فاخرة وإكسسوارات ومعدات Legathon Walk الحصرية.",
+
+    wCoinBalance: "رصيد W COIN",
+    walletSubtitle:
+      "استخدم W Coins لشراء معدات ومنتجات Legathon المؤهلة.",
+
+    lifetimeProgress:
+      "إجمالي تقدم المشي",
+    lifetimeSteps: "إجمالي الخطوات",
+
+    mens: "رجالي",
+    womens: "نسائي",
+    accessories: "إكسسوارات",
+
+    mensCollection: "مجموعة الرجال",
+    womensCollection: "مجموعة النساء",
+    accessoriesCollection: "الإكسسوارات",
+
+    locked: "مغلق",
+    unlockAt: "يفتح عند",
+    steps: "خطوة",
+
+    wCoinsAvailable: "W Coins متاحة",
+    moreWCoinsNeeded:
+      "تحتاج إلى المزيد من W Coins",
+
+    buyRedeem: "شراء / استبدال",
+    lockedButton: "مغلق",
+
+    gear: "معدات",
+    legathonItem: "منتج Legathon",
+  },
+};
+
+
+// ============================================================
+// LANGUAGE HELPERS
+// ============================================================
+
+function normalizeLanguage(
+  language
+) {
+  const code =
+    String(
+      language || "en"
+    )
+      .trim()
+      .toLowerCase()
+      .split("-")[0];
+
+  return TEXT[code]
+    ? code
+    : "en";
+}
+
+
+function getText(
+  language,
+  key
+) {
+  return (
+    TEXT?.[language]?.[key] ||
+    TEXT.en[key] ||
+    key
+  );
+}
 
 
 // ============================================================
@@ -61,11 +487,76 @@ function safeNumber(
 
 
 // ============================================================
+// NUMBER FORMAT
+// ============================================================
+
+function formatNumber(
+  value,
+  language
+) {
+  const numeric =
+    Math.floor(
+      Math.max(
+        0,
+        safeNumber(
+          value,
+          0
+        )
+      )
+    );
+
+  try {
+    return numeric.toLocaleString(
+      language
+    );
+  } catch {
+    return numeric.toLocaleString();
+  }
+}
+
+
+// ============================================================
+// CATEGORY DISPLAY
+//
+// Internal values remain:
+// Mens / Womens / Accessories
+// ============================================================
+
+function getCategoryLabel(
+  category,
+  language
+) {
+  if (
+    category === "Mens"
+  ) {
+    return getText(
+      language,
+      "mens"
+    );
+  }
+
+  if (
+    category === "Womens"
+  ) {
+    return getText(
+      language,
+      "womens"
+    );
+  }
+
+  return getText(
+    language,
+    "accessories"
+  );
+}
+
+
+// ============================================================
 // SCREEN
 // ============================================================
 
 export default function PhysicalMerchStoreScreen({
-  language,
+  language = "en",
 
   goBack,
 
@@ -80,13 +571,42 @@ export default function PhysicalMerchStoreScreen({
 
   spendWCoins,
 }) {
-  
+
+  const languageCode =
+    normalizeLanguage(
+      language
+    );
+
+
+  const t =
+    useCallback(
+      key =>
+        getText(
+          languageCode,
+          key
+        ),
+      [
+        languageCode,
+      ]
+    );
+
+
+  const isRTL =
+    languageCode === "ar";
+
+
+  const rtlText =
+    isRTL
+      ? styles.rtlText
+      : null;
 
 
   const [
     activeCategory,
     setActiveCategory,
-  ] = useState("Mens");
+  ] = useState(
+    "Mens"
+  );
 
 
   const [
@@ -187,7 +707,7 @@ export default function PhysicalMerchStoreScreen({
 
 
     setWCoinBalance(
-      (current) => {
+      current => {
         if (
           latest !== current &&
           latest >= 0
@@ -207,71 +727,121 @@ export default function PhysicalMerchStoreScreen({
   // FILTER STORE
   // ==========================================================
 
-  const filteredItems = useMemo(() => {
+  const filteredItems =
+    useMemo(
+      () => {
 
-  if (activeCategory === "Mens") {
-    return APPAREL_CATALOG.filter(
-      (item) =>
-        item.gender === "Men"
+        if (
+          activeCategory ===
+          "Mens"
+        ) {
+          return APPAREL_CATALOG.filter(
+            item =>
+              item.gender ===
+              "Men"
+          );
+        }
+
+
+        if (
+          activeCategory ===
+          "Womens"
+        ) {
+          return APPAREL_CATALOG.filter(
+            item =>
+              item.gender ===
+              "Women"
+          );
+        }
+
+
+        if (
+          activeCategory ===
+          "Accessories"
+        ) {
+          return APPAREL_CATALOG.filter(
+            item =>
+              item.category ===
+              "Accessories"
+          );
+        }
+
+
+        return [];
+
+      },
+      [
+        activeCategory,
+      ]
     );
-  }
 
-  if (activeCategory === "Womens") {
-    return APPAREL_CATALOG.filter(
-      (item) =>
-        item.gender === "Women"
-    );
-  }
 
-  if (activeCategory === "Accessories") {
-    return APPAREL_CATALOG.filter(
-      (item) =>
-        item.category === "Accessories"
-    );
-  }
+  // ==========================================================
+  // COLLECTION TITLE
+  // ==========================================================
 
-  return [];
+  const collectionTitle =
+    activeCategory === "Mens"
+      ? t(
+          "mensCollection"
+        )
+      : activeCategory ===
+          "Womens"
+        ? t(
+            "womensCollection"
+          )
+        : t(
+            "accessoriesCollection"
+          );
 
-}, [activeCategory]);
 
   // ==========================================================
   // OPEN PRODUCT
   // ==========================================================
 
- const handleProductPress = (
-  item,
-  unlocked
-) => {
-  if (!unlocked) {
-    return;
-  }
+  const handleProductPress = (
+    item,
+    unlocked
+  ) => {
 
-  console.log(
-    "OPEN PRODUCT:",
-    item?.name ||
-      item?.title ||
-      item?.id
-  );
+    if (!unlocked) {
+      return;
+    }
 
-  // OPEN PRODUCT DETAILS FIRST
-  if (
-    typeof openItem ===
-    "function"
-  ) {
-    openItem(item);
-    return;
-  }
 
-  // FALLBACK ONLY
-  if (
-    typeof goToPurchaseConfirmation ===
-    "function"
-  ) {
-    goToPurchaseConfirmation(
-      item
+    console.log(
+      "OPEN PRODUCT:",
+      item?.name ||
+        item?.title ||
+        item?.id
     );
-  }
-};
+
+
+    // OPEN PRODUCT DETAILS FIRST
+
+    if (
+      typeof openItem ===
+      "function"
+    ) {
+      openItem(
+        item
+      );
+
+      return;
+    }
+
+
+    // FALLBACK ONLY
+
+    if (
+      typeof goToPurchaseConfirmation ===
+      "function"
+    ) {
+      goToPurchaseConfirmation(
+        item
+      );
+    }
+  };
 
 
   // ==========================================================
@@ -283,12 +853,8 @@ export default function PhysicalMerchStoreScreen({
       style={
         styles.safe
       }
-      edges={[
-        "top",
-        "left",
-        "right",
-      ]}
     >
+
       <ScrollView
         style={
           styles.scroll
@@ -296,9 +862,9 @@ export default function PhysicalMerchStoreScreen({
         showsVerticalScrollIndicator={
           false
         }
-       contentContainerStyle={
-  styles.content
-}
+        contentContainerStyle={
+          styles.content
+        }
       >
 
         {/* ================================================= */}
@@ -309,24 +875,40 @@ export default function PhysicalMerchStoreScreen({
           "function" && (
 
           <TouchableOpacity
-            style={
-              styles.backButton
-            }
+            style={[
+              styles.backButton,
+
+              isRTL &&
+                styles.backButtonRTL,
+            ]}
             onPress={
               goBack
             }
             activeOpacity={
               0.8
             }
+            accessibilityRole=
+              "button"
+            accessibilityLabel={
+              t(
+                "back"
+              )
+            }
           >
+
             <Text
-              style={
-                styles.backText
-              }
+              style={[
+                styles.backText,
+                rtlText,
+              ]}
             >
-              ‹ Back
+              {isRTL
+                ? `${t("back")} ›`
+                : `‹ ${t("back")}`}
             </Text>
+
           </TouchableOpacity>
+
         )}
 
 
@@ -339,31 +921,46 @@ export default function PhysicalMerchStoreScreen({
             styles.header
           }
         >
+
           <Text
-            style={
-              styles.kicker
-            }
+            style={[
+              styles.kicker,
+              rtlText,
+            ]}
           >
-            LEGATHON WALK STORE
+            {t(
+              "storeKicker"
+            )}
           </Text>
 
 
           <Text
-            style={
-              styles.title
+            style={[
+              styles.title,
+              rtlText,
+            ]}
+            adjustsFontSizeToFit
+            numberOfLines={
+              2
             }
           >
-            Official Store
+            {t(
+              "officialStore"
+            )}
           </Text>
 
 
           <Text
-            style={
-              styles.subTitle
-            }
+            style={[
+              styles.subTitle,
+              rtlText,
+            ]}
           >
-            Premium apparel, accessories, and exclusive Legathon Walk gear.
+            {t(
+              "storeSubtitle"
+            )}
           </Text>
+
         </View>
 
 
@@ -376,49 +973,73 @@ export default function PhysicalMerchStoreScreen({
             styles.walletCard
           }
         >
+
           <Text
-            style={
-              styles.walletLabel
-            }
+            style={[
+              styles.walletLabel,
+              rtlText,
+            ]}
           >
-            W COIN BALANCE
+            {t(
+              "wCoinBalance"
+            )}
           </Text>
 
 
           <View
-            style={
-              styles.walletRow
-            }
+            style={[
+              styles.walletRow,
+
+              isRTL &&
+                styles.rowRTL,
+            ]}
           >
+
             <Image
               source={
                 WCOIN
               }
-              style={
-                styles.coinIcon
-              }
+              style={[
+                styles.coinIcon,
+
+                isRTL &&
+                  styles.coinIconRTL,
+              ]}
             />
 
 
             <Text
-              style={
-                styles.walletAmount
+              style={[
+                styles.walletAmount,
+
+                isRTL &&
+                  styles.rtlNumber,
+              ]}
+              adjustsFontSizeToFit
+              numberOfLines={
+                1
               }
             >
-              {Math.floor(
-                wCoinBalance
-              ).toLocaleString()}
+              {formatNumber(
+                wCoinBalance,
+                languageCode
+              )}
             </Text>
+
           </View>
 
 
           <Text
-            style={
-              styles.walletSub
-            }
+            style={[
+              styles.walletSub,
+              rtlText,
+            ]}
           >
-            Use W Coins toward eligible Legathon gear and merchandise.
+            {t(
+              "walletSubtitle"
+            )}
           </Text>
+
         </View>
 
 
@@ -431,33 +1052,47 @@ export default function PhysicalMerchStoreScreen({
             styles.stepsCard
           }
         >
+
           <Text
-            style={
-              styles.stepsLabel
-            }
+            style={[
+              styles.stepsLabel,
+              rtlText,
+            ]}
           >
-            LIFETIME WALKING PROGRESS
+            {t(
+              "lifetimeProgress"
+            )}
           </Text>
 
 
           <Text
-            style={
-              styles.stepsAmount
+            style={[
+              styles.stepsAmount,
+              rtlText,
+            ]}
+            adjustsFontSizeToFit
+            numberOfLines={
+              1
             }
           >
-            {Math.floor(
-              totalSteps
-            ).toLocaleString()}
+            {formatNumber(
+              totalSteps,
+              languageCode
+            )}
           </Text>
 
 
           <Text
-            style={
-              styles.stepsUnit
-            }
+            style={[
+              styles.stepsUnit,
+              rtlText,
+            ]}
           >
-            Lifetime Steps
+            {t(
+              "lifetimeSteps"
+            )}
           </Text>
+
         </View>
 
 
@@ -477,10 +1112,9 @@ export default function PhysicalMerchStoreScreen({
             styles.categoryContent
           }
         >
+
           {MAIN_CATEGORIES.map(
-            (
-              category
-            ) => {
+            category => {
 
               const active =
                 category ===
@@ -507,20 +1141,33 @@ export default function PhysicalMerchStoreScreen({
                     0.85
                   }
                 >
+
                   <Text
                     style={[
                       styles.categoryText,
 
                       active &&
                         styles.categoryTextActive,
+
+                      isRTL &&
+                        styles.rtlCenterText,
                     ]}
+                    adjustsFontSizeToFit
+                    numberOfLines={
+                      1
+                    }
                   >
-                    {category}
+                    {getCategoryLabel(
+                      category,
+                      languageCode
+                    )}
                   </Text>
+
                 </TouchableOpacity>
               );
             }
           )}
+
         </ScrollView>
 
 
@@ -528,13 +1175,14 @@ export default function PhysicalMerchStoreScreen({
         {/* COLLECTION TITLE */}
         {/* ================================================= */}
 
-       <Text style={styles.sectionTitle}>
-  {activeCategory === "Mens"
-    ? "Men's Collection"
-    : activeCategory === "Womens"
-    ? "Women's Collection"
-    : "Accessories"}
-</Text>
+        <Text
+          style={[
+            styles.sectionTitle,
+            rtlText,
+          ]}
+        >
+          {collectionTitle}
+        </Text>
 
 
         {/* ================================================= */}
@@ -546,10 +1194,9 @@ export default function PhysicalMerchStoreScreen({
             styles.grid
           }
         >
+
           {filteredItems.map(
-            (
-              item
-            ) => {
+            item => {
 
               const unlockSteps =
                 Math.max(
@@ -566,10 +1213,14 @@ export default function PhysicalMerchStoreScreen({
                 unlockSteps;
 
 
+              // Keep catalog product names exactly as stored.
+              // This protects catalog compatibility.
               const productName =
                 item.title ||
                 item.name ||
-                "Legathon Item";
+                t(
+                  "legathonItem"
+                );
 
 
               const collection =
@@ -612,13 +1263,16 @@ export default function PhysicalMerchStoreScreen({
                   ]}
                 >
 
+                  {/* ======================================= */}
                   {/* IMAGE */}
+                  {/* ======================================= */}
 
                   <View
                     style={
                       styles.imageWrap
                     }
                   >
+
                     <Image
                       source={
                         item.image
@@ -630,11 +1284,13 @@ export default function PhysicalMerchStoreScreen({
 
 
                     {!unlocked && (
+
                       <View
                         style={
                           styles.lockOverlay
                         }
                       >
+
                         <Text
                           style={
                             styles.lockIcon
@@ -648,43 +1304,65 @@ export default function PhysicalMerchStoreScreen({
                           style={
                             styles.lockText
                           }
+                          adjustsFontSizeToFit
+                          numberOfLines={
+                            1
+                          }
                         >
-                          LOCKED
+                          {t(
+                            "locked"
+                          )}
                         </Text>
+
                       </View>
+
                     )}
+
                   </View>
 
 
+                  {/* ======================================= */}
                   {/* NAME */}
+                  {/* ======================================= */}
 
                   <Text
-                    style={
-                      styles.productName
-                    }
+                    style={[
+                      styles.productName,
+                      rtlText,
+                    ]}
                     numberOfLines={
                       2
                     }
+                    adjustsFontSizeToFit
                   >
                     {productName}
                   </Text>
 
 
                   <Text
-                    style={
-                      styles.collectionText
+                    style={[
+                      styles.collectionText,
+                      rtlText,
+                    ]}
+                    numberOfLines={
+                      2
                     }
                   >
-                    {collection} Gear
+                    {isRTL
+                      ? `${t("gear")} ${collection}`
+                      : `${collection} ${t("gear")}`}
                   </Text>
 
 
+                  {/* ======================================= */}
                   {/* PRICE */}
+                  {/* ======================================= */}
 
                   <Text
-                    style={
-                      styles.price
-                    }
+                    style={[
+                      styles.price,
+                      rtlText,
+                    ]}
                   >
                     ${price.toFixed(
                       2
@@ -692,34 +1370,52 @@ export default function PhysicalMerchStoreScreen({
                   </Text>
 
 
+                  {/* ======================================= */}
                   {/* WCOIN */}
+                  {/* ======================================= */}
 
                   <View
-                    style={
-                      styles.coinRow
-                    }
+                    style={[
+                      styles.coinRow,
+
+                      isRTL &&
+                        styles.rowRTL,
+                    ]}
                   >
+
                     <Image
                       source={
                         WCOIN
                       }
-                      style={
-                        styles.smallCoin
-                      }
+                      style={[
+                        styles.smallCoin,
+
+                        isRTL &&
+                          styles.smallCoinRTL,
+                      ]}
                     />
 
 
                     <Text
-                      style={
-                        styles.coinCost
-                      }
+                      style={[
+                        styles.coinCost,
+
+                        isRTL &&
+                          styles.rtlNumber,
+                      ]}
                     >
-                      {coinCost.toLocaleString()}
+                      {formatNumber(
+                        coinCost,
+                        languageCode
+                      )}
                     </Text>
+
                   </View>
 
 
+                  {/* ======================================= */}
                   {/* LOCK REQUIREMENT */}
+                  {/* ======================================= */}
 
                   {!unlocked &&
                     unlockSteps >
@@ -730,27 +1426,42 @@ export default function PhysicalMerchStoreScreen({
                         styles.requirementBox
                       }
                     >
+
                       <Text
-                        style={
-                          styles.requirementLabel
-                        }
+                        style={[
+                          styles.requirementLabel,
+                          rtlText,
+                        ]}
                       >
-                        UNLOCK AT
+                        {t(
+                          "unlockAt"
+                        )}
                       </Text>
 
 
                       <Text
-                        style={
-                          styles.requirementValue
-                        }
+                        style={[
+                          styles.requirementValue,
+                          rtlText,
+                        ]}
                       >
-                        {unlockSteps.toLocaleString()} steps
+                        {formatNumber(
+                          unlockSteps,
+                          languageCode
+                        )}{" "}
+                        {t(
+                          "steps"
+                        )}
                       </Text>
+
                     </View>
+
                   )}
 
 
+                  {/* ======================================= */}
                   {/* COIN STATUS */}
+                  {/* ======================================= */}
 
                   {unlocked &&
                     coinCost >
@@ -763,16 +1474,25 @@ export default function PhysicalMerchStoreScreen({
                         canAfford
                           ? styles.coinStatusReady
                           : styles.coinStatusLow,
+
+                        rtlText,
                       ]}
                     >
                       {canAfford
-                        ? "W Coins available"
-                        : "More W Coins needed"}
+                        ? t(
+                            "wCoinsAvailable"
+                          )
+                        : t(
+                            "moreWCoinsNeeded"
+                          )}
                     </Text>
+
                   )}
 
 
+                  {/* ======================================= */}
                   {/* BUY */}
+                  {/* ======================================= */}
 
                   <TouchableOpacity
                     style={[
@@ -794,25 +1514,45 @@ export default function PhysicalMerchStoreScreen({
                     activeOpacity={
                       0.85
                     }
+                    accessibilityRole=
+                      "button"
+                    accessibilityState={{
+                      disabled:
+                        !unlocked,
+                    }}
                   >
+
                     <Text
                       style={[
                         styles.buyText,
 
                         !unlocked &&
                           styles.buyTextLocked,
+
+                        isRTL &&
+                          styles.rtlCenterText,
                       ]}
+                      adjustsFontSizeToFit
+                      numberOfLines={
+                        1
+                      }
                     >
                       {unlocked
-                        ? "Buy / Redeem"
-                        : "Locked"}
+                        ? t(
+                            "buyRedeem"
+                          )
+                        : t(
+                            "lockedButton"
+                          )}
                     </Text>
+
                   </TouchableOpacity>
 
                 </View>
               );
             }
           )}
+
         </View>
 
       </ScrollView>
@@ -829,28 +1569,22 @@ const styles =
   StyleSheet.create({
 
     safe: {
-      flex:
-        1,
-
-      backgroundColor:
-        "#050914",
+      flex: 1,
+      backgroundColor: "#050914",
     },
 
 
     scroll: {
-      flex:
-        1,
-
-      backgroundColor:
-        "#050914",
+      flex: 1,
+      backgroundColor: "#050914",
     },
 
-content: {
-  paddingHorizontal: 20,
-  paddingTop: 24,
-  paddingBottom: 260,
-},
 
+    content: {
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 260,
+    },
 
 
     // ========================================================
@@ -858,44 +1592,35 @@ content: {
     // ========================================================
 
     backButton: {
-      alignSelf:
-        "flex-start",
+      alignSelf: "flex-start",
 
-      minHeight:
-        46,
+      minHeight: 46,
 
-      paddingHorizontal:
-        20,
+      paddingHorizontal: 20,
 
-      borderRadius:
-        24,
+      borderRadius: 24,
 
-      borderWidth:
-        1.5,
+      borderWidth: 1.5,
+      borderColor: "#E7C447",
 
-      borderColor:
-        "#E7C447",
+      backgroundColor: "#071224",
 
-      backgroundColor:
-        "#071224",
+      justifyContent: "center",
 
-      justifyContent:
-        "center",
+      marginBottom: 18,
+    },
 
-      marginBottom:
-        18,
+
+    backButtonRTL: {
+      alignSelf: "flex-end",
     },
 
 
     backText: {
-      color:
-        "#E7C447",
+      color: "#E7C447",
 
-      fontSize:
-        18,
-
-      fontWeight:
-        "900",
+      fontSize: 18,
+      fontWeight: "900",
     },
 
 
@@ -904,59 +1629,41 @@ content: {
     // ========================================================
 
     header: {
-      marginBottom:
-        22,
+      marginBottom: 22,
     },
 
 
     kicker: {
-      color:
-        "#E7C447",
+      color: "#E7C447",
 
-      fontSize:
-        12,
+      fontSize: 12,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      letterSpacing: 3.2,
 
-      letterSpacing:
-        3.2,
-
-      marginBottom:
-        8,
+      marginBottom: 8,
     },
 
 
     title: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        42,
+      fontSize: 42,
+      lineHeight: 48,
 
-      lineHeight:
-        48,
-
-      fontWeight:
-        "900",
+      fontWeight: "900",
     },
 
 
     subTitle: {
-      color:
-        "#AAB3C5",
+      color: "#AAB3C5",
 
-      fontSize:
-        16,
+      fontSize: 16,
+      fontWeight: "700",
 
-      fontWeight:
-        "700",
+      lineHeight: 24,
 
-      lineHeight:
-        24,
-
-      marginTop:
-        10,
+      marginTop: 10,
     },
 
 
@@ -965,95 +1672,72 @@ content: {
     // ========================================================
 
     walletCard: {
-      backgroundColor:
-        "#071224",
+      backgroundColor: "#071224",
 
-      borderRadius:
-        26,
+      borderRadius: 26,
 
-      borderWidth:
-        1.5,
+      borderWidth: 1.5,
+      borderColor: "#D4AF37",
 
-      borderColor:
-        "#D4AF37",
+      padding: 20,
 
-      padding:
-        20,
-
-      marginBottom:
-        16,
+      marginBottom: 16,
     },
 
 
     walletLabel: {
-      color:
-        "#A7F3D0",
+      color: "#A7F3D0",
 
-      fontSize:
-        13,
+      fontSize: 13,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      letterSpacing: 3,
 
-      letterSpacing:
-        3,
-
-      marginBottom:
-        12,
+      marginBottom: 12,
     },
 
 
     walletRow: {
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
+      flexDirection: "row",
+      alignItems: "center",
     },
 
 
     coinIcon: {
-      width:
-        40,
+      width: 40,
+      height: 40,
 
-      height:
-        40,
+      resizeMode: "contain",
 
-      resizeMode:
-        "contain",
+      marginRight: 14,
+    },
 
-      marginRight:
-        14,
+
+    coinIconRTL: {
+      marginRight: 0,
+      marginLeft: 14,
     },
 
 
     walletAmount: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        48,
+      fontSize: 48,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      flexShrink: 1,
     },
 
 
     walletSub: {
-      color:
-        "#AAB3C5",
+      color: "#AAB3C5",
 
-      fontSize:
-        15,
+      fontSize: 15,
+      fontWeight: "700",
 
-      fontWeight:
-        "700",
+      lineHeight: 22,
 
-      lineHeight:
-        22,
-
-      marginTop:
-        10,
+      marginTop: 10,
     },
 
 
@@ -1062,68 +1746,46 @@ content: {
     // ========================================================
 
     stepsCard: {
-      backgroundColor:
-        "#0B182B",
+      backgroundColor: "#0B182B",
 
-      borderRadius:
-        22,
+      borderRadius: 22,
 
-      borderWidth:
-        1,
+      borderWidth: 1,
+      borderColor: "#1E415C",
 
-      borderColor:
-        "#1E415C",
+      padding: 18,
 
-      padding:
-        18,
-
-      marginBottom:
-        4,
+      marginBottom: 4,
     },
 
 
     stepsLabel: {
-      color:
-        "#A7F3D0",
+      color: "#A7F3D0",
 
-      fontSize:
-        11,
+      fontSize: 11,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      letterSpacing:
-        2,
+      letterSpacing: 2,
     },
 
 
     stepsAmount: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        34,
+      fontSize: 34,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      marginTop:
-        6,
+      marginTop: 6,
     },
 
 
     stepsUnit: {
-      color:
-        "#AAB3C5",
+      color: "#AAB3C5",
 
-      fontSize:
-        13,
+      fontSize: 13,
+      fontWeight: "700",
 
-      fontWeight:
-        "700",
-
-      marginTop:
-        2,
+      marginTop: 2,
     },
 
 
@@ -1132,77 +1794,52 @@ content: {
     // ========================================================
 
     categoryScroll: {
-      marginTop:
-        18,
-
-      marginBottom:
-        20,
+      marginTop: 18,
+      marginBottom: 20,
     },
 
 
     categoryContent: {
-      paddingRight:
-        20,
+      paddingRight: 20,
     },
 
 
     categoryPill: {
-      minWidth:
-        112,
+      minWidth: 112,
+      height: 44,
 
-      height:
-        44,
+      marginRight: 10,
 
-      marginRight:
-        10,
+      borderRadius: 24,
 
-      borderRadius:
-        24,
+      justifyContent: "center",
+      alignItems: "center",
 
-      justifyContent:
-        "center",
+      backgroundColor: "#101B2E",
 
-      alignItems:
-        "center",
+      borderWidth: 1,
+      borderColor: "#103557",
 
-      backgroundColor:
-        "#101B2E",
-
-      borderWidth:
-        1,
-
-      borderColor:
-        "#103557",
-
-      paddingHorizontal:
-        16,
+      paddingHorizontal: 16,
     },
 
 
     categoryPillActive: {
-      backgroundColor:
-        "#F2C438",
-
-      borderColor:
-        "#F2C438",
+      backgroundColor: "#F2C438",
+      borderColor: "#F2C438",
     },
 
 
     categoryText: {
-      color:
-        "#B8C4D9",
+      color: "#B8C4D9",
 
-      fontSize:
-        15,
-
-      fontWeight:
-        "800",
+      fontSize: 15,
+      fontWeight: "800",
     },
 
 
     categoryTextActive: {
-      color:
-        "#000000",
+      color: "#000000",
     },
 
 
@@ -1211,27 +1848,17 @@ content: {
     // ========================================================
 
     sectionTitle: {
-      color:
-        "#A7F3D0",
+      color: "#A7F3D0",
 
-      fontSize:
-        30,
+      fontSize: 30,
+      lineHeight: 38,
 
-      lineHeight:
-        38,
+      fontWeight: "900",
+      letterSpacing: 1.5,
 
-      fontWeight:
-        "900",
+      marginBottom: 20,
 
-      letterSpacing:
-        1.5,
-
-      marginBottom:
-        20,
-
-      // Prevents clipping of tall characters.
-      paddingTop:
-        2,
+      paddingTop: 2,
     },
 
 
@@ -1240,17 +1867,13 @@ content: {
     // ========================================================
 
     grid: {
-      flexDirection:
-        "row",
+      flexDirection: "row",
 
-      flexWrap:
-        "wrap",
+      flexWrap: "wrap",
 
-      justifyContent:
-        "space-between",
+      justifyContent: "space-between",
 
-      alignItems:
-        "flex-start",
+      alignItems: "flex-start",
     },
 
 
@@ -1259,71 +1882,48 @@ content: {
     // ========================================================
 
     productCard: {
-      width:
-        "48%",
+      width: "48%",
 
-      backgroundColor:
-        "#0B182B",
+      backgroundColor: "#0B182B",
 
-      borderRadius:
-        24,
+      borderRadius: 24,
 
-      borderWidth:
-        1,
+      borderWidth: 1,
+      borderColor: "#1E334A",
 
-      borderColor:
-        "#1E334A",
+      padding: 12,
 
-      padding:
-        12,
-
-      marginBottom:
-        18,
+      marginBottom: 18,
     },
 
 
     lockedCard: {
-      opacity:
-        0.78,
+      opacity: 0.78,
     },
 
 
     imageWrap: {
-      width:
-        "100%",
+      width: "100%",
+      height: 150,
 
-      height:
-        150,
+      borderRadius: 18,
 
-      borderRadius:
-        18,
+      backgroundColor: "#050914",
 
-      backgroundColor:
-        "#050914",
+      alignItems: "center",
+      justifyContent: "center",
 
-      alignItems:
-        "center",
+      marginBottom: 14,
 
-      justifyContent:
-        "center",
-
-      marginBottom:
-        14,
-
-      overflow:
-        "hidden",
+      overflow: "hidden",
     },
 
 
     productImage: {
-      width:
-        "92%",
+      width: "92%",
+      height: "92%",
 
-      height:
-        "92%",
-
-      resizeMode:
-        "contain",
+      resizeMode: "contain",
     },
 
 
@@ -1332,26 +1932,15 @@ content: {
     // ========================================================
 
     lockOverlay: {
-      position:
-        "absolute",
+      position: "absolute",
 
-      left:
-        0,
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
 
-      right:
-        0,
-
-      top:
-        0,
-
-      bottom:
-        0,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
+      alignItems: "center",
+      justifyContent: "center",
 
       backgroundColor:
         "rgba(0,0,0,0.58)",
@@ -1359,26 +1948,23 @@ content: {
 
 
     lockIcon: {
-      fontSize:
-        24,
+      fontSize: 24,
 
-      marginBottom:
-        6,
+      marginBottom: 6,
     },
 
 
     lockText: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        15,
+      fontSize: 15,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      letterSpacing: 2,
 
-      letterSpacing:
-        3,
+      maxWidth: "90%",
+
+      textAlign: "center",
     },
 
 
@@ -1387,53 +1973,36 @@ content: {
     // ========================================================
 
     productName: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        17,
+      fontSize: 17,
+      lineHeight: 22,
 
-      lineHeight:
-        22,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      minHeight: 44,
 
-      minHeight:
-        44,
-
-      marginBottom:
-        4,
+      marginBottom: 4,
     },
 
 
     collectionText: {
-      color:
-        "#AAB3C5",
+      color: "#AAB3C5",
 
-      fontSize:
-        12,
+      fontSize: 12,
+      fontWeight: "800",
 
-      fontWeight:
-        "800",
-
-      marginBottom:
-        8,
+      marginBottom: 8,
     },
 
 
     price: {
-      color:
-        "#FFFFFF",
+      color: "#FFFFFF",
 
-      fontSize:
-        25,
+      fontSize: 25,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      marginBottom:
-        8,
+      marginBottom: 8,
     },
 
 
@@ -1442,65 +2011,53 @@ content: {
     // ========================================================
 
     coinRow: {
-      flexDirection:
-        "row",
+      flexDirection: "row",
 
-      alignItems:
-        "center",
+      alignItems: "center",
 
-      marginBottom:
-        9,
+      marginBottom: 9,
     },
 
 
     smallCoin: {
-      width:
-        23,
+      width: 23,
+      height: 23,
 
-      height:
-        23,
+      resizeMode: "contain",
 
-      resizeMode:
-        "contain",
+      marginRight: 8,
+    },
 
-      marginRight:
-        8,
+
+    smallCoinRTL: {
+      marginRight: 0,
+      marginLeft: 8,
     },
 
 
     coinCost: {
-      color:
-        "#F2C438",
+      color: "#F2C438",
 
-      fontSize:
-        18,
-
-      fontWeight:
-        "900",
+      fontSize: 18,
+      fontWeight: "900",
     },
 
 
     coinStatus: {
-      fontSize:
-        11,
+      fontSize: 11,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      marginBottom:
-        10,
+      marginBottom: 10,
     },
 
 
     coinStatusReady: {
-      color:
-        "#A7F3D0",
+      color: "#A7F3D0",
     },
 
 
     coinStatusLow: {
-      color:
-        "#FF9CA8",
+      color: "#FF9CA8",
     },
 
 
@@ -1509,53 +2066,36 @@ content: {
     // ========================================================
 
     requirementBox: {
-      backgroundColor:
-        "#111B2D",
+      backgroundColor: "#111B2D",
 
-      borderRadius:
-        12,
+      borderRadius: 12,
 
-      padding:
-        9,
+      padding: 9,
 
-      marginBottom:
-        10,
+      marginBottom: 10,
 
-      borderWidth:
-        1,
-
-      borderColor:
-        "#253A52",
+      borderWidth: 1,
+      borderColor: "#253A52",
     },
 
 
     requirementLabel: {
-      color:
-        "#8497AE",
+      color: "#8497AE",
 
-      fontSize:
-        9,
+      fontSize: 9,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      letterSpacing:
-        1.3,
+      letterSpacing: 1.3,
     },
 
 
     requirementValue: {
-      color:
-        "#E7C447",
+      color: "#E7C447",
 
-      fontSize:
-        12,
+      fontSize: 12,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
-
-      marginTop:
-        3,
+      marginTop: 3,
     },
 
 
@@ -1564,49 +2104,64 @@ content: {
     // ========================================================
 
     buyButton: {
-      minHeight:
-        48,
+      minHeight: 48,
 
-      borderRadius:
-        20,
+      borderRadius: 20,
 
-      alignItems:
-        "center",
+      alignItems: "center",
+      justifyContent: "center",
 
-      justifyContent:
-        "center",
-
-      paddingHorizontal:
-        8,
+      paddingHorizontal: 8,
     },
 
 
     buyButtonActive: {
-      backgroundColor:
-        "#F2C438",
+      backgroundColor: "#F2C438",
     },
 
 
     buyButtonLocked: {
-      backgroundColor:
-        "#263244",
+      backgroundColor: "#263244",
     },
 
 
     buyText: {
-      color:
-        "#00142D",
+      color: "#00142D",
 
-      fontSize:
-        14,
+      fontSize: 14,
+      fontWeight: "900",
 
-      fontWeight:
-        "900",
+      textAlign: "center",
     },
 
 
     buyTextLocked: {
-      color:
-        "#8C9AAE",
+      color: "#8C9AAE",
+    },
+
+
+    // ========================================================
+    // RTL
+    // ========================================================
+
+    rowRTL: {
+      flexDirection: "row-reverse",
+    },
+
+
+    rtlText: {
+      writingDirection: "rtl",
+      textAlign: "right",
+    },
+
+
+    rtlCenterText: {
+      writingDirection: "rtl",
+      textAlign: "center",
+    },
+
+
+    rtlNumber: {
+      writingDirection: "ltr",
     },
   });

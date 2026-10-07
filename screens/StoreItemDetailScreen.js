@@ -1,5 +1,7 @@
 // screens/StoreItemDetailScreen.js
 
+// screens/StoreItemDetailScreen.js
+
 import React, {
   useEffect,
   useMemo,
@@ -22,6 +24,793 @@ const WCOIN =
 
 // ============================================================
 // LEGATHON WALK
+// STORE ITEM DETAIL SCREEN — MULTILINGUAL
+// ============================================================
+
+const TEXT = {
+  en: {
+    back: "Back",
+    store: "LEGATHON WALK STORE",
+    productDetails: "Product Details",
+    productImage: "Product Image",
+
+    price: "PRICE",
+    wCoins: "W COINS",
+
+    selectColor: "Select Color",
+    selectSize: "Select Size",
+
+    noColorRequired:
+      "No color selection required.",
+    noSizeRequired:
+      "No size selection required.",
+
+    yourSelection: "Your Selection",
+
+    item: "Item",
+    color: "Color",
+    size: "Size",
+    priceRow: "Price",
+
+    notSelected: "Not Selected",
+
+    collection: "Collection",
+    category: "Category",
+    product: "Product",
+    fit: "Fit",
+    availability: "Availability",
+    available: "Available",
+
+    wCoinEligible: "W Coin Eligible",
+
+    wCoinMessage:
+      "Eligible Premium and Elite members can apply W Coins toward merchandise discounts at checkout.",
+
+    continuePurchase:
+      "CONTINUE TO PURCHASE",
+
+    chooseOptions:
+      "Select your color and size before continuing.",
+
+    itemNotFound: "Item Not Found",
+
+    itemNotFoundText:
+      "Return to the Legathon Walk Store and select an item.",
+
+    returnStore:
+      "RETURN TO STORE",
+
+    unisex: "Unisex",
+    merchandise: "Merchandise",
+    defaultItem: "Legathon Walk Item",
+
+    black: "Black",
+    white: "White",
+    blue: "Blue",
+    green: "Green",
+    red: "Red",
+    yellow: "Yellow",
+    pink: "Pink",
+    gray: "Gray",
+    grey: "Grey",
+    gold: "Gold",
+  },
+
+
+  es: {
+    back: "Atrás",
+    store: "TIENDA LEGATHON WALK",
+    productDetails: "Detalles del Producto",
+    productImage: "Imagen del Producto",
+
+    price: "PRECIO",
+    wCoins: "W COINS",
+
+    selectColor: "Seleccionar Color",
+    selectSize: "Seleccionar Talla",
+
+    noColorRequired:
+      "No se requiere seleccionar un color.",
+    noSizeRequired:
+      "No se requiere seleccionar una talla.",
+
+    yourSelection: "Tu Selección",
+
+    item: "Artículo",
+    color: "Color",
+    size: "Talla",
+    priceRow: "Precio",
+
+    notSelected: "No Seleccionado",
+
+    collection: "Colección",
+    category: "Categoría",
+    product: "Producto",
+    fit: "Corte",
+    availability: "Disponibilidad",
+    available: "Disponible",
+
+    wCoinEligible: "Elegible para W Coin",
+
+    wCoinMessage:
+      "Los miembros Premium y Elite elegibles pueden aplicar W Coins a descuentos en mercancía durante el pago.",
+
+    continuePurchase:
+      "CONTINUAR CON LA COMPRA",
+
+    chooseOptions:
+      "Selecciona tu color y talla antes de continuar.",
+
+    itemNotFound:
+      "Artículo No Encontrado",
+
+    itemNotFoundText:
+      "Regresa a la tienda Legathon Walk y selecciona un artículo.",
+
+    returnStore:
+      "VOLVER A LA TIENDA",
+
+    unisex: "Unisex",
+    merchandise: "Mercancía",
+    defaultItem: "Artículo Legathon Walk",
+
+    black: "Negro",
+    white: "Blanco",
+    blue: "Azul",
+    green: "Verde",
+    red: "Rojo",
+    yellow: "Amarillo",
+    pink: "Rosa",
+    gray: "Gris",
+    grey: "Gris",
+    gold: "Dorado",
+  },
+
+
+  fr: {
+    back: "Retour",
+    store: "BOUTIQUE LEGATHON WALK",
+    productDetails: "Détails du Produit",
+    productImage: "Image du Produit",
+
+    price: "PRIX",
+    wCoins: "W COINS",
+
+    selectColor: "Choisir la Couleur",
+    selectSize: "Choisir la Taille",
+
+    noColorRequired:
+      "Aucune sélection de couleur requise.",
+    noSizeRequired:
+      "Aucune sélection de taille requise.",
+
+    yourSelection: "Votre Sélection",
+
+    item: "Article",
+    color: "Couleur",
+    size: "Taille",
+    priceRow: "Prix",
+
+    notSelected: "Non Sélectionné",
+
+    collection: "Collection",
+    category: "Catégorie",
+    product: "Produit",
+    fit: "Coupe",
+    availability: "Disponibilité",
+    available: "Disponible",
+
+    wCoinEligible: "Éligible aux W Coins",
+
+    wCoinMessage:
+      "Les membres Premium et Elite éligibles peuvent utiliser des W Coins pour obtenir des réductions sur les produits lors du paiement.",
+
+    continuePurchase:
+      "CONTINUER L'ACHAT",
+
+    chooseOptions:
+      "Choisissez votre couleur et votre taille avant de continuer.",
+
+    itemNotFound:
+      "Article Introuvable",
+
+    itemNotFoundText:
+      "Retournez à la boutique Legathon Walk et sélectionnez un article.",
+
+    returnStore:
+      "RETOUR À LA BOUTIQUE",
+
+    unisex: "Unisexe",
+    merchandise: "Marchandise",
+    defaultItem: "Article Legathon Walk",
+
+    black: "Noir",
+    white: "Blanc",
+    blue: "Bleu",
+    green: "Vert",
+    red: "Rouge",
+    yellow: "Jaune",
+    pink: "Rose",
+    gray: "Gris",
+    grey: "Gris",
+    gold: "Or",
+  },
+
+
+  de: {
+    back: "Zurück",
+    store: "LEGATHON WALK SHOP",
+    productDetails: "Produktdetails",
+    productImage: "Produktbild",
+
+    price: "PREIS",
+    wCoins: "W COINS",
+
+    selectColor: "Farbe Auswählen",
+    selectSize: "Größe Auswählen",
+
+    noColorRequired:
+      "Keine Farbauswahl erforderlich.",
+    noSizeRequired:
+      "Keine Größenauswahl erforderlich.",
+
+    yourSelection: "Deine Auswahl",
+
+    item: "Artikel",
+    color: "Farbe",
+    size: "Größe",
+    priceRow: "Preis",
+
+    notSelected: "Nicht Ausgewählt",
+
+    collection: "Kollektion",
+    category: "Kategorie",
+    product: "Produkt",
+    fit: "Passform",
+    availability: "Verfügbarkeit",
+    available: "Verfügbar",
+
+    wCoinEligible: "W Coin Berechtigt",
+
+    wCoinMessage:
+      "Berechtigte Premium- und Elite-Mitglieder können W Coins beim Bezahlen für Merchandise-Rabatte verwenden.",
+
+    continuePurchase:
+      "WEITER ZUM KAUF",
+
+    chooseOptions:
+      "Wähle Farbe und Größe aus, bevor du fortfährst.",
+
+    itemNotFound:
+      "Artikel Nicht Gefunden",
+
+    itemNotFoundText:
+      "Kehre zum Legathon Walk Shop zurück und wähle einen Artikel aus.",
+
+    returnStore:
+      "ZURÜCK ZUM SHOP",
+
+    unisex: "Unisex",
+    merchandise: "Merchandise",
+    defaultItem: "Legathon Walk Artikel",
+
+    black: "Schwarz",
+    white: "Weiß",
+    blue: "Blau",
+    green: "Grün",
+    red: "Rot",
+    yellow: "Gelb",
+    pink: "Rosa",
+    gray: "Grau",
+    grey: "Grau",
+    gold: "Gold",
+  },
+
+
+  pt: {
+    back: "Voltar",
+    store: "LOJA LEGATHON WALK",
+    productDetails: "Detalhes do Produto",
+    productImage: "Imagem do Produto",
+
+    price: "PREÇO",
+    wCoins: "W COINS",
+
+    selectColor: "Selecionar Cor",
+    selectSize: "Selecionar Tamanho",
+
+    noColorRequired:
+      "Nenhuma seleção de cor é necessária.",
+    noSizeRequired:
+      "Nenhuma seleção de tamanho é necessária.",
+
+    yourSelection: "Sua Seleção",
+
+    item: "Item",
+    color: "Cor",
+    size: "Tamanho",
+    priceRow: "Preço",
+
+    notSelected: "Não Selecionado",
+
+    collection: "Coleção",
+    category: "Categoria",
+    product: "Produto",
+    fit: "Caimento",
+    availability: "Disponibilidade",
+    available: "Disponível",
+
+    wCoinEligible: "Elegível para W Coin",
+
+    wCoinMessage:
+      "Membros Premium e Elite elegíveis podem usar W Coins para descontos em produtos durante o checkout.",
+
+    continuePurchase:
+      "CONTINUAR PARA COMPRA",
+
+    chooseOptions:
+      "Selecione sua cor e tamanho antes de continuar.",
+
+    itemNotFound:
+      "Item Não Encontrado",
+
+    itemNotFoundText:
+      "Volte à loja Legathon Walk e selecione um item.",
+
+    returnStore:
+      "VOLTAR À LOJA",
+
+    unisex: "Unissex",
+    merchandise: "Mercadoria",
+    defaultItem: "Item Legathon Walk",
+
+    black: "Preto",
+    white: "Branco",
+    blue: "Azul",
+    green: "Verde",
+    red: "Vermelho",
+    yellow: "Amarelo",
+    pink: "Rosa",
+    gray: "Cinza",
+    grey: "Cinza",
+    gold: "Dourado",
+  },
+
+
+  ja: {
+    back: "戻る",
+    store: "LEGATHON WALK ストア",
+    productDetails: "商品詳細",
+    productImage: "商品画像",
+
+    price: "価格",
+    wCoins: "W COINS",
+
+    selectColor: "カラーを選択",
+    selectSize: "サイズを選択",
+
+    noColorRequired:
+      "カラーを選択する必要はありません。",
+    noSizeRequired:
+      "サイズを選択する必要はありません。",
+
+    yourSelection: "選択内容",
+
+    item: "商品",
+    color: "カラー",
+    size: "サイズ",
+    priceRow: "価格",
+
+    notSelected: "未選択",
+
+    collection: "コレクション",
+    category: "カテゴリー",
+    product: "商品タイプ",
+    fit: "対象",
+    availability: "在庫状況",
+    available: "購入可能",
+
+    wCoinEligible: "W Coin 対象",
+
+    wCoinMessage:
+      "対象のPremiumおよびEliteメンバーは、チェックアウト時にW Coinsを商品割引に使用できます。",
+
+    continuePurchase:
+      "購入手続きへ進む",
+
+    chooseOptions:
+      "続行する前にカラーとサイズを選択してください。",
+
+    itemNotFound:
+      "商品が見つかりません",
+
+    itemNotFoundText:
+      "Legathon Walkストアに戻って商品を選択してください。",
+
+    returnStore:
+      "ストアに戻る",
+
+    unisex: "ユニセックス",
+    merchandise: "商品",
+    defaultItem: "Legathon Walk 商品",
+
+    black: "ブラック",
+    white: "ホワイト",
+    blue: "ブルー",
+    green: "グリーン",
+    red: "レッド",
+    yellow: "イエロー",
+    pink: "ピンク",
+    gray: "グレー",
+    grey: "グレー",
+    gold: "ゴールド",
+  },
+
+
+  ko: {
+    back: "뒤로",
+    store: "LEGATHON WALK 스토어",
+    productDetails: "상품 상세",
+    productImage: "상품 이미지",
+
+    price: "가격",
+    wCoins: "W COINS",
+
+    selectColor: "색상 선택",
+    selectSize: "사이즈 선택",
+
+    noColorRequired:
+      "색상을 선택할 필요가 없습니다.",
+    noSizeRequired:
+      "사이즈를 선택할 필요가 없습니다.",
+
+    yourSelection: "선택 내용",
+
+    item: "상품",
+    color: "색상",
+    size: "사이즈",
+    priceRow: "가격",
+
+    notSelected: "선택 안 됨",
+
+    collection: "컬렉션",
+    category: "카테고리",
+    product: "제품",
+    fit: "핏",
+    availability: "구매 가능 여부",
+    available: "구매 가능",
+
+    wCoinEligible: "W Coin 사용 가능",
+
+    wCoinMessage:
+      "대상 Premium 및 Elite 회원은 결제 시 W Coins를 상품 할인에 사용할 수 있습니다.",
+
+    continuePurchase:
+      "구매 계속하기",
+
+    chooseOptions:
+      "계속하기 전에 색상과 사이즈를 선택하세요.",
+
+    itemNotFound:
+      "상품을 찾을 수 없습니다",
+
+    itemNotFoundText:
+      "Legathon Walk 스토어로 돌아가 상품을 선택하세요.",
+
+    returnStore:
+      "스토어로 돌아가기",
+
+    unisex: "공용",
+    merchandise: "상품",
+    defaultItem: "Legathon Walk 상품",
+
+    black: "블랙",
+    white: "화이트",
+    blue: "블루",
+    green: "그린",
+    red: "레드",
+    yellow: "옐로우",
+    pink: "핑크",
+    gray: "그레이",
+    grey: "그레이",
+    gold: "골드",
+  },
+
+
+  zh: {
+    back: "返回",
+    store: "LEGATHON WALK 商店",
+    productDetails: "商品详情",
+    productImage: "商品图片",
+
+    price: "价格",
+    wCoins: "W COINS",
+
+    selectColor: "选择颜色",
+    selectSize: "选择尺码",
+
+    noColorRequired:
+      "无需选择颜色。",
+    noSizeRequired:
+      "无需选择尺码。",
+
+    yourSelection: "您的选择",
+
+    item: "商品",
+    color: "颜色",
+    size: "尺码",
+    priceRow: "价格",
+
+    notSelected: "未选择",
+
+    collection: "系列",
+    category: "类别",
+    product: "产品",
+    fit: "适用",
+    availability: "供应状态",
+    available: "有货",
+
+    wCoinEligible: "可使用 W Coin",
+
+    wCoinMessage:
+      "符合条件的 Premium 和 Elite 会员可在结账时使用 W Coins 获得商品折扣。",
+
+    continuePurchase:
+      "继续购买",
+
+    chooseOptions:
+      "继续之前请选择颜色和尺码。",
+
+    itemNotFound:
+      "未找到商品",
+
+    itemNotFoundText:
+      "返回 Legathon Walk 商店并选择商品。",
+
+    returnStore:
+      "返回商店",
+
+    unisex: "男女通用",
+    merchandise: "商品",
+    defaultItem: "Legathon Walk 商品",
+
+    black: "黑色",
+    white: "白色",
+    blue: "蓝色",
+    green: "绿色",
+    red: "红色",
+    yellow: "黄色",
+    pink: "粉色",
+    gray: "灰色",
+    grey: "灰色",
+    gold: "金色",
+  },
+
+
+  it: {
+    back: "Indietro",
+    store: "NEGOZIO LEGATHON WALK",
+    productDetails: "Dettagli del Prodotto",
+    productImage: "Immagine del Prodotto",
+
+    price: "PREZZO",
+    wCoins: "W COINS",
+
+    selectColor: "Seleziona Colore",
+    selectSize: "Seleziona Taglia",
+
+    noColorRequired:
+      "Non è necessario selezionare un colore.",
+    noSizeRequired:
+      "Non è necessario selezionare una taglia.",
+
+    yourSelection: "La Tua Selezione",
+
+    item: "Articolo",
+    color: "Colore",
+    size: "Taglia",
+    priceRow: "Prezzo",
+
+    notSelected: "Non Selezionato",
+
+    collection: "Collezione",
+    category: "Categoria",
+    product: "Prodotto",
+    fit: "Vestibilità",
+    availability: "Disponibilità",
+    available: "Disponibile",
+
+    wCoinEligible: "Idoneo per W Coin",
+
+    wCoinMessage:
+      "I membri Premium ed Elite idonei possono utilizzare W Coins per ottenere sconti sulla merce al checkout.",
+
+    continuePurchase:
+      "CONTINUA ALL'ACQUISTO",
+
+    chooseOptions:
+      "Seleziona colore e taglia prima di continuare.",
+
+    itemNotFound:
+      "Articolo Non Trovato",
+
+    itemNotFoundText:
+      "Torna al negozio Legathon Walk e seleziona un articolo.",
+
+    returnStore:
+      "TORNA AL NEGOZIO",
+
+    unisex: "Unisex",
+    merchandise: "Merchandise",
+    defaultItem: "Articolo Legathon Walk",
+
+    black: "Nero",
+    white: "Bianco",
+    blue: "Blu",
+    green: "Verde",
+    red: "Rosso",
+    yellow: "Giallo",
+    pink: "Rosa",
+    gray: "Grigio",
+    grey: "Grigio",
+    gold: "Oro",
+  },
+
+
+  ar: {
+    back: "رجوع",
+    store: "متجر LEGATHON WALK",
+    productDetails: "تفاصيل المنتج",
+    productImage: "صورة المنتج",
+
+    price: "السعر",
+    wCoins: "W COINS",
+
+    selectColor: "اختر اللون",
+    selectSize: "اختر المقاس",
+
+    noColorRequired:
+      "لا يلزم اختيار لون.",
+    noSizeRequired:
+      "لا يلزم اختيار مقاس.",
+
+    yourSelection: "اختيارك",
+
+    item: "المنتج",
+    color: "اللون",
+    size: "المقاس",
+    priceRow: "السعر",
+
+    notSelected: "غير محدد",
+
+    collection: "المجموعة",
+    category: "الفئة",
+    product: "المنتج",
+    fit: "الملاءمة",
+    availability: "التوفر",
+    available: "متوفر",
+
+    wCoinEligible:
+      "مؤهل لاستخدام W Coin",
+
+    wCoinMessage:
+      "يمكن لأعضاء Premium وElite المؤهلين استخدام W Coins للحصول على خصومات على المنتجات عند الدفع.",
+
+    continuePurchase:
+      "متابعة الشراء",
+
+    chooseOptions:
+      "اختر اللون والمقاس قبل المتابعة.",
+
+    itemNotFound:
+      "لم يتم العثور على المنتج",
+
+    itemNotFoundText:
+      "ارجع إلى متجر Legathon Walk واختر منتجًا.",
+
+    returnStore:
+      "العودة إلى المتجر",
+
+    unisex: "للجميع",
+    merchandise: "منتجات",
+    defaultItem: "منتج Legathon Walk",
+
+    black: "أسود",
+    white: "أبيض",
+    blue: "أزرق",
+    green: "أخضر",
+    red: "أحمر",
+    yellow: "أصفر",
+    pink: "وردي",
+    gray: "رمادي",
+    grey: "رمادي",
+    gold: "ذهبي",
+  },
+};
+
+
+// ============================================================
+// LANGUAGE HELPERS
+// ============================================================
+
+function normalizeLanguage(language) {
+  const code =
+    String(language || "en")
+      .trim()
+      .toLowerCase()
+      .split("-")[0];
+
+  return TEXT[code]
+    ? code
+    : "en";
+}
+
+
+function getText(
+  language,
+  key
+) {
+  return (
+    TEXT?.[language]?.[key] ||
+    TEXT.en?.[key] ||
+    key
+  );
+}
+
+
+// ============================================================
+// TRANSLATE DISPLAY COLOR
+//
+// IMPORTANT:
+// The stored color value remains unchanged.
+// This only changes what the customer sees.
+// ============================================================
+
+function getColorLabel(
+  color,
+  language
+) {
+  const key =
+    String(color || "")
+      .trim()
+      .toLowerCase();
+
+  return (
+    TEXT?.[language]?.[key] ||
+    color
+  );
+}
+
+
+// ============================================================
+// DISPLAY GENDER
+// ============================================================
+
+function getGenderLabel(
+  gender,
+  language
+) {
+  const value =
+    String(gender || "")
+      .trim()
+      .toLowerCase();
+
+  if (
+    value === "unisex"
+  ) {
+    return getText(
+      language,
+      "unisex"
+    );
+  }
+
+  // Catalog values remain untouched.
+  return gender;
+}
+
+
+// ============================================================
+// LEGATHON WALK
 // STORE ITEM DETAIL SCREEN
 // ============================================================
 
@@ -31,6 +820,29 @@ export default function StoreItemDetailScreen({
   goBack,
   goToPurchaseConfirmation,
 }) {
+
+  const languageCode =
+    normalizeLanguage(
+      language
+    );
+
+
+  const t = key =>
+    getText(
+      languageCode,
+      key
+    );
+
+
+  const isRTL =
+    languageCode === "ar";
+
+
+  const rtlText =
+    isRTL
+      ? styles.rtlText
+      : null;
+
 
   // ==========================================================
   // PRODUCT OPTIONS
@@ -99,7 +911,9 @@ export default function StoreItemDetailScreen({
   const productName =
     item?.name ||
     item?.title ||
-    "Legathon Walk Item";
+    t(
+      "defaultItem"
+    );
 
 
   // ==========================================================
@@ -190,7 +1004,9 @@ export default function StoreItemDetailScreen({
 
   const category =
     item?.category ||
-    "Merchandise";
+    t(
+      "merchandise"
+    );
 
 
   const productType =
@@ -295,13 +1111,17 @@ export default function StoreItemDetailScreen({
 
 
         // ------------------------------------------------------
-        // SELECTED CUSTOMER OPTIONS
+        // KEEP ORIGINAL INTERNAL COLOR VALUE
         // ------------------------------------------------------
 
         selectedColor:
           selectedColor ||
           null,
 
+
+        // ------------------------------------------------------
+        // KEEP ORIGINAL INTERNAL SIZE VALUE
+        // ------------------------------------------------------
 
         selectedSize:
           selectedSize ||
@@ -387,20 +1207,26 @@ export default function StoreItemDetailScreen({
 
 
           <Text
-            style={
-              styles.emptyTitle
-            }
+            style={[
+              styles.emptyTitle,
+              rtlText,
+            ]}
           >
-            Item Not Found
+            {t(
+              "itemNotFound"
+            )}
           </Text>
 
 
           <Text
-            style={
-              styles.emptyText
-            }
+            style={[
+              styles.emptyText,
+              rtlText,
+            ]}
           >
-            Return to the Legathon Walk Store and select an item.
+            {t(
+              "itemNotFoundText"
+            )}
           </Text>
 
 
@@ -414,11 +1240,20 @@ export default function StoreItemDetailScreen({
           >
 
             <Text
-              style={
-                styles.primaryButtonText
+              style={[
+                styles.primaryButtonText,
+
+                isRTL &&
+                  styles.rtlCenterText,
+              ]}
+              adjustsFontSizeToFit
+              numberOfLines={
+                1
               }
             >
-              RETURN TO STORE
+              {t(
+                "returnStore"
+              )}
             </Text>
 
           </TouchableOpacity>
@@ -458,23 +1293,35 @@ export default function StoreItemDetailScreen({
         {/* ================================================== */}
 
         <TouchableOpacity
-          style={
-            styles.backButton
-          }
+          style={[
+            styles.backButton,
+
+            isRTL &&
+              styles.backButtonRTL,
+          ]}
           onPress={
             goBack
           }
           activeOpacity={
             0.8
           }
+          accessibilityRole="button"
+          accessibilityLabel={
+            t(
+              "back"
+            )
+          }
         >
 
           <Text
-            style={
-              styles.backText
-            }
+            style={[
+              styles.backText,
+              rtlText,
+            ]}
           >
-            ‹ Back
+            {isRTL
+              ? `${t("back")} ›`
+              : `‹ ${t("back")}`}
           </Text>
 
         </TouchableOpacity>
@@ -485,20 +1332,30 @@ export default function StoreItemDetailScreen({
         {/* ================================================== */}
 
         <Text
-          style={
-            styles.kicker
-          }
+          style={[
+            styles.kicker,
+            rtlText,
+          ]}
         >
-          LEGATHON WALK STORE
+          {t(
+            "store"
+          )}
         </Text>
 
 
         <Text
-          style={
-            styles.pageTitle
+          style={[
+            styles.pageTitle,
+            rtlText,
+          ]}
+          adjustsFontSizeToFit
+          numberOfLines={
+            2
           }
         >
-          Product Details
+          {t(
+            "productDetails"
+          )}
         </Text>
 
 
@@ -532,11 +1389,14 @@ export default function StoreItemDetailScreen({
             >
 
               <Text
-                style={
-                  styles.noImageText
-                }
+                style={[
+                  styles.noImageText,
+                  rtlText,
+                ]}
               >
-                Product Image
+                {t(
+                  "productImage"
+                )}
               </Text>
 
             </View>
@@ -551,17 +1411,24 @@ export default function StoreItemDetailScreen({
           {selectedColor ? (
 
             <View
-              style={
-                styles.selectedColorBadge
-              }
+              style={[
+                styles.selectedColorBadge,
+
+                isRTL &&
+                  styles.selectedColorBadgeRTL,
+              ]}
             >
 
               <Text
-                style={
-                  styles.selectedColorBadgeText
-                }
+                style={[
+                  styles.selectedColorBadgeText,
+                  rtlText,
+                ]}
               >
-                {selectedColor}
+                {getColorLabel(
+                  selectedColor,
+                  languageCode
+                )}
               </Text>
 
             </View>
@@ -582,29 +1449,37 @@ export default function StoreItemDetailScreen({
         >
 
           <Text
-            style={
-              styles.collectionText
-            }
+            style={[
+              styles.collectionText,
+              rtlText,
+            ]}
           >
-            {collection.toUpperCase()}
+            {String(
+              collection
+            ).toUpperCase()}
           </Text>
 
 
           <Text
-            style={
-              styles.productName
-            }
+            style={[
+              styles.productName,
+              rtlText,
+            ]}
           >
             {productName}
           </Text>
 
 
           <Text
-            style={
-              styles.productMeta
-            }
+            style={[
+              styles.productMeta,
+              rtlText,
+            ]}
           >
-            {gender}
+            {getGenderLabel(
+              gender,
+              languageCode
+            )}
             {"  •  "}
             {productType}
           </Text>
@@ -615,26 +1490,35 @@ export default function StoreItemDetailScreen({
           {/* ================================================ */}
 
           <View
-            style={
-              styles.priceRow
-            }
+            style={[
+              styles.priceRow,
+
+              isRTL &&
+                styles.rowRTL,
+            ]}
           >
 
             <View>
 
               <Text
-                style={
-                  styles.priceLabel
-                }
+                style={[
+                  styles.priceLabel,
+                  rtlText,
+                ]}
               >
-                PRICE
+                {t(
+                  "price"
+                )}
               </Text>
 
 
               <Text
-                style={
-                  styles.priceText
-                }
+                style={[
+                  styles.priceText,
+
+                  isRTL &&
+                    styles.numberText,
+                ]}
               >
                 ${price.toFixed(
                   2
@@ -645,38 +1529,52 @@ export default function StoreItemDetailScreen({
 
 
             <View
-              style={
-                styles.wCoinPill
-              }
+              style={[
+                styles.wCoinPill,
+
+                isRTL &&
+                  styles.rowRTL,
+              ]}
             >
 
               <Image
                 source={
                   WCOIN
                 }
-                style={
-                  styles.wCoinIcon
-                }
+                style={[
+                  styles.wCoinIcon,
+
+                  isRTL &&
+                    styles.wCoinIconRTL,
+                ]}
               />
 
 
               <View>
 
                 <Text
-                  style={
-                    styles.wCoinLabel
-                  }
+                  style={[
+                    styles.wCoinLabel,
+                    rtlText,
+                  ]}
                 >
-                  W COINS
+                  {t(
+                    "wCoins"
+                  )}
                 </Text>
 
 
                 <Text
-                  style={
-                    styles.wCoinAmount
-                  }
+                  style={[
+                    styles.wCoinAmount,
+
+                    isRTL &&
+                      styles.numberText,
+                  ]}
                 >
-                  {coins.toLocaleString()}
+                  {coins.toLocaleString(
+                    languageCode
+                  )}
                 </Text>
 
               </View>
@@ -699,28 +1597,38 @@ export default function StoreItemDetailScreen({
         >
 
           <View
-            style={
-              styles.optionHeader
-            }
+            style={[
+              styles.optionHeader,
+
+              isRTL &&
+                styles.rowRTL,
+            ]}
           >
 
             <Text
-              style={
-                styles.optionTitle
-              }
+              style={[
+                styles.optionTitle,
+                rtlText,
+              ]}
             >
-              Select Color
+              {t(
+                "selectColor"
+              )}
             </Text>
 
 
             {selectedColor ? (
 
               <Text
-                style={
-                  styles.selectedOptionText
-                }
+                style={[
+                  styles.selectedOptionText,
+                  rtlText,
+                ]}
               >
-                {selectedColor}
+                {getColorLabel(
+                  selectedColor,
+                  languageCode
+                )}
               </Text>
 
             ) : null}
@@ -732,15 +1640,16 @@ export default function StoreItemDetailScreen({
           0 ? (
 
             <View
-              style={
-                styles.optionWrap
-              }
+              style={[
+                styles.optionWrap,
+
+                isRTL &&
+                  styles.wrapRTL,
+              ]}
             >
 
               {colors.map(
-                (
-                  color
-                ) => {
+                color => {
 
                   const active =
                     selectedColor ===
@@ -758,6 +1667,9 @@ export default function StoreItemDetailScreen({
 
                         active &&
                           styles.optionButtonActive,
+
+                        isRTL &&
+                          styles.rowRTL,
                       ]}
                       onPress={() =>
                         setSelectedColor(
@@ -768,10 +1680,6 @@ export default function StoreItemDetailScreen({
                         0.8
                       }
                     >
-
-                      {/* ===================================== */}
-                      {/* COLOR DOT */}
-                      {/* ===================================== */}
 
                       <View
                         style={[
@@ -788,6 +1696,9 @@ export default function StoreItemDetailScreen({
                             .toLowerCase() ===
                             "white" &&
                             styles.whiteColorDot,
+
+                          isRTL &&
+                            styles.colorDotRTL,
                         ]}
                       />
 
@@ -798,9 +1709,14 @@ export default function StoreItemDetailScreen({
 
                           active &&
                             styles.optionTextActive,
+
+                          rtlText,
                         ]}
                       >
-                        {color}
+                        {getColorLabel(
+                          color,
+                          languageCode
+                        )}
                       </Text>
 
                     </TouchableOpacity>
@@ -813,11 +1729,14 @@ export default function StoreItemDetailScreen({
           ) : (
 
             <Text
-              style={
-                styles.unavailableText
-              }
+              style={[
+                styles.unavailableText,
+                rtlText,
+              ]}
             >
-              No color selection required.
+              {t(
+                "noColorRequired"
+              )}
             </Text>
 
           )}
@@ -836,26 +1755,33 @@ export default function StoreItemDetailScreen({
         >
 
           <View
-            style={
-              styles.optionHeader
-            }
+            style={[
+              styles.optionHeader,
+
+              isRTL &&
+                styles.rowRTL,
+            ]}
           >
 
             <Text
-              style={
-                styles.optionTitle
-              }
+              style={[
+                styles.optionTitle,
+                rtlText,
+              ]}
             >
-              Select Size
+              {t(
+                "selectSize"
+              )}
             </Text>
 
 
             {selectedSize ? (
 
               <Text
-                style={
-                  styles.selectedOptionText
-                }
+                style={[
+                  styles.selectedOptionText,
+                  rtlText,
+                ]}
               >
                 {selectedSize}
               </Text>
@@ -869,15 +1795,16 @@ export default function StoreItemDetailScreen({
           0 ? (
 
             <View
-              style={
-                styles.sizeWrap
-              }
+              style={[
+                styles.sizeWrap,
+
+                isRTL &&
+                  styles.wrapRTL,
+              ]}
             >
 
               {sizes.map(
-                (
-                  size
-                ) => {
+                size => {
 
                   const active =
                     selectedSize ===
@@ -927,11 +1854,14 @@ export default function StoreItemDetailScreen({
           ) : (
 
             <Text
-              style={
-                styles.unavailableText
-              }
+              style={[
+                styles.unavailableText,
+                rtlText,
+              ]}
             >
-              No size selection required.
+              {t(
+                "noSizeRequired"
+              )}
             </Text>
 
           )}
@@ -950,45 +1880,84 @@ export default function StoreItemDetailScreen({
         >
 
           <Text
-            style={
-              styles.selectionTitle
-            }
+            style={[
+              styles.selectionTitle,
+              rtlText,
+            ]}
           >
-            Your Selection
+            {t(
+              "yourSelection"
+            )}
           </Text>
 
 
           <DetailRow
-            label="Item"
+            label={
+              t(
+                "item"
+              )
+            }
             value={
               productName
             }
-          />
-
-
-          <DetailRow
-            label="Color"
-            value={
-              selectedColor ||
-              "Not Selected"
+            isRTL={
+              isRTL
             }
           />
 
 
           <DetailRow
-            label="Size"
+            label={
+              t(
+                "color"
+              )
+            }
+            value={
+              selectedColor
+                ? getColorLabel(
+                    selectedColor,
+                    languageCode
+                  )
+                : t(
+                    "notSelected"
+                  )
+            }
+            isRTL={
+              isRTL
+            }
+          />
+
+
+          <DetailRow
+            label={
+              t(
+                "size"
+              )
+            }
             value={
               selectedSize ||
-              "Not Selected"
+              t(
+                "notSelected"
+              )
+            }
+            isRTL={
+              isRTL
             }
           />
 
 
           <DetailRow
-            label="Price"
+            label={
+              t(
+                "priceRow"
+              )
+            }
             value={`$${price.toFixed(
               2
             )}`}
+            isRTL={
+              isRTL
+            }
           />
 
         </View>
@@ -1005,49 +1974,94 @@ export default function StoreItemDetailScreen({
         >
 
           <Text
-            style={
-              styles.detailsTitle
-            }
+            style={[
+              styles.detailsTitle,
+              rtlText,
+            ]}
           >
-            Product Details
+            {t(
+              "productDetails"
+            )}
           </Text>
 
 
           <DetailRow
-            label="Collection"
+            label={
+              t(
+                "collection"
+              )
+            }
             value={
               collection
             }
+            isRTL={
+              isRTL
+            }
           />
 
 
           <DetailRow
-            label="Category"
+            label={
+              t(
+                "category"
+              )
+            }
             value={
               category
             }
+            isRTL={
+              isRTL
+            }
           />
 
 
           <DetailRow
-            label="Product"
+            label={
+              t(
+                "product"
+              )
+            }
             value={
               productType
             }
-          />
-
-
-          <DetailRow
-            label="Fit"
-            value={
-              gender
+            isRTL={
+              isRTL
             }
           />
 
 
           <DetailRow
-            label="Availability"
-            value="Available"
+            label={
+              t(
+                "fit"
+              )
+            }
+            value={
+              getGenderLabel(
+                gender,
+                languageCode
+              )
+            }
+            isRTL={
+              isRTL
+            }
+          />
+
+
+          <DetailRow
+            label={
+              t(
+                "availability"
+              )
+            }
+            value={
+              t(
+                "available"
+              )
+            }
+            isRTL={
+              isRTL
+            }
           />
 
         </View>
@@ -1058,18 +2072,24 @@ export default function StoreItemDetailScreen({
         {/* ================================================== */}
 
         <View
-          style={
-            styles.rewardCard
-          }
+          style={[
+            styles.rewardCard,
+
+            isRTL &&
+              styles.rowRTL,
+          ]}
         >
 
           <Image
             source={
               WCOIN
             }
-            style={
-              styles.rewardCoin
-            }
+            style={[
+              styles.rewardCoin,
+
+              isRTL &&
+                styles.rewardCoinRTL,
+            ]}
           />
 
 
@@ -1080,20 +2100,26 @@ export default function StoreItemDetailScreen({
           >
 
             <Text
-              style={
-                styles.rewardTitle
-              }
+              style={[
+                styles.rewardTitle,
+                rtlText,
+              ]}
             >
-              W Coin Eligible
+              {t(
+                "wCoinEligible"
+              )}
             </Text>
 
 
             <Text
-              style={
-                styles.rewardText
-              }
+              style={[
+                styles.rewardText,
+                rtlText,
+              ]}
             >
-              Eligible Premium and Elite members can apply W Coins toward merchandise discounts at checkout.
+              {t(
+                "wCoinMessage"
+              )}
             </Text>
 
           </View>
@@ -1121,14 +2147,28 @@ export default function StoreItemDetailScreen({
           activeOpacity={
             0.85
           }
+          accessibilityRole="button"
+          accessibilityState={{
+            disabled:
+              !readyToPurchase,
+          }}
         >
 
           <Text
-            style={
-              styles.primaryButtonText
+            style={[
+              styles.primaryButtonText,
+
+              isRTL &&
+                styles.rtlCenterText,
+            ]}
+            adjustsFontSizeToFit
+            numberOfLines={
+              1
             }
           >
-            CONTINUE TO PURCHASE
+            {t(
+              "continuePurchase"
+            )}
           </Text>
 
         </TouchableOpacity>
@@ -1142,11 +2182,17 @@ export default function StoreItemDetailScreen({
         selectedSize ? (
 
           <Text
-            style={
-              styles.purchaseNote
-            }
+            style={[
+              styles.purchaseNote,
+
+              isRTL &&
+                styles.rtlCenterText,
+            ]}
           >
-            {selectedColor}
+            {getColorLabel(
+              selectedColor,
+              languageCode
+            )}
             {" • "}
             {selectedSize}
             {" • "}
@@ -1158,11 +2204,16 @@ export default function StoreItemDetailScreen({
         ) : (
 
           <Text
-            style={
-              styles.purchaseNote
-            }
+            style={[
+              styles.purchaseNote,
+
+              isRTL &&
+                styles.rtlCenterText,
+            ]}
           >
-            Select your color and size before continuing.
+            {t(
+              "chooseOptions"
+            )}
           </Text>
 
         )}
@@ -1188,28 +2239,38 @@ export default function StoreItemDetailScreen({
 function DetailRow({
   label,
   value,
+  isRTL = false,
 }) {
 
   return (
     <View
-      style={
-        styles.detailRow
-      }
+      style={[
+        styles.detailRow,
+
+        isRTL &&
+          styles.rowRTL,
+      ]}
     >
 
       <Text
-        style={
-          styles.detailLabel
-        }
+        style={[
+          styles.detailLabel,
+
+          isRTL &&
+            styles.rtlText,
+        ]}
       >
         {label}
       </Text>
 
 
       <Text
-        style={
-          styles.detailValue
-        }
+        style={[
+          styles.detailValue,
+
+          isRTL &&
+            styles.detailValueRTL,
+        ]}
       >
         {value}
       </Text>
@@ -1238,54 +2299,44 @@ function getColorValue(
   ) {
 
     case "black":
-
       return "#090909";
 
 
     case "white":
-
       return "#FFFFFF";
 
 
     case "blue":
-
       return "#2563EB";
 
 
     case "green":
-
       return "#16A34A";
 
 
     case "red":
-
       return "#DC2626";
 
 
     case "yellow":
-
       return "#FACC15";
 
 
     case "pink":
-
       return "#EC4899";
 
 
     case "gray":
 
     case "grey":
-
       return "#64748B";
 
 
     case "gold":
-
       return "#D4AF37";
 
 
     default:
-
       return "#64748B";
   }
 }
@@ -1335,6 +2386,11 @@ const styles =
       paddingVertical: 8,
       paddingHorizontal: 2,
       marginBottom: 20,
+    },
+
+
+    backButtonRTL: {
+      alignSelf: "flex-end",
     },
 
 
@@ -1418,6 +2474,12 @@ const styles =
       borderColor: "#D4AF37",
       paddingHorizontal: 14,
       paddingVertical: 8,
+    },
+
+
+    selectedColorBadgeRTL: {
+      right: undefined,
+      left: 16,
     },
 
 
@@ -1515,6 +2577,12 @@ const styles =
     },
 
 
+    wCoinIconRTL: {
+      marginRight: 0,
+      marginLeft: 9,
+    },
+
+
     wCoinLabel: {
       color: "#94A3B8",
       fontSize: 9,
@@ -1573,6 +2641,11 @@ const styles =
     },
 
 
+    wrapRTL: {
+      flexDirection: "row-reverse",
+    },
+
+
     colorButton: {
       minHeight: 48,
       borderRadius: 24,
@@ -1593,6 +2666,12 @@ const styles =
       height: 18,
       borderRadius: 9,
       marginRight: 8,
+    },
+
+
+    colorDotRTL: {
+      marginRight: 0,
+      marginLeft: 8,
     },
 
 
@@ -1729,6 +2808,12 @@ const styles =
     },
 
 
+    detailValueRTL: {
+      writingDirection: "rtl",
+      textAlign: "left",
+    },
+
+
     // ========================================================
     // WCOIN REWARD CARD
     // ========================================================
@@ -1750,6 +2835,12 @@ const styles =
       height: 48,
       resizeMode: "contain",
       marginRight: 14,
+    },
+
+
+    rewardCoinRTL: {
+      marginRight: 0,
+      marginLeft: 14,
     },
 
 
@@ -1793,6 +2884,7 @@ const styles =
       color: "#050914",
       fontSize: 17,
       fontWeight: "900",
+      textAlign: "center",
     },
 
 
@@ -1846,5 +2938,31 @@ const styles =
       textAlign: "center",
       marginTop: 10,
       marginBottom: 24,
+    },
+
+
+    // ========================================================
+    // RTL
+    // ========================================================
+
+    rowRTL: {
+      flexDirection: "row-reverse",
+    },
+
+
+    rtlText: {
+      writingDirection: "rtl",
+      textAlign: "right",
+    },
+
+
+    rtlCenterText: {
+      writingDirection: "rtl",
+      textAlign: "center",
+    },
+
+
+    numberText: {
+      writingDirection: "ltr",
     },
   });

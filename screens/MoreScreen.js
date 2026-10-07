@@ -142,35 +142,29 @@ export default function MoreScreen({
             onPress={goToWalkingAnalytics}
           />
 
-          <MenuItem
-            image={MORE_ICONS.walkingPace}
-            title="Walking Pace & Function"
-            onPress={goToWalkingFunction}
-          />
+         <MenuItem
+  image={MORE_ICONS.walkingPace}
+  title={translate(language, "walkingPaceFunction")}
+  onPress={goToWalkingFunction}
+/>
 
-          <MenuItem
-            image={MORE_ICONS.journeyPreference}
-            title="Journey Preferences"
-            onPress={goToJourneyPreferences}
-          />
+<MenuItem
+  image={MORE_ICONS.journeyPreference}
+  title={translate(language, "journeyPreferences")}
+  onPress={goToJourneyPreferences}
+/>
 
-          <MenuItem
-            image={MORE_ICONS.aiCoach}
-            title={translate(
-              language,
-              "aiCoach"
-            )}
-            onPress={goToAICoach}
-          />
+<MenuItem
+  image={MORE_ICONS.aiCoach}
+  title={translate(language, "aiCoach")}
+  onPress={goToAICoach}
+/>
 
-          <MenuItem
-            image={MORE_ICONS.legathons}
-            title={translate(
-              language,
-              "legathons"
-            )}
-            onPress={goToLegathons}
-          />
+<MenuItem
+  image={MORE_ICONS.legathons}
+  title={translate(language, "legathons")}
+  onPress={goToLegathons}
+/>
         </Section>
 
         {/* ==================================================

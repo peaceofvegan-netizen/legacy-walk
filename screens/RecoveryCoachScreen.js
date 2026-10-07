@@ -20,10 +20,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
+// ============================================================
+// STORAGE
+// ============================================================
+
 const RECOVERY_KEYS = [
   "recoveryData",
   "dailyRecovery",
 ];
+
+// ============================================================
+// DEFAULT CHECK-IN
+// ============================================================
 
 const INITIAL_CHECK_IN = {
   energy: 3,
@@ -33,53 +41,933 @@ const INITIAL_CHECK_IN = {
   hydration: 3,
 };
 
+// ============================================================
+// CHECK-IN CONFIG
+// ============================================================
+
 const CHECK_IN_ITEMS = [
   {
     key: "energy",
-    title: "Energy",
-    subtitle: "How energized do you feel?",
     icon: "flash",
     color: "#FFC94A",
-    low: "Low",
-    high: "High",
   },
   {
     key: "soreness",
-    title: "Muscle Soreness",
-    subtitle: "How sore does your body feel?",
     icon: "body",
     color: "#FF7184",
-    low: "None",
-    high: "Severe",
   },
   {
     key: "stress",
-    title: "Stress",
-    subtitle: "How mentally stressed do you feel?",
     icon: "pulse",
     color: "#A978FF",
-    low: "Calm",
-    high: "High",
   },
   {
     key: "sleep",
-    title: "Sleep Quality",
-    subtitle: "How restorative was your sleep?",
     icon: "moon",
     color: "#73A8FF",
-    low: "Poor",
-    high: "Great",
   },
   {
     key: "hydration",
-    title: "Hydration",
-    subtitle: "How hydrated do you feel?",
     icon: "water",
     color: "#49D8FF",
-    low: "Low",
-    high: "Great",
   },
 ];
+
+// ============================================================
+// TRANSLATIONS
+// ============================================================
+
+const TEXT = {
+  en: {
+    wellness: "LEGATHON WELLNESS",
+    recoveryCoach: "Recovery Coach",
+
+    todaysRecovery: "TODAY’S RECOVERY",
+
+    readyPerform: "Ready to Perform",
+    readyBalance: "Ready With Balance",
+    recoveryRecommended: "Recovery Recommended",
+    restRestore: "Rest and Restore",
+
+    strongWalk: "Strong Walk",
+    moderateWalk: "Moderate Walk",
+    lightRecoveryWalk: "Light Recovery Walk",
+    restLightMovement: "Rest or Very Light Movement",
+
+    strongMessage:
+      "Your recovery indicators look strong. You can choose a challenging walk while maintaining good form and hydration.",
+
+    moderateMessage:
+      "You appear ready for steady movement. Keep the pace comfortable and reassess if soreness or fatigue increases.",
+
+    recoveryMessage:
+      "Keep today gentle. Try a short walk, hydrate, and give your body extra time to recover.",
+
+    restMessage:
+      "Your check-in suggests a recovery day. Prioritize rest, hydration, nutrition, and sleep before increasing intensity.",
+
+    lastCheckIn: "Last check-in: {time}",
+    notRecorded: "Not recorded yet",
+
+    howFeel: "How Do You Feel?",
+    rateAreas:
+      "Rate each area from 1 to 5. Your answers calculate today’s recovery readiness.",
+
+    energy: "Energy",
+    energySubtitle: "How energized do you feel?",
+    energyLow: "Low",
+    energyHigh: "High",
+
+    soreness: "Muscle Soreness",
+    sorenessSubtitle: "How sore does your body feel?",
+    sorenessLow: "None",
+    sorenessHigh: "Severe",
+
+    stress: "Stress",
+    stressSubtitle: "How mentally stressed do you feel?",
+    stressLow: "Calm",
+    stressHigh: "High",
+
+    sleep: "Sleep Quality",
+    sleepSubtitle: "How restorative was your sleep?",
+    sleepLow: "Poor",
+    sleepHigh: "Great",
+
+    hydration: "Hydration",
+    hydrationSubtitle: "How hydrated do you feel?",
+    hydrationLow: "Low",
+    hydrationHigh: "Great",
+
+    ratingAccessibility: "{title} {rating} out of 5",
+
+    saving: "Saving Check-In...",
+    saveCheckIn: "Save Recovery Check-In",
+
+    recoveryTools: "Recovery Tools",
+    calmBreathing: "Calm Breathing",
+    hydrationTool: "Hydration",
+    sleepCoach: "Sleep Coach",
+    walkingData: "Walking Data",
+
+    recordedTitle: "Recovery Recorded",
+    recordedMessage:
+      "Your recovery score is {score}%. Your AI Wellness Coach can now use this check-in.",
+
+    saveError: "Save Error",
+    saveErrorMessage:
+      "Your recovery check-in could not be saved. Please try again.",
+
+    notice:
+      "This wellness check-in is informational and is not medical advice. Stop exercising and seek professional care for concerning symptoms.",
+
+    backAccessibility: "Back to AI Wellness",
+  },
+
+  es: {
+    wellness: "BIENESTAR LEGATHON",
+    recoveryCoach: "Guía de recuperación",
+
+    todaysRecovery: "RECUPERACIÓN DE HOY",
+
+    readyPerform: "Listo para rendir",
+    readyBalance: "Listo con equilibrio",
+    recoveryRecommended: "Recuperación recomendada",
+    restRestore: "Descansa y recupérate",
+
+    strongWalk: "Caminata intensa",
+    moderateWalk: "Caminata moderada",
+    lightRecoveryWalk: "Caminata ligera de recuperación",
+    restLightMovement: "Descanso o movimiento muy ligero",
+
+    strongMessage:
+      "Tus indicadores de recuperación se ven fuertes. Puedes elegir una caminata más exigente manteniendo una buena técnica e hidratación.",
+
+    moderateMessage:
+      "Parece que estás listo para un movimiento constante. Mantén un ritmo cómodo y vuelve a evaluar si aumenta el dolor o la fatiga.",
+
+    recoveryMessage:
+      "Tómatelo con calma hoy. Prueba una caminata corta, hidrátate y dale a tu cuerpo más tiempo para recuperarse.",
+
+    restMessage:
+      "Tu registro sugiere un día de recuperación. Prioriza el descanso, la hidratación, la nutrición y el sueño antes de aumentar la intensidad.",
+
+    lastCheckIn: "Último registro: {time}",
+    notRecorded: "Aún no registrado",
+
+    howFeel: "¿Cómo te sientes?",
+    rateAreas:
+      "Califica cada área del 1 al 5. Tus respuestas calculan tu nivel de recuperación de hoy.",
+
+    energy: "Energía",
+    energySubtitle: "¿Qué tan lleno de energía te sientes?",
+    energyLow: "Baja",
+    energyHigh: "Alta",
+
+    soreness: "Dolor muscular",
+    sorenessSubtitle: "¿Qué tan adolorido se siente tu cuerpo?",
+    sorenessLow: "Ninguno",
+    sorenessHigh: "Intenso",
+
+    stress: "Estrés",
+    stressSubtitle: "¿Qué tan estresado mentalmente te sientes?",
+    stressLow: "Calma",
+    stressHigh: "Alto",
+
+    sleep: "Calidad del sueño",
+    sleepSubtitle: "¿Qué tan reparador fue tu sueño?",
+    sleepLow: "Mala",
+    sleepHigh: "Excelente",
+
+    hydration: "Hidratación",
+    hydrationSubtitle: "¿Qué tan hidratado te sientes?",
+    hydrationLow: "Baja",
+    hydrationHigh: "Excelente",
+
+    ratingAccessibility: "{title} {rating} de 5",
+
+    saving: "Guardando registro...",
+    saveCheckIn: "Guardar registro de recuperación",
+
+    recoveryTools: "Herramientas de recuperación",
+    calmBreathing: "Respiración tranquila",
+    hydrationTool: "Hidratación",
+    sleepCoach: "Guía del sueño",
+    walkingData: "Datos de caminata",
+
+    recordedTitle: "Recuperación registrada",
+    recordedMessage:
+      "Tu puntuación de recuperación es {score}%. Tu guía de bienestar con IA ahora puede usar este registro.",
+
+    saveError: "Error al guardar",
+    saveErrorMessage:
+      "No se pudo guardar tu registro de recuperación. Inténtalo de nuevo.",
+
+    notice:
+      "Este registro de bienestar es informativo y no constituye asesoramiento médico. Deja de hacer ejercicio y busca atención profesional si presentas síntomas preocupantes.",
+
+    backAccessibility: "Volver a Bienestar con IA",
+  },
+
+  fr: {
+    wellness: "BIEN-ÊTRE LEGATHON",
+    recoveryCoach: "Coach de récupération",
+
+    todaysRecovery: "RÉCUPÉRATION DU JOUR",
+
+    readyPerform: "Prêt à performer",
+    readyBalance: "Prêt avec équilibre",
+    recoveryRecommended: "Récupération recommandée",
+    restRestore: "Repos et récupération",
+
+    strongWalk: "Marche soutenue",
+    moderateWalk: "Marche modérée",
+    lightRecoveryWalk: "Marche légère de récupération",
+    restLightMovement: "Repos ou mouvement très léger",
+
+    strongMessage:
+      "Vos indicateurs de récupération sont bons. Vous pouvez choisir une marche plus exigeante tout en maintenant une bonne posture et une bonne hydratation.",
+
+    moderateMessage:
+      "Vous semblez prêt pour une activité régulière. Gardez un rythme confortable et réévaluez si les douleurs ou la fatigue augmentent.",
+
+    recoveryMessage:
+      "Allez-y doucement aujourd’hui. Faites une courte marche, hydratez-vous et accordez plus de temps à votre corps pour récupérer.",
+
+    restMessage:
+      "Votre bilan suggère une journée de récupération. Privilégiez le repos, l’hydratation, la nutrition et le sommeil avant d’augmenter l’intensité.",
+
+    lastCheckIn: "Dernier bilan : {time}",
+    notRecorded: "Pas encore enregistré",
+
+    howFeel: "Comment vous sentez-vous ?",
+    rateAreas:
+      "Évaluez chaque domaine de 1 à 5. Vos réponses permettent de calculer votre niveau de récupération aujourd’hui.",
+
+    energy: "Énergie",
+    energySubtitle: "Quel est votre niveau d’énergie ?",
+    energyLow: "Faible",
+    energyHigh: "Élevé",
+
+    soreness: "Douleurs musculaires",
+    sorenessSubtitle: "À quel point votre corps est-il courbaturé ?",
+    sorenessLow: "Aucune",
+    sorenessHigh: "Forte",
+
+    stress: "Stress",
+    stressSubtitle: "Quel est votre niveau de stress mental ?",
+    stressLow: "Calme",
+    stressHigh: "Élevé",
+
+    sleep: "Qualité du sommeil",
+    sleepSubtitle: "Votre sommeil a-t-il été réparateur ?",
+    sleepLow: "Mauvaise",
+    sleepHigh: "Excellente",
+
+    hydration: "Hydratation",
+    hydrationSubtitle: "À quel point vous sentez-vous hydraté ?",
+    hydrationLow: "Faible",
+    hydrationHigh: "Excellente",
+
+    ratingAccessibility: "{title} {rating} sur 5",
+
+    saving: "Enregistrement...",
+    saveCheckIn: "Enregistrer le bilan",
+
+    recoveryTools: "Outils de récupération",
+    calmBreathing: "Respiration calme",
+    hydrationTool: "Hydratation",
+    sleepCoach: "Coach du sommeil",
+    walkingData: "Données de marche",
+
+    recordedTitle: "Récupération enregistrée",
+    recordedMessage:
+      "Votre score de récupération est de {score} %. Votre coach bien-être IA peut maintenant utiliser ce bilan.",
+
+    saveError: "Erreur d’enregistrement",
+    saveErrorMessage:
+      "Votre bilan de récupération n’a pas pu être enregistré. Réessayez.",
+
+    notice:
+      "Ce bilan de bien-être est fourni à titre informatif et ne constitue pas un avis médical. Arrêtez l’exercice et consultez un professionnel en cas de symptômes préoccupants.",
+
+    backAccessibility: "Retour au bien-être IA",
+  },
+
+  de: {
+    wellness: "LEGATHON WELLNESS",
+    recoveryCoach: "Erholungs-Coach",
+
+    todaysRecovery: "HEUTIGE ERHOLUNG",
+
+    readyPerform: "Bereit für Leistung",
+    readyBalance: "Ausgeglichen bereit",
+    recoveryRecommended: "Erholung empfohlen",
+    restRestore: "Ruhen und erholen",
+
+    strongWalk: "Intensiver Spaziergang",
+    moderateWalk: "Moderater Spaziergang",
+    lightRecoveryWalk: "Leichter Erholungsspaziergang",
+    restLightMovement: "Ruhe oder sehr leichte Bewegung",
+
+    strongMessage:
+      "Deine Erholungswerte sehen gut aus. Du kannst einen anspruchsvolleren Spaziergang wählen und dabei auf gute Form und ausreichende Flüssigkeitszufuhr achten.",
+
+    moderateMessage:
+      "Du scheinst für gleichmäßige Bewegung bereit zu sein. Halte das Tempo angenehm und passe es an, wenn Schmerzen oder Müdigkeit zunehmen.",
+
+    recoveryMessage:
+      "Gehe es heute ruhig an. Mache einen kurzen Spaziergang, trinke ausreichend und gib deinem Körper mehr Zeit zur Erholung.",
+
+    restMessage:
+      "Dein Check-in deutet auf einen Erholungstag hin. Priorisiere Ruhe, Flüssigkeit, Ernährung und Schlaf, bevor du die Intensität erhöhst.",
+
+    lastCheckIn: "Letzter Check-in: {time}",
+    notRecorded: "Noch nicht erfasst",
+
+    howFeel: "Wie fühlst du dich?",
+    rateAreas:
+      "Bewerte jeden Bereich von 1 bis 5. Deine Antworten bestimmen deine heutige Erholungsbereitschaft.",
+
+    energy: "Energie",
+    energySubtitle: "Wie energiegeladen fühlst du dich?",
+    energyLow: "Niedrig",
+    energyHigh: "Hoch",
+
+    soreness: "Muskelkater",
+    sorenessSubtitle: "Wie stark fühlt sich dein Körper beansprucht an?",
+    sorenessLow: "Keiner",
+    sorenessHigh: "Stark",
+
+    stress: "Stress",
+    stressSubtitle: "Wie gestresst fühlst du dich mental?",
+    stressLow: "Ruhig",
+    stressHigh: "Hoch",
+
+    sleep: "Schlafqualität",
+    sleepSubtitle: "Wie erholsam war dein Schlaf?",
+    sleepLow: "Schlecht",
+    sleepHigh: "Sehr gut",
+
+    hydration: "Flüssigkeit",
+    hydrationSubtitle: "Wie gut hydriert fühlst du dich?",
+    hydrationLow: "Niedrig",
+    hydrationHigh: "Sehr gut",
+
+    ratingAccessibility: "{title} {rating} von 5",
+
+    saving: "Check-in wird gespeichert...",
+    saveCheckIn: "Erholungs-Check-in speichern",
+
+    recoveryTools: "Erholungswerkzeuge",
+    calmBreathing: "Ruhiges Atmen",
+    hydrationTool: "Flüssigkeit",
+    sleepCoach: "Schlaf-Coach",
+    walkingData: "Gehedaten",
+
+    recordedTitle: "Erholung gespeichert",
+    recordedMessage:
+      "Dein Erholungswert beträgt {score} %. Dein KI-Wellness-Coach kann diesen Check-in jetzt verwenden.",
+
+    saveError: "Speicherfehler",
+    saveErrorMessage:
+      "Dein Erholungs-Check-in konnte nicht gespeichert werden. Versuche es erneut.",
+
+    notice:
+      "Dieser Wellness-Check-in dient nur zur Information und ist keine medizinische Beratung. Beende das Training und hole professionelle Hilfe bei besorgniserregenden Symptomen.",
+
+    backAccessibility: "Zurück zu KI-Wellness",
+  },
+
+  pt: {
+    wellness: "BEM-ESTAR LEGATHON",
+    recoveryCoach: "Coach de recuperação",
+
+    todaysRecovery: "RECUPERAÇÃO DE HOJE",
+
+    readyPerform: "Pronto para o desempenho",
+    readyBalance: "Pronto com equilíbrio",
+    recoveryRecommended: "Recuperação recomendada",
+    restRestore: "Descanse e recupere",
+
+    strongWalk: "Caminhada intensa",
+    moderateWalk: "Caminhada moderada",
+    lightRecoveryWalk: "Caminhada leve de recuperação",
+    restLightMovement: "Descanso ou movimento muito leve",
+
+    strongMessage:
+      "Seus indicadores de recuperação estão bons. Você pode escolher uma caminhada mais desafiadora mantendo boa postura e hidratação.",
+
+    moderateMessage:
+      "Você parece pronto para um movimento constante. Mantenha um ritmo confortável e reavalie se a dor ou o cansaço aumentarem.",
+
+    recoveryMessage:
+      "Pegue leve hoje. Faça uma caminhada curta, hidrate-se e dê mais tempo para o corpo se recuperar.",
+
+    restMessage:
+      "Seu check-in sugere um dia de recuperação. Priorize descanso, hidratação, nutrição e sono antes de aumentar a intensidade.",
+
+    lastCheckIn: "Último check-in: {time}",
+    notRecorded: "Ainda não registrado",
+
+    howFeel: "Como você se sente?",
+    rateAreas:
+      "Avalie cada área de 1 a 5. Suas respostas calculam sua prontidão de recuperação de hoje.",
+
+    energy: "Energia",
+    energySubtitle: "Quanta energia você sente?",
+    energyLow: "Baixa",
+    energyHigh: "Alta",
+
+    soreness: "Dor muscular",
+    sorenessSubtitle: "Quanto seu corpo está dolorido?",
+    sorenessLow: "Nenhuma",
+    sorenessHigh: "Intensa",
+
+    stress: "Estresse",
+    stressSubtitle: "Quanto estresse mental você sente?",
+    stressLow: "Calmo",
+    stressHigh: "Alto",
+
+    sleep: "Qualidade do sono",
+    sleepSubtitle: "Quão restaurador foi seu sono?",
+    sleepLow: "Ruim",
+    sleepHigh: "Ótima",
+
+    hydration: "Hidratação",
+    hydrationSubtitle: "Quão hidratado você se sente?",
+    hydrationLow: "Baixa",
+    hydrationHigh: "Ótima",
+
+    ratingAccessibility: "{title} {rating} de 5",
+
+    saving: "Salvando check-in...",
+    saveCheckIn: "Salvar check-in de recuperação",
+
+    recoveryTools: "Ferramentas de recuperação",
+    calmBreathing: "Respiração calma",
+    hydrationTool: "Hidratação",
+    sleepCoach: "Coach do sono",
+    walkingData: "Dados de caminhada",
+
+    recordedTitle: "Recuperação registrada",
+    recordedMessage:
+      "Sua pontuação de recuperação é {score}%. Seu Coach de Bem-Estar com IA agora pode usar este check-in.",
+
+    saveError: "Erro ao salvar",
+    saveErrorMessage:
+      "Não foi possível salvar seu check-in de recuperação. Tente novamente.",
+
+    notice:
+      "Este check-in de bem-estar é apenas informativo e não constitui orientação médica. Pare de se exercitar e procure atendimento profissional se apresentar sintomas preocupantes.",
+
+    backAccessibility: "Voltar ao Bem-Estar com IA",
+  },
+
+  ja: {
+    wellness: "LEGATHON ウェルネス",
+    recoveryCoach: "リカバリーコーチ",
+
+    todaysRecovery: "今日の回復状態",
+
+    readyPerform: "高い運動準備度",
+    readyBalance: "バランス良好",
+    recoveryRecommended: "回復を優先",
+    restRestore: "休息と回復",
+
+    strongWalk: "しっかり歩く",
+    moderateWalk: "適度なウォーキング",
+    lightRecoveryWalk: "軽いリカバリーウォーク",
+    restLightMovement: "休息または非常に軽い運動",
+
+    strongMessage:
+      "回復状態は良好です。フォームと水分補給を意識しながら、少し負荷の高いウォーキングを選べます。",
+
+    moderateMessage:
+      "安定した運動を行える状態です。無理のないペースを保ち、筋肉痛や疲労が増えた場合は調整してください。",
+
+    recoveryMessage:
+      "今日は軽めにしましょう。短いウォーキングと水分補給を行い、体に十分な回復時間を与えてください。",
+
+    restMessage:
+      "今日のチェックインでは回復日が推奨されます。運動強度を上げる前に、休息、水分、栄養、睡眠を優先してください。",
+
+    lastCheckIn: "最終チェックイン: {time}",
+    notRecorded: "まだ記録されていません",
+
+    howFeel: "今日の体調は？",
+    rateAreas:
+      "各項目を1〜5で評価してください。回答から今日の回復状態を計算します。",
+
+    energy: "エネルギー",
+    energySubtitle: "どのくらい元気に感じますか？",
+    energyLow: "低い",
+    energyHigh: "高い",
+
+    soreness: "筋肉痛",
+    sorenessSubtitle: "体の筋肉痛はどの程度ですか？",
+    sorenessLow: "なし",
+    sorenessHigh: "強い",
+
+    stress: "ストレス",
+    stressSubtitle: "精神的なストレスはどの程度ですか？",
+    stressLow: "穏やか",
+    stressHigh: "高い",
+
+    sleep: "睡眠の質",
+    sleepSubtitle: "睡眠でどの程度回復できましたか？",
+    sleepLow: "悪い",
+    sleepHigh: "良い",
+
+    hydration: "水分状態",
+    hydrationSubtitle: "どのくらい水分が足りていると感じますか？",
+    hydrationLow: "低い",
+    hydrationHigh: "良い",
+
+    ratingAccessibility: "{title} 5段階中{rating}",
+
+    saving: "チェックインを保存中...",
+    saveCheckIn: "回復チェックインを保存",
+
+    recoveryTools: "回復ツール",
+    calmBreathing: "リラックス呼吸",
+    hydrationTool: "水分補給",
+    sleepCoach: "睡眠コーチ",
+    walkingData: "ウォーキングデータ",
+
+    recordedTitle: "回復状態を記録しました",
+    recordedMessage:
+      "回復スコアは{score}%です。AIウェルネスコーチがこのチェックインを利用できるようになりました。",
+
+    saveError: "保存エラー",
+    saveErrorMessage:
+      "回復チェックインを保存できませんでした。もう一度お試しください。",
+
+    notice:
+      "このウェルネスチェックインは情報提供を目的としており、医療上の助言ではありません。気になる症状がある場合は運動を中止し、専門家に相談してください。",
+
+    backAccessibility: "AIウェルネスに戻る",
+  },
+
+  ko: {
+    wellness: "LEGATHON 웰니스",
+    recoveryCoach: "회복 코치",
+
+    todaysRecovery: "오늘의 회복 상태",
+
+    readyPerform: "활동 준비 완료",
+    readyBalance: "균형 있게 준비됨",
+    recoveryRecommended: "회복 권장",
+    restRestore: "휴식과 회복",
+
+    strongWalk: "강도 높은 걷기",
+    moderateWalk: "보통 강도 걷기",
+    lightRecoveryWalk: "가벼운 회복 걷기",
+    restLightMovement: "휴식 또는 매우 가벼운 움직임",
+
+    strongMessage:
+      "회복 지표가 좋습니다. 올바른 자세와 수분 섭취를 유지하면서 조금 더 도전적인 걷기를 선택할 수 있습니다.",
+
+    moderateMessage:
+      "꾸준한 움직임을 할 준비가 된 것으로 보입니다. 편안한 속도를 유지하고 통증이나 피로가 증가하면 다시 조절하세요.",
+
+    recoveryMessage:
+      "오늘은 가볍게 움직이세요. 짧게 걷고 수분을 섭취하며 몸이 회복할 시간을 더 주세요.",
+
+    restMessage:
+      "오늘은 회복일이 적합해 보입니다. 강도를 높이기 전에 휴식, 수분, 영양 및 수면을 우선하세요.",
+
+    lastCheckIn: "마지막 체크인: {time}",
+    notRecorded: "아직 기록되지 않음",
+
+    howFeel: "오늘 기분은 어떤가요?",
+    rateAreas:
+      "각 항목을 1에서 5까지 평가하세요. 답변을 바탕으로 오늘의 회복 준비도를 계산합니다.",
+
+    energy: "에너지",
+    energySubtitle: "얼마나 활력이 있다고 느끼나요?",
+    energyLow: "낮음",
+    energyHigh: "높음",
+
+    soreness: "근육통",
+    sorenessSubtitle: "몸의 근육통이 어느 정도인가요?",
+    sorenessLow: "없음",
+    sorenessHigh: "심함",
+
+    stress: "스트레스",
+    stressSubtitle: "정신적인 스트레스가 어느 정도인가요?",
+    stressLow: "편안함",
+    stressHigh: "높음",
+
+    sleep: "수면의 질",
+    sleepSubtitle: "수면이 얼마나 회복에 도움이 되었나요?",
+    sleepLow: "나쁨",
+    sleepHigh: "좋음",
+
+    hydration: "수분 상태",
+    hydrationSubtitle: "몸에 수분이 충분하다고 느끼나요?",
+    hydrationLow: "낮음",
+    hydrationHigh: "좋음",
+
+    ratingAccessibility: "{title} 5점 중 {rating}점",
+
+    saving: "체크인 저장 중...",
+    saveCheckIn: "회복 체크인 저장",
+
+    recoveryTools: "회복 도구",
+    calmBreathing: "편안한 호흡",
+    hydrationTool: "수분 섭취",
+    sleepCoach: "수면 코치",
+    walkingData: "걷기 데이터",
+
+    recordedTitle: "회복 상태 기록 완료",
+    recordedMessage:
+      "회복 점수는 {score}%입니다. 이제 AI 웰니스 코치가 이 체크인을 활용할 수 있습니다.",
+
+    saveError: "저장 오류",
+    saveErrorMessage:
+      "회복 체크인을 저장할 수 없습니다. 다시 시도하세요.",
+
+    notice:
+      "이 웰니스 체크인은 정보 제공용이며 의료 조언이 아닙니다. 우려되는 증상이 있으면 운동을 중단하고 전문적인 진료를 받으세요.",
+
+    backAccessibility: "AI 웰니스로 돌아가기",
+  },
+
+  zh: {
+    wellness: "LEGATHON 健康",
+    recoveryCoach: "恢复教练",
+
+    todaysRecovery: "今日恢复状态",
+
+    readyPerform: "状态良好",
+    readyBalance: "平衡状态良好",
+    recoveryRecommended: "建议恢复",
+    restRestore: "休息与恢复",
+
+    strongWalk: "较强强度步行",
+    moderateWalk: "中等强度步行",
+    lightRecoveryWalk: "轻度恢复步行",
+    restLightMovement: "休息或非常轻度活动",
+
+    strongMessage:
+      "你的恢复指标表现良好。保持正确姿势和充足补水的同时，可以选择更有挑战性的步行。",
+
+    moderateMessage:
+      "你目前适合进行稳定的活动。保持舒适的速度，如果酸痛或疲劳增加，请重新调整强度。",
+
+    recoveryMessage:
+      "今天请保持轻松。可以短距离步行、补充水分，并给身体更多恢复时间。",
+
+    restMessage:
+      "你的签到结果表明今天更适合作为恢复日。在提高运动强度前，请优先保证休息、补水、营养和睡眠。",
+
+    lastCheckIn: "上次签到：{time}",
+    notRecorded: "尚未记录",
+
+    howFeel: "你感觉怎么样？",
+    rateAreas:
+      "请为每个项目按1到5评分。你的回答将用于计算今天的恢复准备度。",
+
+    energy: "精力",
+    energySubtitle: "你感觉有多少精力？",
+    energyLow: "低",
+    energyHigh: "高",
+
+    soreness: "肌肉酸痛",
+    sorenessSubtitle: "你的身体感觉有多酸痛？",
+    sorenessLow: "没有",
+    sorenessHigh: "严重",
+
+    stress: "压力",
+    stressSubtitle: "你感觉精神压力有多大？",
+    stressLow: "平静",
+    stressHigh: "高",
+
+    sleep: "睡眠质量",
+    sleepSubtitle: "你的睡眠恢复效果如何？",
+    sleepLow: "较差",
+    sleepHigh: "很好",
+
+    hydration: "补水状态",
+    hydrationSubtitle: "你感觉身体的水分是否充足？",
+    hydrationLow: "低",
+    hydrationHigh: "很好",
+
+    ratingAccessibility: "{title}，5分中的{rating}分",
+
+    saving: "正在保存签到...",
+    saveCheckIn: "保存恢复签到",
+
+    recoveryTools: "恢复工具",
+    calmBreathing: "平静呼吸",
+    hydrationTool: "补水",
+    sleepCoach: "睡眠教练",
+    walkingData: "步行数据",
+
+    recordedTitle: "恢复状态已记录",
+    recordedMessage:
+      "你的恢复分数为{score}%。AI健康教练现在可以使用本次签到数据。",
+
+    saveError: "保存错误",
+    saveErrorMessage:
+      "无法保存你的恢复签到。请重试。",
+
+    notice:
+      "此健康签到仅供参考，不属于医疗建议。如出现令人担忧的症状，请停止运动并寻求专业医疗帮助。",
+
+    backAccessibility: "返回AI健康",
+  },
+
+  it: {
+    wellness: "BENESSERE LEGATHON",
+    recoveryCoach: "Coach del recupero",
+
+    todaysRecovery: "RECUPERO DI OGGI",
+
+    readyPerform: "Pronto per l’attività",
+    readyBalance: "Pronto con equilibrio",
+    recoveryRecommended: "Recupero consigliato",
+    restRestore: "Riposo e recupero",
+
+    strongWalk: "Camminata intensa",
+    moderateWalk: "Camminata moderata",
+    lightRecoveryWalk: "Camminata leggera di recupero",
+    restLightMovement: "Riposo o movimento molto leggero",
+
+    strongMessage:
+      "I tuoi indicatori di recupero sono buoni. Puoi scegliere una camminata più impegnativa mantenendo una buona postura e una corretta idratazione.",
+
+    moderateMessage:
+      "Sembri pronto per un movimento costante. Mantieni un ritmo confortevole e rivaluta se aumentano indolenzimento o stanchezza.",
+
+    recoveryMessage:
+      "Oggi procedi con calma. Prova una breve camminata, idratati e concedi al corpo più tempo per recuperare.",
+
+    restMessage:
+      "Il tuo check-in suggerisce una giornata di recupero. Dai priorità a riposo, idratazione, alimentazione e sonno prima di aumentare l’intensità.",
+
+    lastCheckIn: "Ultimo check-in: {time}",
+    notRecorded: "Non ancora registrato",
+
+    howFeel: "Come ti senti?",
+    rateAreas:
+      "Valuta ogni area da 1 a 5. Le tue risposte calcolano il livello di recupero di oggi.",
+
+    energy: "Energia",
+    energySubtitle: "Quanto ti senti energico?",
+    energyLow: "Bassa",
+    energyHigh: "Alta",
+
+    soreness: "Indolenzimento muscolare",
+    sorenessSubtitle: "Quanto senti il corpo indolenzito?",
+    sorenessLow: "Nessuno",
+    sorenessHigh: "Forte",
+
+    stress: "Stress",
+    stressSubtitle: "Quanto stress mentale senti?",
+    stressLow: "Calmo",
+    stressHigh: "Alto",
+
+    sleep: "Qualità del sonno",
+    sleepSubtitle: "Quanto è stato rigenerante il tuo sonno?",
+    sleepLow: "Scarsa",
+    sleepHigh: "Ottima",
+
+    hydration: "Idratazione",
+    hydrationSubtitle: "Quanto ti senti idratato?",
+    hydrationLow: "Bassa",
+    hydrationHigh: "Ottima",
+
+    ratingAccessibility: "{title} {rating} su 5",
+
+    saving: "Salvataggio check-in...",
+    saveCheckIn: "Salva check-in di recupero",
+
+    recoveryTools: "Strumenti di recupero",
+    calmBreathing: "Respirazione calma",
+    hydrationTool: "Idratazione",
+    sleepCoach: "Coach del sonno",
+    walkingData: "Dati di camminata",
+
+    recordedTitle: "Recupero registrato",
+    recordedMessage:
+      "Il tuo punteggio di recupero è {score}%. Il tuo coach di benessere IA può ora utilizzare questo check-in.",
+
+    saveError: "Errore di salvataggio",
+    saveErrorMessage:
+      "Non è stato possibile salvare il check-in di recupero. Riprova.",
+
+    notice:
+      "Questo check-in sul benessere è solo informativo e non costituisce un consiglio medico. Interrompi l’attività fisica e rivolgiti a un professionista in caso di sintomi preoccupanti.",
+
+    backAccessibility: "Torna al Benessere IA",
+  },
+
+  ar: {
+    wellness: "LEGATHON للعافية",
+    recoveryCoach: "مدرب التعافي",
+
+    todaysRecovery: "تعافي اليوم",
+
+    readyPerform: "جاهز للأداء",
+    readyBalance: "جاهز بتوازن",
+    recoveryRecommended: "يوصى بالتعافي",
+    restRestore: "الراحة والاستشفاء",
+
+    strongWalk: "مشي قوي",
+    moderateWalk: "مشي معتدل",
+    lightRecoveryWalk: "مشي خفيف للتعافي",
+    restLightMovement: "راحة أو حركة خفيفة جدًا",
+
+    strongMessage:
+      "مؤشرات التعافي لديك تبدو جيدة. يمكنك اختيار مشي أكثر تحديًا مع الحفاظ على الوضعية الجيدة والترطيب.",
+
+    moderateMessage:
+      "يبدو أنك مستعد لحركة منتظمة. حافظ على وتيرة مريحة وأعد التقييم إذا زاد الألم أو التعب.",
+
+    recoveryMessage:
+      "اجعل نشاط اليوم خفيفًا. جرّب مشيًا قصيرًا واشرب الماء وامنح جسمك وقتًا إضافيًا للتعافي.",
+
+    restMessage:
+      "يشير تسجيلك إلى أن اليوم مناسب للتعافي. أعطِ الأولوية للراحة والترطيب والتغذية والنوم قبل زيادة شدة النشاط.",
+
+    lastCheckIn: "آخر تسجيل: {time}",
+    notRecorded: "لم يتم التسجيل بعد",
+
+    howFeel: "كيف تشعر؟",
+    rateAreas:
+      "قيّم كل جانب من 1 إلى 5. تُستخدم إجاباتك لحساب مدى استعدادك للتعافي اليوم.",
+
+    energy: "الطاقة",
+    energySubtitle: "ما مستوى الطاقة الذي تشعر به؟",
+    energyLow: "منخفضة",
+    energyHigh: "مرتفعة",
+
+    soreness: "ألم العضلات",
+    sorenessSubtitle: "ما مدى شعورك بألم العضلات؟",
+    sorenessLow: "لا يوجد",
+    sorenessHigh: "شديد",
+
+    stress: "التوتر",
+    stressSubtitle: "ما مستوى التوتر النفسي الذي تشعر به؟",
+    stressLow: "هادئ",
+    stressHigh: "مرتفع",
+
+    sleep: "جودة النوم",
+    sleepSubtitle: "ما مدى فائدة نومك في التعافي؟",
+    sleepLow: "ضعيفة",
+    sleepHigh: "ممتازة",
+
+    hydration: "الترطيب",
+    hydrationSubtitle: "ما مدى شعورك بأن جسمك رطب بشكل جيد؟",
+    hydrationLow: "منخفض",
+    hydrationHigh: "ممتاز",
+
+    ratingAccessibility: "{title} {rating} من 5",
+
+    saving: "جارٍ حفظ التسجيل...",
+    saveCheckIn: "حفظ تسجيل التعافي",
+
+    recoveryTools: "أدوات التعافي",
+    calmBreathing: "التنفس الهادئ",
+    hydrationTool: "الترطيب",
+    sleepCoach: "مدرب النوم",
+    walkingData: "بيانات المشي",
+
+    recordedTitle: "تم تسجيل التعافي",
+    recordedMessage:
+      "درجة التعافي لديك هي {score}٪. يمكن لمدرب العافية بالذكاء الاصطناعي الآن استخدام هذا التسجيل.",
+
+    saveError: "خطأ في الحفظ",
+    saveErrorMessage:
+      "تعذر حفظ تسجيل التعافي. حاول مرة أخرى.",
+
+    notice:
+      "هذا التقييم مخصص للمعلومات العامة ولا يُعد نصيحة طبية. أوقف التمرين واطلب رعاية متخصصة إذا ظهرت أعراض مقلقة.",
+
+    backAccessibility: "العودة إلى العافية بالذكاء الاصطناعي",
+  },
+};
+
+// ============================================================
+// LANGUAGE HELPERS
+// ============================================================
+
+function normalizeLanguage(language) {
+  const code = String(language || "en")
+    .trim()
+    .toLowerCase();
+
+  return TEXT[code] ? code : "en";
+}
+
+function fillTemplate(value, replacements = {}) {
+  return String(value || "").replace(
+    /\{(\w+)\}/g,
+    (_, key) =>
+      replacements[key] !== undefined &&
+      replacements[key] !== null
+        ? String(replacements[key])
+        : ""
+  );
+}
+
+const LOCALES = {
+  en: "en-US",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+  pt: "pt-BR",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  zh: "zh-CN",
+  it: "it-IT",
+  ar: "ar-SA",
+};
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 function clamp(
   value,
@@ -109,6 +997,10 @@ function safelyParseJSON(
     return fallback;
   }
 }
+
+// ============================================================
+// RECOVERY SCORE
+// ============================================================
 
 function calculateRecoveryScore(
   checkIn
@@ -142,56 +1034,79 @@ function calculateRecoveryScore(
   );
 }
 
-function getRecoveryStatus(score) {
+// ============================================================
+// RECOVERY STATUS
+// ============================================================
+
+function getRecoveryStatus(score, t) {
   if (score >= 85) {
     return {
-      label: "Ready to Perform",
+      id: "ready_to_perform",
+      label: t("readyPerform"),
       color: "#42F58D",
       icon: "rocket",
-      intensity: "Strong Walk",
-      message:
-        "Your recovery indicators look strong. You can choose a challenging walk while maintaining good form and hydration.",
+      intensity: t("strongWalk"),
+      message: t("strongMessage"),
     };
   }
 
   if (score >= 65) {
     return {
-      label: "Ready With Balance",
+      id: "ready_with_balance",
+      label: t("readyBalance"),
       color: "#7EE8C4",
       icon: "walk",
-      intensity: "Moderate Walk",
-      message:
-        "You appear ready for steady movement. Keep the pace comfortable and reassess if soreness or fatigue increases.",
+      intensity: t("moderateWalk"),
+      message: t("moderateMessage"),
     };
   }
 
   if (score >= 45) {
     return {
-      label: "Recovery Recommended",
+      id: "recovery_recommended",
+      label: t("recoveryRecommended"),
       color: "#FFC94A",
       icon: "leaf",
-      intensity: "Light Recovery Walk",
-      message:
-        "Keep today gentle. Try a short walk, hydrate, and give your body extra time to recover.",
+      intensity: t("lightRecoveryWalk"),
+      message: t("recoveryMessage"),
     };
   }
 
   return {
-    label: "Rest and Restore",
+    id: "rest_and_restore",
+    label: t("restRestore"),
     color: "#FF7184",
     icon: "heart",
-    intensity:
-      "Rest or Very Light Movement",
-    message:
-      "Your check-in suggests a recovery day. Prioritize rest, hydration, nutrition, and sleep before increasing intensity.",
+    intensity: t("restLightMovement"),
+    message: t("restMessage"),
   };
 }
+
+// ============================================================
+// RATING SELECTOR
+// ============================================================
 
 function RatingSelector({
   item,
   value,
   onChange,
+  t,
+  isRTL,
 }) {
+  const title = t(item.key);
+
+  const subtitle = t(
+    `${item.key}Subtitle`
+  );
+
+  const low = t(
+    `${item.key}Low`
+  );
+
+  const high = t(
+    `${item.key}High`
+  );
+
   return (
     <View style={styles.checkInCard}>
       <View style={styles.checkInHeader}>
@@ -212,14 +1127,22 @@ function RatingSelector({
         </View>
 
         <View style={styles.checkInCopy}>
-          <Text style={styles.checkInTitle}>
-            {item.title}
+          <Text
+            style={[
+              styles.checkInTitle,
+              isRTL && styles.rtlText,
+            ]}
+          >
+            {title}
           </Text>
 
           <Text
-            style={styles.checkInSubtitle}
+            style={[
+              styles.checkInSubtitle,
+              isRTL && styles.rtlText,
+            ]}
           >
-            {item.subtitle}
+            {subtitle}
           </Text>
         </View>
       </View>
@@ -235,9 +1158,13 @@ function RatingSelector({
                 key={rating}
                 activeOpacity={0.82}
                 accessibilityRole="button"
-                accessibilityLabel={
-                  `${item.title} ${rating} out of 5`
-                }
+                accessibilityLabel={t(
+                  "ratingAccessibility",
+                  {
+                    title,
+                    rating,
+                  }
+                )}
                 accessibilityState={{
                   selected,
                 }}
@@ -270,23 +1197,38 @@ function RatingSelector({
       </View>
 
       <View style={styles.scaleLabels}>
-        <Text style={styles.scaleText}>
-          {item.low}
+        <Text
+          style={[
+            styles.scaleText,
+            isRTL && styles.rtlText,
+          ]}
+        >
+          {low}
         </Text>
 
-        <Text style={styles.scaleText}>
-          {item.high}
+        <Text
+          style={[
+            styles.scaleText,
+            isRTL && styles.rtlText,
+          ]}
+        >
+          {high}
         </Text>
       </View>
     </View>
   );
 }
 
+// ============================================================
+// RECOVERY TOOL
+// ============================================================
+
 function RecoveryTool({
   icon,
   title,
   color,
   onPress,
+  isRTL,
 }) {
   const enabled =
     typeof onPress === "function";
@@ -318,12 +1260,21 @@ function RecoveryTool({
         />
       </View>
 
-      <Text style={styles.toolTitle}>
+      <Text
+        style={[
+          styles.toolTitle,
+          isRTL && styles.rtlText,
+        ]}
+      >
         {title}
       </Text>
 
       <Ionicons
-        name="chevron-forward"
+        name={
+          isRTL
+            ? "chevron-back"
+            : "chevron-forward"
+        }
         size={18}
         color="#7890AA"
       />
@@ -331,7 +1282,12 @@ function RecoveryTool({
   );
 }
 
+// ============================================================
+// SCREEN
+// ============================================================
+
 export default function RecoveryCoachScreen({
+  language = "en",
   navigation,
   goBack,
   goToBreathing,
@@ -339,6 +1295,27 @@ export default function RecoveryCoachScreen({
   goToSleep,
   goToWalkingAnalytics,
 }) {
+  const currentLanguage =
+    normalizeLanguage(language);
+
+  const isRTL =
+    currentLanguage === "ar";
+
+  const t = (
+    key,
+    replacements = {}
+  ) => {
+    const value =
+      TEXT[currentLanguage]?.[key] ??
+      TEXT.en?.[key] ??
+      key;
+
+    return fillTemplate(
+      value,
+      replacements
+    );
+  };
+
   const [checkIn, setCheckIn] =
     useState(INITIAL_CHECK_IN);
 
@@ -358,10 +1335,14 @@ export default function RecoveryCoachScreen({
     [checkIn]
   );
 
-  const status = useMemo(
-    () => getRecoveryStatus(score),
-    [score]
+  const status = getRecoveryStatus(
+    score,
+    t
   );
+
+  // ==========================================================
+  // LOAD SAVED RECOVERY
+  // ==========================================================
 
   useEffect(() => {
     const loadSavedRecovery =
@@ -401,6 +1382,10 @@ export default function RecoveryCoachScreen({
     loadSavedRecovery();
   }, []);
 
+  // ==========================================================
+  // BACK
+  // ==========================================================
+
   const handleBack = () => {
     if (
       typeof goBack === "function"
@@ -421,6 +1406,10 @@ export default function RecoveryCoachScreen({
     );
   };
 
+  // ==========================================================
+  // UPDATE RATING
+  // ==========================================================
+
   const updateRating = (
     key,
     rating
@@ -430,6 +1419,10 @@ export default function RecoveryCoachScreen({
       [key]: rating,
     }));
   };
+
+  // ==========================================================
+  // SAVE RECOVERY
+  // ==========================================================
 
   const saveRecovery = async () => {
     if (isSaving) {
@@ -445,12 +1438,18 @@ export default function RecoveryCoachScreen({
       const recoveryRecord = {
         score,
         recoveryScore: score,
-        status: status.label,
+
+        // Stable internal status value
+        status: status.id,
+
+        // Localized display values
+        statusLabel: status.label,
 
         recommendedIntensity:
           status.intensity,
 
         stress: checkIn.stress,
+
         stressLevel:
           checkIn.stress,
 
@@ -481,8 +1480,10 @@ export default function RecoveryCoachScreen({
       setLastRecorded(timestamp);
 
       Alert.alert(
-        "Recovery Recorded",
-        `Your recovery score is ${score}%. Your AI Wellness Coach can now use this check-in.`
+        t("recordedTitle"),
+        t("recordedMessage", {
+          score,
+        })
       );
     } catch (error) {
       console.log(
@@ -491,20 +1492,30 @@ export default function RecoveryCoachScreen({
       );
 
       Alert.alert(
-        "Save Error",
-        "Your recovery check-in could not be saved. Please try again."
+        t("saveError"),
+        t("saveErrorMessage")
       );
     } finally {
       setIsSaving(false);
     }
   };
 
+  // ==========================================================
+  // LOCALIZED DATE/TIME
+  // ==========================================================
+
   const formattedLastRecorded =
     lastRecorded
       ? new Date(
           lastRecorded
-        ).toLocaleString()
-      : "Not recorded yet";
+        ).toLocaleString(
+          LOCALES[currentLanguage]
+        )
+      : t("notRecorded");
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <SafeAreaView
@@ -526,18 +1537,24 @@ export default function RecoveryCoachScreen({
             styles.content
           }
         >
+          {/* HEADER */}
+
           <View style={styles.topBar}>
             <TouchableOpacity
               style={styles.backButton}
               onPress={handleBack}
               activeOpacity={0.82}
               accessibilityRole="button"
-              accessibilityLabel={
-                "Back to AI Wellness"
-              }
+              accessibilityLabel={t(
+                "backAccessibility"
+              )}
             >
               <Ionicons
-                name="chevron-back"
+                name={
+                  isRTL
+                    ? "chevron-forward"
+                    : "chevron-back"
+                }
                 size={25}
                 color="#FFC94A"
               />
@@ -547,15 +1564,27 @@ export default function RecoveryCoachScreen({
               style={styles.topBarText}
             >
               <Text
-                style={styles.eyebrow}
+                style={[
+                  styles.eyebrow,
+                  isRTL &&
+                    styles.rtlText,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
               >
-                LEGATHON WELLNESS
+                {t("wellness")}
               </Text>
 
               <Text
-                style={styles.screenTitle}
+                style={[
+                  styles.screenTitle,
+                  isRTL &&
+                    styles.rtlText,
+                ]}
+                numberOfLines={2}
+                adjustsFontSizeToFit
               >
-                Recovery Coach
+                {t("recoveryCoach")}
               </Text>
             </View>
 
@@ -569,6 +1598,8 @@ export default function RecoveryCoachScreen({
               />
             </View>
           </View>
+
+          {/* RECOVERY SCORE */}
 
           <LinearGradient
             colors={[
@@ -587,9 +1618,13 @@ export default function RecoveryCoachScreen({
                 }
               >
                 <Text
-                  style={styles.scoreLabel}
+                  style={[
+                    styles.scoreLabel,
+                    isRTL &&
+                      styles.rtlText,
+                  ]}
                 >
-                  TODAY’S RECOVERY
+                  {t("todaysRecovery")}
                 </Text>
 
                 <Text
@@ -599,6 +1634,8 @@ export default function RecoveryCoachScreen({
                       color:
                         status.color,
                     },
+                    isRTL &&
+                      styles.rtlText,
                   ]}
                 >
                   {status.label}
@@ -615,13 +1652,17 @@ export default function RecoveryCoachScreen({
                 ]}
               >
                 <Text
-                  style={styles.scoreNumber}
+                  style={
+                    styles.scoreNumber
+                  }
                 >
                   {score}
                 </Text>
 
                 <Text
-                  style={styles.percentSign}
+                  style={
+                    styles.percentSign
+                  }
                 >
                   %
                 </Text>
@@ -662,23 +1703,29 @@ export default function RecoveryCoachScreen({
                 }
               >
                 <Text
-                  style={
-                    styles.recommendationTitle
-                  }
+                  style={[
+                    styles.recommendationTitle,
+                    isRTL &&
+                      styles.rtlText,
+                  ]}
                 >
                   {status.intensity}
                 </Text>
 
                 <Text
-                  style={
-                    styles.recommendationText
-                  }
+                  style={[
+                    styles.recommendationText,
+                    isRTL &&
+                      styles.rtlText,
+                  ]}
                 >
                   {status.message}
                 </Text>
               </View>
             </View>
           </LinearGradient>
+
+          {/* LAST CHECK-IN */}
 
           <View
             style={styles.recordedRow}
@@ -690,23 +1737,39 @@ export default function RecoveryCoachScreen({
             />
 
             <Text
-              style={styles.recordedText}
+              style={[
+                styles.recordedText,
+                isRTL &&
+                  styles.rtlText,
+              ]}
             >
-              Last check-in:{" "}
-              {formattedLastRecorded}
+              {t("lastCheckIn", {
+                time:
+                  formattedLastRecorded,
+              })}
             </Text>
           </View>
 
-          <Text style={styles.sectionTitle}>
-            How Do You Feel?
+          {/* CHECK-IN */}
+
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL &&
+                styles.rtlText,
+            ]}
+          >
+            {t("howFeel")}
           </Text>
 
           <Text
-            style={styles.sectionSubtitle}
+            style={[
+              styles.sectionSubtitle,
+              isRTL &&
+                styles.rtlText,
+            ]}
           >
-            Rate each area from 1 to 5.
-            Your answers calculate
-            today’s recovery readiness.
+            {t("rateAreas")}
           </Text>
 
           {CHECK_IN_ITEMS.map(
@@ -723,9 +1786,13 @@ export default function RecoveryCoachScreen({
                     rating
                   )
                 }
+                t={t}
+                isRTL={isRTL}
               />
             )
           )}
+
+          {/* SAVE */}
 
           <TouchableOpacity
             style={[
@@ -751,48 +1818,68 @@ export default function RecoveryCoachScreen({
               style={
                 styles.saveButtonText
               }
+              numberOfLines={2}
+              adjustsFontSizeToFit
             >
               {isSaving
-                ? "Saving Check-In..."
-                : "Save Recovery Check-In"}
+                ? t("saving")
+                : t("saveCheckIn")}
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.sectionTitle}>
-            Recovery Tools
+          {/* TOOLS */}
+
+          <Text
+            style={[
+              styles.sectionTitle,
+              isRTL &&
+                styles.rtlText,
+            ]}
+          >
+            {t("recoveryTools")}
           </Text>
 
           <View style={styles.toolsGrid}>
             <RecoveryTool
               icon="leaf"
-              title="Calm Breathing"
+              title={t(
+                "calmBreathing"
+              )}
               color="#42F58D"
               onPress={goToBreathing}
+              isRTL={isRTL}
             />
 
             <RecoveryTool
               icon="water"
-              title="Hydration"
+              title={t(
+                "hydrationTool"
+              )}
               color="#49D8FF"
               onPress={goToHydration}
+              isRTL={isRTL}
             />
 
             <RecoveryTool
               icon="moon"
-              title="Sleep Coach"
+              title={t("sleepCoach")}
               color="#A978FF"
               onPress={goToSleep}
+              isRTL={isRTL}
             />
 
             <RecoveryTool
               icon="analytics"
-              title="Walking Data"
+              title={t("walkingData")}
               color="#FFC94A"
               onPress={
                 goToWalkingAnalytics
               }
+              isRTL={isRTL}
             />
           </View>
+
+          {/* NOTICE */}
 
           <View
             style={styles.noticeCard}
@@ -804,14 +1891,13 @@ export default function RecoveryCoachScreen({
             />
 
             <Text
-              style={styles.noticeText}
+              style={[
+                styles.noticeText,
+                isRTL &&
+                  styles.rtlText,
+              ]}
             >
-              This wellness check-in is
-              informational and is not
-              medical advice. Stop
-              exercising and seek
-              professional care for
-              concerning symptoms.
+              {t("notice")}
             </Text>
           </View>
 
@@ -823,6 +1909,10 @@ export default function RecoveryCoachScreen({
     </SafeAreaView>
   );
 }
+
+// ============================================================
+// STYLES
+// ============================================================
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -865,7 +1955,7 @@ const styles = StyleSheet.create({
     color: "#FFC94A",
     fontSize: 11,
     fontWeight: "900",
-    letterSpacing: 2.7,
+    letterSpacing: 2.2,
     marginBottom: 4,
   },
 
@@ -917,7 +2007,7 @@ const styles = StyleSheet.create({
     color: "#9EB4CE",
     fontSize: 12,
     fontWeight: "900",
-    letterSpacing: 2.4,
+    letterSpacing: 2,
   },
 
   statusLabel: {
@@ -996,6 +2086,7 @@ const styles = StyleSheet.create({
   },
 
   recordedText: {
+    flex: 1,
     color: "#8FA8C4",
     fontSize: 12,
     fontWeight: "700",
@@ -1107,6 +2198,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFC94A",
     marginTop: 8,
+    paddingHorizontal: 20,
     shadowColor: "#FFC94A",
     shadowOpacity: 0.25,
     shadowRadius: 14,
@@ -1125,6 +2217,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
     marginLeft: 9,
+    textAlign: "center",
   },
 
   toolsGrid: {
@@ -1184,5 +2277,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     lineHeight: 18,
     marginLeft: 10,
+  },
+
+  rtlText: {
+    writingDirection: "rtl",
   },
 });
