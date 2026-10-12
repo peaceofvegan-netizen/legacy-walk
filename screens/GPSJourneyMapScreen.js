@@ -5585,32 +5585,38 @@ function JourneySession({
   // DEV TEST
   // ==========================================================
 
-  function runJourneyTest() {
-    if (
-      !__DEV__
-    ) {
-      return;
-    }
-
-    return runAction(
-      async () => {
-        snapshot.current.steps =
-          Math.max(
-            snapshot.current
-              .steps,
-
-            totalSteps -
-              100
-          );
-
-        snapshot.current.isTracking =
-          false;
-
-        await persistNow();
-      }
-    );
+ function runJourneyTest() {
+  if (!__DEV__) {
+    return;
   }
 
+  return runAction(
+    async () => {
+      // Jump to 100 steps before the finish.
+      snapshot.current.steps =
+        Math.max(
+          snapshot.current.steps,
+          totalSteps - 100
+        );
+
+      snapshot.current.isTracking =
+        false;
+
+      // Save the new step position first.
+      await persistNow();
+
+      // Award every checkpoint that has actually
+      // been reached at this step position.
+      await awardReachedCheckpoints();
+
+      // Save again so the checkpoint state
+      // and journey progress stay synchronized.
+      await persistNow();
+
+      publish();
+    }
+  );
+}
   // ==========================================================
   // PASSPORT
   // ==========================================================

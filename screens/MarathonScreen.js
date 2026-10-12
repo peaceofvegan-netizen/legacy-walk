@@ -1,4 +1,3 @@
-// screens/MarathonScreen.js
 
 // screens/MarathonScreen.js
 
@@ -51,13 +50,45 @@ import {
 } from "../utils/stepTrackingEngine";
 
 // ============================================================
-// CONSTANTS
+// LEGATHON WALK — WORLD LEGATHONS
+//
+// 26 global 26.2-mile walking challenges
+//
+// Preserves existing:
+// - Marathon IDs used internally
+// - Marathon storage utilities
+// - Legathon session utilities
+// - Step ownership and routing
+// - Earned rewards and saved progress
+//
+// Upgrades:
+// - Visible Legathon branding
+// - Official WCoin image
+// - Aligned statistic cards
+// - Faster initial screen presentation
+// - Ten-language user interface
+// - Existing activation and pause/resume behavior
 // ============================================================
 
-const SYNC_INTERVAL_MS = 2500;
 const GOLD = "#F7BE22";
 
+const COLORS = {
+  background: "#02060D",
+  card: "#0B1422",
+  cardAlt: "#111D2E",
+  border: "#283447",
+  gold: GOLD,
+  white: "#FFFFFF",
+  muted: "#A7B2C5",
+  green: "#75D5A5",
+  red: "#FFD0D0",
+};
+
 const WCOIN_IMAGE = require("../assets/wcoin.png");
+
+// Five seconds reduces repeated storage and sensor work.
+// The manual Sync Walking Progress button remains available.
+const SYNC_INTERVAL_MS = 5000;
 
 function safeNumber(value) {
   const parsed = Number(value);
@@ -68,10 +99,12 @@ function safeNumber(value) {
 }
 
 function formatNumber(value, language = "en") {
+  const number = Math.floor(safeNumber(value));
+
   try {
-    return Math.floor(safeNumber(value)).toLocaleString(language);
+    return number.toLocaleString(language);
   } catch {
-    return Math.floor(safeNumber(value)).toLocaleString();
+    return number.toLocaleString();
   }
 }
 
@@ -88,7 +121,7 @@ const TEXT = {
     loading: "Loading your Legathons…",
     worldLegathons: "World Legathons",
     intro:
-      "Walk global endurance challenges and build your Legathon legacy.",
+      "26 global walking challenges. One stronger you.",
 
     modeActive: "Legathon Mode Active",
     modePaused: "Legathon Paused",
@@ -99,7 +132,7 @@ const TEXT = {
     pausedMessage:
       "Your progress is saved. Resume when you are ready.",
     readyMessage:
-      "Choose an unlocked challenge to begin.",
+      "Choose an unlocked Legathon to begin.",
 
     activeLegathon: "ACTIVE LEGATHON",
     pausedLegathon: "PAUSED LEGATHON",
@@ -110,7 +143,7 @@ const TEXT = {
     miles: "Miles",
     remaining: "Remaining",
 
-    completionRewards: "COMPLETION REWARDS",
+    completionRewards: "LEGATHON COMPLETION REWARDS",
     legathonPoints: "Legathon Points",
     avatarXP: "Avatar XP",
 
@@ -124,10 +157,10 @@ const TEXT = {
 
     lastSynced: "Last synced {time}",
 
-    allComplete: "All Legathons Complete!",
-    noChallenge: "No challenge available",
+    allComplete: "All 26 Legathons Complete!",
+    noChallenge: "No Legathon available",
     savedChallenges:
-      "Your saved challenges are listed below.",
+      "Your saved Legathons are listed below.",
 
     completed: "Completed",
     unlocked: "Unlocked",
@@ -140,7 +173,7 @@ const TEXT = {
       "Global Legathon Challenges",
 
     challengeIntro:
-      "Complete each unlocked challenge to advance through the global Legathon series.",
+      "Complete each unlocked Legathon to advance through the 26-challenge world series.",
 
     view: "View",
     locked: "Locked",
@@ -156,10 +189,10 @@ const TEXT = {
       "Activation starts a new step checkpoint. Keep your phone with you while walking.",
 
     how2:
-      "While active, new steps go to your Legathon. Pausing returns step routing to Journey mode and keeps your marathon progress.",
+      "While active, new steps go to your Legathon. Pausing returns step routing to Journey mode and saves your Legathon progress.",
 
     how3:
-      "This screen checks for saved walking progress while open and when the app returns to the foreground.",
+      "Your progress synchronizes while this screen is open and when the app returns to the foreground.",
 
     retrySync: "Retry Sync",
 
@@ -174,7 +207,7 @@ const TEXT = {
       "Complete the previous Legathon to unlock this challenge.",
 
     couldNotFinish:
-      "Could not finish the walking session.",
+      "Could not finish the Legathon session.",
 
     couldNotRead:
       "Could not read the walking session.",
@@ -186,21 +219,24 @@ const TEXT = {
       "The Legathon could not be activated.",
 
     ownerMismatch:
-      "The session started but its step owner does not match. Check that the latest session and engine files are both saved.",
+      "The session started, but step routing did not switch to the Legathon. Check your session and step-engine files.",
 
     couldNotUpdate:
-      "The walking session could not be updated.",
+      "The Legathon session could not be updated.",
 
     iphoneOnly:
       "This step engine currently supports iPhone. Android needs a compatible step-count source.",
 
     permission:
-      "Enable Motion & Fitness access for this app in iPhone Settings, then try again.",
+      "Enable Motion & Fitness access for Legathon Walk in iPhone Settings, then try again.",
 
     unavailable:
       "The pedometer is unavailable. Try this on a physical iPhone.",
 
     accessibilityWcoin: "WCoin",
+
+    progress: "Progress",
+    challengeNumber: "LEGATHON {number} OF {total}",
   },
 
   es: {
@@ -208,18 +244,18 @@ const TEXT = {
     loading: "Cargando tus Legathons…",
     worldLegathons: "Legathons Mundiales",
     intro:
-      "Completa desafíos mundiales de resistencia caminando y construye tu legado Legathon.",
+      "26 desafíos mundiales de caminata. Una versión más fuerte de ti.",
 
     modeActive: "Modo Legathon activo",
     modePaused: "Legathon en pausa",
     modeReady: "Modo Legathon listo",
 
     activeMessage:
-      "Tus nuevos pasos cuentan para {title}.",
+      "Los nuevos pasos cuentan para {title}.",
     pausedMessage:
       "Tu progreso está guardado. Continúa cuando estés listo.",
     readyMessage:
-      "Elige un desafío desbloqueado para comenzar.",
+      "Elige un Legathon desbloqueado para comenzar.",
 
     activeLegathon: "LEGATHON ACTIVO",
     pausedLegathon: "LEGATHON EN PAUSA",
@@ -230,7 +266,7 @@ const TEXT = {
     miles: "Millas",
     remaining: "Restantes",
 
-    completionRewards: "RECOMPENSAS POR COMPLETAR",
+    completionRewards: "RECOMPENSAS DEL LEGATHON",
     legathonPoints: "Puntos Legathon",
     avatarXP: "XP del avatar",
 
@@ -244,10 +280,10 @@ const TEXT = {
 
     lastSynced: "Última sincronización: {time}",
 
-    allComplete: "¡Todos los Legathons completados!",
-    noChallenge: "No hay desafío disponible",
+    allComplete: "¡Los 26 Legathons completados!",
+    noChallenge: "No hay Legathon disponible",
     savedChallenges:
-      "Tus desafíos guardados aparecen a continuación.",
+      "Tus Legathons guardados aparecen abajo.",
 
     completed: "Completados",
     unlocked: "Desbloqueados",
@@ -256,11 +292,9 @@ const TEXT = {
     totalPointsClaimed:
       "TOTAL DE PUNTOS LEGATHON RECLAMADOS",
 
-    globalChallenges:
-      "Desafíos Legathon Globales",
-
+    globalChallenges: "Desafíos Legathon Globales",
     challengeIntro:
-      "Completa cada desafío desbloqueado para avanzar por la serie global Legathon.",
+      "Completa cada Legathon desbloqueado para avanzar por la serie mundial de 26 desafíos.",
 
     view: "Ver",
     locked: "Bloqueado",
@@ -273,13 +307,13 @@ const TEXT = {
     howItWorks: "Cómo funciona el modo Legathon",
 
     how1:
-      "La activación inicia un nuevo punto de control de pasos. Lleva tu teléfono contigo mientras caminas.",
+      "La activación inicia un nuevo punto de control de pasos. Lleva tu teléfono mientras caminas.",
 
     how2:
-      "Mientras esté activo, tus nuevos pasos irán a tu Legathon. Al pausar, los pasos vuelven al modo Journey y tu progreso del maratón queda guardado.",
+      "Mientras esté activo, los nuevos pasos cuentan para tu Legathon. Al pausar, los pasos vuelven al modo Journey y se guarda el progreso.",
 
     how3:
-      "Esta pantalla comprueba el progreso guardado mientras está abierta y cuando la aplicación vuelve al primer plano.",
+      "El progreso se sincroniza mientras esta pantalla está abierta y cuando la aplicación vuelve al primer plano.",
 
     retrySync: "Reintentar sincronización",
 
@@ -294,7 +328,7 @@ const TEXT = {
       "Completa el Legathon anterior para desbloquear este desafío.",
 
     couldNotFinish:
-      "No se pudo finalizar la sesión de caminata.",
+      "No se pudo finalizar la sesión Legathon.",
 
     couldNotRead:
       "No se pudo leer la sesión de caminata.",
@@ -306,21 +340,23 @@ const TEXT = {
       "No se pudo activar el Legathon.",
 
     ownerMismatch:
-      "La sesión comenzó, pero el propietario de los pasos no coincide. Comprueba que los archivos más recientes de sesión y motor estén guardados.",
+      "La sesión comenzó, pero los pasos no se asignaron al Legathon. Comprueba los archivos de sesión y motor.",
 
     couldNotUpdate:
-      "No se pudo actualizar la sesión de caminata.",
+      "No se pudo actualizar la sesión Legathon.",
 
     iphoneOnly:
-      "Este sistema de pasos actualmente funciona con iPhone. Android necesita una fuente de conteo de pasos compatible.",
+      "Este sistema funciona actualmente con iPhone. Android necesita una fuente compatible de pasos.",
 
     permission:
-      "Activa el acceso a Movimiento y Fitness para esta aplicación en los ajustes del iPhone.",
+      "Activa Movimiento y Fitness para Legathon Walk en los ajustes del iPhone.",
 
     unavailable:
       "El podómetro no está disponible. Prueba en un iPhone físico.",
 
     accessibilityWcoin: "WCoin",
+    progress: "Progreso",
+    challengeNumber: "LEGATHON {number} DE {total}",
   },
 
   fr: {
@@ -328,7 +364,7 @@ const TEXT = {
     loading: "Chargement de vos Legathons…",
     worldLegathons: "Legathons Mondiaux",
     intro:
-      "Relevez des défis mondiaux d'endurance à pied et construisez votre héritage Legathon.",
+      "26 défis de marche mondiaux. Un vous plus fort.",
 
     modeActive: "Mode Legathon actif",
     modePaused: "Legathon en pause",
@@ -337,9 +373,9 @@ const TEXT = {
     activeMessage:
       "Vos nouveaux pas comptent pour {title}.",
     pausedMessage:
-      "Votre progression est enregistrée. Reprenez lorsque vous êtes prêt.",
+      "Votre progression est enregistrée. Reprenez quand vous êtes prêt.",
     readyMessage:
-      "Choisissez un défi déverrouillé pour commencer.",
+      "Choisissez un Legathon déverrouillé.",
 
     activeLegathon: "LEGATHON ACTIF",
     pausedLegathon: "LEGATHON EN PAUSE",
@@ -350,7 +386,7 @@ const TEXT = {
     miles: "Miles",
     remaining: "Restants",
 
-    completionRewards: "RÉCOMPENSES",
+    completionRewards: "RÉCOMPENSES LEGATHON",
     legathonPoints: "Points Legathon",
     avatarXP: "XP Avatar",
 
@@ -359,15 +395,15 @@ const TEXT = {
     activateLegathon: "Activer le Legathon",
 
     syncProgress: "Synchroniser la progression",
-    pauseLegathon: "Mettre en pause",
+    pauseLegathon: "Mettre le Legathon en pause",
     returnJourney: "Retour au mode Journey",
 
     lastSynced: "Dernière synchronisation : {time}",
 
-    allComplete: "Tous les Legathons sont terminés !",
-    noChallenge: "Aucun défi disponible",
+    allComplete: "Les 26 Legathons sont terminés !",
+    noChallenge: "Aucun Legathon disponible",
     savedChallenges:
-      "Vos défis enregistrés sont affichés ci-dessous.",
+      "Vos Legathons enregistrés apparaissent ci-dessous.",
 
     completed: "Terminés",
     unlocked: "Déverrouillés",
@@ -376,11 +412,9 @@ const TEXT = {
     totalPointsClaimed:
       "TOTAL DES POINTS LEGATHON RÉCLAMÉS",
 
-    globalChallenges:
-      "Défis Legathon Mondiaux",
-
+    globalChallenges: "Défis Legathon Mondiaux",
     challengeIntro:
-      "Terminez chaque défi déverrouillé pour progresser dans la série mondiale Legathon.",
+      "Terminez chaque Legathon déverrouillé pour avancer dans la série mondiale de 26 défis.",
 
     view: "Voir",
     locked: "Verrouillé",
@@ -393,13 +427,13 @@ const TEXT = {
     howItWorks: "Fonctionnement du mode Legathon",
 
     how1:
-      "L'activation démarre un nouveau point de contrôle des pas. Gardez votre téléphone avec vous pendant la marche.",
+      "L'activation démarre un nouveau point de contrôle des pas. Gardez votre téléphone pendant la marche.",
 
     how2:
-      "Lorsque le mode est actif, vos nouveaux pas sont attribués au Legathon. La pause renvoie les pas vers le mode Journey tout en conservant votre progression.",
+      "En mode actif, les nouveaux pas vont au Legathon. La pause renvoie les pas au mode Journey et conserve votre progression.",
 
     how3:
-      "Cet écran vérifie la progression enregistrée lorsqu'il est ouvert et lorsque l'application revient au premier plan.",
+      "La progression est synchronisée lorsque cet écran est ouvert et lorsque l'application revient au premier plan.",
 
     retrySync: "Réessayer la synchronisation",
 
@@ -414,7 +448,7 @@ const TEXT = {
       "Terminez le Legathon précédent pour déverrouiller ce défi.",
 
     couldNotFinish:
-      "Impossible de terminer la session de marche.",
+      "Impossible de terminer la session Legathon.",
 
     couldNotRead:
       "Impossible de lire la session de marche.",
@@ -426,21 +460,23 @@ const TEXT = {
       "Le Legathon n'a pas pu être activé.",
 
     ownerMismatch:
-      "La session a démarré, mais le propriétaire des pas ne correspond pas. Vérifiez que les derniers fichiers de session et du moteur sont enregistrés.",
+      "La session a démarré, mais les pas ne sont pas attribués au Legathon. Vérifiez les fichiers de session et du moteur.",
 
     couldNotUpdate:
-      "La session de marche n'a pas pu être mise à jour.",
+      "Impossible de mettre à jour la session Legathon.",
 
     iphoneOnly:
-      "Ce système de pas prend actuellement en charge l'iPhone. Android nécessite une source de comptage de pas compatible.",
+      "Ce système prend actuellement en charge l'iPhone. Android nécessite une source de pas compatible.",
 
     permission:
-      "Activez l'accès Mouvement et forme pour cette application dans les réglages de l'iPhone.",
+      "Activez Mouvement et forme pour Legathon Walk dans les réglages de l'iPhone.",
 
     unavailable:
       "Le podomètre n'est pas disponible. Essayez sur un iPhone physique.",
 
     accessibilityWcoin: "WCoin",
+    progress: "Progression",
+    challengeNumber: "LEGATHON {number} SUR {total}",
   },
 
   de: {
@@ -448,7 +484,7 @@ const TEXT = {
     loading: "Deine Legathons werden geladen…",
     worldLegathons: "Welt-Legathons",
     intro:
-      "Meistere weltweite Ausdauer-Walking-Challenges und baue dein Legathon-Vermächtnis auf.",
+      "26 globale Walking-Challenges. Ein stärkeres Ich.",
 
     modeActive: "Legathon-Modus aktiv",
     modePaused: "Legathon pausiert",
@@ -459,7 +495,7 @@ const TEXT = {
     pausedMessage:
       "Dein Fortschritt ist gespeichert. Setze fort, wenn du bereit bist.",
     readyMessage:
-      "Wähle eine freigeschaltete Challenge.",
+      "Wähle einen freigeschalteten Legathon.",
 
     activeLegathon: "AKTIVER LEGATHON",
     pausedLegathon: "PAUSIERTER LEGATHON",
@@ -470,7 +506,7 @@ const TEXT = {
     miles: "Meilen",
     remaining: "Verbleibend",
 
-    completionRewards: "ABSCHLUSSBELOHNUNGEN",
+    completionRewards: "LEGATHON-ABSCHLUSSBELOHNUNGEN",
     legathonPoints: "Legathon-Punkte",
     avatarXP: "Avatar-XP",
 
@@ -484,23 +520,20 @@ const TEXT = {
 
     lastSynced: "Zuletzt synchronisiert: {time}",
 
-    allComplete: "Alle Legathons abgeschlossen!",
-    noChallenge: "Keine Challenge verfügbar",
+    allComplete: "Alle 26 Legathons abgeschlossen!",
+    noChallenge: "Kein Legathon verfügbar",
     savedChallenges:
-      "Deine gespeicherten Challenges werden unten angezeigt.",
+      "Deine gespeicherten Legathons stehen unten.",
 
     completed: "Abgeschlossen",
     unlocked: "Freigeschaltet",
     wcoinsClaimed: "WCoins erhalten",
 
-    totalPointsClaimed:
-      "GESAMTE LEGATHON-PUNKTE",
+    totalPointsClaimed: "LEGATHON-PUNKTE GESAMT",
 
-    globalChallenges:
-      "Globale Legathon-Challenges",
-
+    globalChallenges: "Globale Legathon-Challenges",
     challengeIntro:
-      "Schließe jede freigeschaltete Challenge ab, um durch die globale Legathon-Serie voranzukommen.",
+      "Schließe jeden freigeschalteten Legathon ab und meistere die weltweite Serie.",
 
     view: "Ansehen",
     locked: "Gesperrt",
@@ -516,16 +549,16 @@ const TEXT = {
       "Die Aktivierung startet einen neuen Schritt-Checkpoint. Nimm dein Telefon beim Gehen mit.",
 
     how2:
-      "Im aktiven Modus zählen neue Schritte für deinen Legathon. Beim Pausieren werden Schritte wieder dem Journey-Modus zugeordnet und dein Marathon-Fortschritt bleibt erhalten.",
+      "Im aktiven Modus gehen neue Schritte an den Legathon. Beim Pausieren werden sie wieder dem Journey-Modus zugeordnet und dein Fortschritt bleibt gespeichert.",
 
     how3:
-      "Dieser Bildschirm prüft den gespeicherten Fortschritt, während er geöffnet ist und wenn die App wieder in den Vordergrund kommt.",
+      "Der Fortschritt wird bei geöffnetem Bildschirm und beim Zurückkehren zur App synchronisiert.",
 
     retrySync: "Synchronisierung wiederholen",
 
     completeAlert: "Legathon abgeschlossen!",
     completeAlertMessage:
-      "{title} ist abgeschlossen. Öffne die Details, um deine Belohnungen anzusehen.",
+      "{title} ist abgeschlossen. Öffne die Details für deine Belohnungen.",
 
     completeSaved:
       "Dieser Legathon ist abgeschlossen. Dein Fortschritt ist gespeichert.",
@@ -534,33 +567,35 @@ const TEXT = {
       "Schließe den vorherigen Legathon ab, um diese Challenge freizuschalten.",
 
     couldNotFinish:
-      "Die Walking-Sitzung konnte nicht abgeschlossen werden.",
+      "Die Legathon-Sitzung konnte nicht beendet werden.",
 
     couldNotRead:
       "Die Walking-Sitzung konnte nicht gelesen werden.",
 
     couldNotSave:
-      "Der Fortschritt konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "Der Fortschritt konnte nicht gespeichert werden. Bitte erneut versuchen.",
 
     couldNotActivate:
       "Der Legathon konnte nicht aktiviert werden.",
 
     ownerMismatch:
-      "Die Sitzung wurde gestartet, aber die Schrittzuordnung stimmt nicht überein. Prüfe, ob die neuesten Sitzungs- und Engine-Dateien gespeichert wurden.",
+      "Die Sitzung wurde gestartet, aber die Schrittzuordnung stimmt nicht. Prüfe die Sitzungs- und Engine-Dateien.",
 
     couldNotUpdate:
-      "Die Walking-Sitzung konnte nicht aktualisiert werden.",
+      "Die Legathon-Sitzung konnte nicht aktualisiert werden.",
 
     iphoneOnly:
-      "Diese Schritt-Engine unterstützt derzeit das iPhone. Android benötigt eine kompatible Schrittquelle.",
+      "Dieses System unterstützt derzeit iPhone. Android benötigt eine kompatible Schrittquelle.",
 
     permission:
-      "Aktiviere Bewegung & Fitness für diese App in den iPhone-Einstellungen.",
+      "Aktiviere Bewegung & Fitness für Legathon Walk in den iPhone-Einstellungen.",
 
     unavailable:
       "Der Schrittzähler ist nicht verfügbar. Verwende ein physisches iPhone.",
 
     accessibilityWcoin: "WCoin",
+    progress: "Fortschritt",
+    challengeNumber: "LEGATHON {number} VON {total}",
   },
 
   pt: {
@@ -568,7 +603,7 @@ const TEXT = {
     loading: "Carregando seus Legathons…",
     worldLegathons: "Legathons Mundiais",
     intro:
-      "Complete desafios globais de resistência caminhando e construa seu legado Legathon.",
+      "26 desafios globais de caminhada. Você mais forte.",
 
     modeActive: "Modo Legathon ativo",
     modePaused: "Legathon pausado",
@@ -579,7 +614,7 @@ const TEXT = {
     pausedMessage:
       "Seu progresso está salvo. Continue quando estiver pronto.",
     readyMessage:
-      "Escolha um desafio desbloqueado para começar.",
+      "Escolha um Legathon desbloqueado.",
 
     activeLegathon: "LEGATHON ATIVO",
     pausedLegathon: "LEGATHON PAUSADO",
@@ -590,7 +625,7 @@ const TEXT = {
     miles: "Milhas",
     remaining: "Restantes",
 
-    completionRewards: "RECOMPENSAS",
+    completionRewards: "RECOMPENSAS DO LEGATHON",
     legathonPoints: "Pontos Legathon",
     avatarXP: "XP do Avatar",
 
@@ -604,10 +639,10 @@ const TEXT = {
 
     lastSynced: "Última sincronização: {time}",
 
-    allComplete: "Todos os Legathons concluídos!",
-    noChallenge: "Nenhum desafio disponível",
+    allComplete: "Todos os 26 Legathons concluídos!",
+    noChallenge: "Nenhum Legathon disponível",
     savedChallenges:
-      "Seus desafios salvos estão listados abaixo.",
+      "Seus Legathons salvos aparecem abaixo.",
 
     completed: "Concluídos",
     unlocked: "Desbloqueados",
@@ -616,11 +651,9 @@ const TEXT = {
     totalPointsClaimed:
       "TOTAL DE PONTOS LEGATHON RESGATADOS",
 
-    globalChallenges:
-      "Desafios Globais Legathon",
-
+    globalChallenges: "Desafios Globais Legathon",
     challengeIntro:
-      "Conclua cada desafio desbloqueado para avançar pela série global Legathon.",
+      "Conclua cada Legathon desbloqueado para avançar pela série mundial.",
 
     view: "Ver",
     locked: "Bloqueado",
@@ -633,13 +666,13 @@ const TEXT = {
     howItWorks: "Como funciona o modo Legathon",
 
     how1:
-      "A ativação inicia um novo ponto de controle de passos. Leve seu telefone enquanto caminha.",
+      "A ativação inicia um novo ponto de controle de passos. Leve o telefone enquanto caminha.",
 
     how2:
-      "Enquanto ativo, novos passos vão para o Legathon. Pausar retorna o direcionamento de passos ao modo Journey e mantém seu progresso.",
+      "Enquanto ativo, novos passos contam para o Legathon. Pausar retorna os passos ao modo Journey e salva o progresso.",
 
     how3:
-      "Esta tela verifica o progresso salvo enquanto está aberta e quando o aplicativo retorna ao primeiro plano.",
+      "O progresso é sincronizado com a tela aberta e quando o aplicativo volta ao primeiro plano.",
 
     retrySync: "Tentar sincronizar novamente",
 
@@ -654,41 +687,43 @@ const TEXT = {
       "Conclua o Legathon anterior para desbloquear este desafio.",
 
     couldNotFinish:
-      "Não foi possível finalizar a sessão de caminhada.",
+      "Não foi possível finalizar a sessão Legathon.",
 
     couldNotRead:
       "Não foi possível ler a sessão de caminhada.",
 
     couldNotSave:
-      "O progresso não pôde ser salvo. Tente novamente.",
+      "Não foi possível salvar o progresso. Tente novamente.",
 
     couldNotActivate:
       "O Legathon não pôde ser ativado.",
 
     ownerMismatch:
-      "A sessão foi iniciada, mas o proprietário dos passos não corresponde. Verifique se os arquivos mais recentes da sessão e do mecanismo foram salvos.",
+      "A sessão começou, mas os passos não foram direcionados ao Legathon. Verifique os arquivos da sessão e do mecanismo.",
 
     couldNotUpdate:
-      "A sessão de caminhada não pôde ser atualizada.",
+      "Não foi possível atualizar a sessão Legathon.",
 
     iphoneOnly:
-      "Este sistema de passos atualmente oferece suporte ao iPhone. Android precisa de uma fonte de contagem de passos compatível.",
+      "Este sistema suporta atualmente iPhone. Android precisa de uma fonte de passos compatível.",
 
     permission:
-      "Ative Movimento e Fitness para este aplicativo nos Ajustes do iPhone.",
+      "Ative Movimento e Fitness para Legathon Walk nos Ajustes do iPhone.",
 
     unavailable:
       "O pedômetro não está disponível. Tente em um iPhone físico.",
 
     accessibilityWcoin: "WCoin",
+    progress: "Progresso",
+    challengeNumber: "LEGATHON {number} DE {total}",
   },
 
   ja: {
     back: "‹ 戻る",
     loading: "Legathonを読み込んでいます…",
-    worldLegathons: "ワールド Legathon",
+    worldLegathons: "ワールドLegathon",
     intro:
-      "世界の耐久ウォーキングチャレンジに挑戦し、Legathonの実績を築きましょう。",
+      "世界の26のウォーキングチャレンジに挑戦しましょう。",
 
     modeActive: "Legathonモード実行中",
     modePaused: "Legathon一時停止中",
@@ -699,7 +734,7 @@ const TEXT = {
     pausedMessage:
       "進捗は保存されています。準備ができたら再開してください。",
     readyMessage:
-      "アンロック済みのチャレンジを選択してください。",
+      "アンロック済みのLegathonを選択してください。",
 
     activeLegathon: "実行中のLEGATHON",
     pausedLegathon: "一時停止中のLEGATHON",
@@ -710,7 +745,7 @@ const TEXT = {
     miles: "マイル",
     remaining: "残り",
 
-    completionRewards: "完了報酬",
+    completionRewards: "LEGATHON完了報酬",
     legathonPoints: "Legathonポイント",
     avatarXP: "アバターXP",
 
@@ -724,10 +759,10 @@ const TEXT = {
 
     lastSynced: "最終同期 {time}",
 
-    allComplete: "すべてのLegathonを完了しました！",
-    noChallenge: "利用可能なチャレンジがありません",
+    allComplete: "26のLegathonをすべて完了しました！",
+    noChallenge: "利用可能なLegathonがありません",
     savedChallenges:
-      "保存されたチャレンジは以下に表示されます。",
+      "保存されたLegathonは以下に表示されます。",
 
     completed: "完了",
     unlocked: "アンロック",
@@ -740,7 +775,7 @@ const TEXT = {
       "グローバルLegathonチャレンジ",
 
     challengeIntro:
-      "アンロックされたチャレンジを完了して、世界のLegathonシリーズを進みましょう。",
+      "アンロックされたLegathonを完了して、世界のシリーズを進みましょう。",
 
     view: "表示",
     locked: "ロック",
@@ -756,10 +791,10 @@ const TEXT = {
       "開始すると新しい歩数チェックポイントが設定されます。歩くときはスマートフォンを携帯してください。",
 
     how2:
-      "実行中の新しい歩数はLegathonに加算されます。一時停止すると歩数はJourneyモードに戻り、マラソンの進捗は保存されます。",
+      "実行中の歩数はLegathonに加算されます。一時停止するとJourneyモードに戻り、Legathonの進捗は保存されます。",
 
     how3:
-      "この画面は、表示中およびアプリがフォアグラウンドに戻ったときに保存済みの歩行進捗を確認します。",
+      "表示中およびアプリがフォアグラウンドに戻ったときに進捗を同期します。",
 
     retrySync: "同期を再試行",
 
@@ -771,10 +806,10 @@ const TEXT = {
       "このLegathonは完了しています。進捗は保存されています。",
 
     previousRequired:
-      "前のLegathonを完了すると、このチャレンジをアンロックできます。",
+      "前のLegathonを完了すると、このチャレンジを解除できます。",
 
     couldNotFinish:
-      "歩行セッションを完了できませんでした。",
+      "Legathonセッションを完了できませんでした。",
 
     couldNotRead:
       "歩行セッションを読み込めませんでした。",
@@ -786,21 +821,23 @@ const TEXT = {
       "Legathonを開始できませんでした。",
 
     ownerMismatch:
-      "セッションは開始されましたが、歩数の割り当て先が一致しません。最新のセッションファイルとエンジンファイルが保存されているか確認してください。",
+      "セッションは開始されましたが、歩数の割り当て先がLegathonになっていません。セッションとエンジンのファイルを確認してください。",
 
     couldNotUpdate:
-      "歩行セッションを更新できませんでした。",
+      "Legathonセッションを更新できませんでした。",
 
     iphoneOnly:
-      "この歩数エンジンは現在iPhoneに対応しています。Androidでは互換性のある歩数データソースが必要です。",
+      "この歩数エンジンは現在iPhoneに対応しています。Androidには互換性のある歩数データが必要です。",
 
     permission:
-      "iPhoneの設定で、このアプリの「モーションとフィットネス」へのアクセスを有効にしてください。",
+      "iPhoneの設定でLegathon Walkの「モーションとフィットネス」へのアクセスを有効にしてください。",
 
     unavailable:
       "歩数計を利用できません。実機のiPhoneでお試しください。",
 
     accessibilityWcoin: "WCoin",
+    progress: "進捗",
+    challengeNumber: "LEGATHON {number} / {total}",
   },
 
   ko: {
@@ -808,7 +845,7 @@ const TEXT = {
     loading: "Legathon을 불러오는 중…",
     worldLegathons: "월드 Legathon",
     intro:
-      "세계적인 지구력 걷기 챌린지에 도전하고 Legathon 기록을 쌓으세요.",
+      "전 세계 26개의 걷기 챌린지에 도전하세요.",
 
     modeActive: "Legathon 모드 활성",
     modePaused: "Legathon 일시정지",
@@ -819,7 +856,7 @@ const TEXT = {
     pausedMessage:
       "진행 상황이 저장되었습니다. 준비되면 다시 시작하세요.",
     readyMessage:
-      "잠금 해제된 챌린지를 선택해 시작하세요.",
+      "잠금 해제된 Legathon을 선택하세요.",
 
     activeLegathon: "활성 LEGATHON",
     pausedLegathon: "일시정지 LEGATHON",
@@ -830,7 +867,7 @@ const TEXT = {
     miles: "마일",
     remaining: "남음",
 
-    completionRewards: "완료 보상",
+    completionRewards: "LEGATHON 완료 보상",
     legathonPoints: "Legathon 포인트",
     avatarXP: "아바타 XP",
 
@@ -844,10 +881,10 @@ const TEXT = {
 
     lastSynced: "마지막 동기화 {time}",
 
-    allComplete: "모든 Legathon 완료!",
-    noChallenge: "사용 가능한 챌린지가 없습니다",
+    allComplete: "26개 Legathon 모두 완료!",
+    noChallenge: "사용 가능한 Legathon이 없습니다",
     savedChallenges:
-      "저장된 챌린지가 아래에 표시됩니다.",
+      "저장된 Legathon이 아래에 표시됩니다.",
 
     completed: "완료",
     unlocked: "잠금 해제",
@@ -860,7 +897,7 @@ const TEXT = {
       "글로벌 Legathon 챌린지",
 
     challengeIntro:
-      "잠금 해제된 챌린지를 완료하여 글로벌 Legathon 시리즈를 진행하세요.",
+      "잠금 해제된 Legathon을 완료해 글로벌 시리즈를 진행하세요.",
 
     view: "보기",
     locked: "잠김",
@@ -876,16 +913,16 @@ const TEXT = {
       "활성화하면 새로운 걸음 체크포인트가 시작됩니다. 걸을 때 휴대폰을 가지고 다니세요.",
 
     how2:
-      "활성 상태에서는 새 걸음이 Legathon에 반영됩니다. 일시정지하면 걸음 경로가 Journey 모드로 돌아가며 마라톤 진행 상황은 유지됩니다.",
+      "활성 상태에서는 새 걸음이 Legathon에 반영됩니다. 일시정지하면 Journey 모드로 돌아가며 진행 상황은 유지됩니다.",
 
     how3:
-      "이 화면은 열려 있는 동안과 앱이 다시 활성화될 때 저장된 걷기 진행 상황을 확인합니다.",
+      "화면이 열려 있거나 앱이 다시 활성화되면 저장된 진행 상황을 동기화합니다.",
 
     retrySync: "동기화 다시 시도",
 
     completeAlert: "Legathon 완료!",
     completeAlertMessage:
-      "{title}을 완료했습니다. 세부 정보를 열어 보상을 확인하세요.",
+      "{title}을 완료했습니다. 세부 정보에서 보상을 확인하세요.",
 
     completeSaved:
       "이 Legathon은 완료되었습니다. 진행 상황이 저장되었습니다.",
@@ -894,7 +931,7 @@ const TEXT = {
       "이 챌린지를 잠금 해제하려면 이전 Legathon을 완료하세요.",
 
     couldNotFinish:
-      "걷기 세션을 완료할 수 없습니다.",
+      "Legathon 세션을 완료할 수 없습니다.",
 
     couldNotRead:
       "걷기 세션을 읽을 수 없습니다.",
@@ -906,29 +943,31 @@ const TEXT = {
       "Legathon을 활성화할 수 없습니다.",
 
     ownerMismatch:
-      "세션은 시작되었지만 걸음 소유자가 일치하지 않습니다. 최신 세션 및 엔진 파일이 모두 저장되어 있는지 확인하세요.",
+      "세션은 시작되었지만 걸음 소유자가 Legathon으로 전환되지 않았습니다. 세션 및 엔진 파일을 확인하세요.",
 
     couldNotUpdate:
-      "걷기 세션을 업데이트할 수 없습니다.",
+      "Legathon 세션을 업데이트할 수 없습니다.",
 
     iphoneOnly:
-      "이 걸음 엔진은 현재 iPhone을 지원합니다. Android에는 호환되는 걸음 수 데이터 소스가 필요합니다.",
+      "이 시스템은 현재 iPhone을 지원합니다. Android에는 호환되는 걸음 수 데이터가 필요합니다.",
 
     permission:
-      "iPhone 설정에서 이 앱의 동작 및 피트니스 접근 권한을 활성화하세요.",
+      "iPhone 설정에서 Legathon Walk의 동작 및 피트니스 권한을 활성화하세요.",
 
     unavailable:
       "만보계를 사용할 수 없습니다. 실제 iPhone에서 사용해 보세요.",
 
     accessibilityWcoin: "WCoin",
+    progress: "진행 상황",
+    challengeNumber: "LEGATHON {number} / {total}",
   },
 
   zh: {
     back: "‹ 返回",
-    loading: "正在加载你的 Legathon…",
+    loading: "正在加载你的Legathon…",
     worldLegathons: "世界 Legathon",
     intro:
-      "完成全球耐力步行挑战，建立你的 Legathon 成就。",
+      "挑战全球26项步行活动，成为更强大的自己。",
 
     modeActive: "Legathon 模式已开启",
     modePaused: "Legathon 已暂停",
@@ -939,7 +978,7 @@ const TEXT = {
     pausedMessage:
       "你的进度已保存。准备好后即可继续。",
     readyMessage:
-      "选择一个已解锁的挑战开始。",
+      "选择一个已解锁的Legathon开始。",
 
     activeLegathon: "当前 LEGATHON",
     pausedLegathon: "已暂停 LEGATHON",
@@ -950,37 +989,37 @@ const TEXT = {
     miles: "英里",
     remaining: "剩余",
 
-    completionRewards: "完成奖励",
-    legathonPoints: "Legathon 积分",
-    avatarXP: "虚拟形象 XP",
+    completionRewards: "LEGATHON完成奖励",
+    legathonPoints: "Legathon积分",
+    avatarXP: "虚拟形象XP",
 
-    continueLegathon: "继续 Legathon",
-    resumeLegathon: "恢复 Legathon",
-    activateLegathon: "开始 Legathon",
+    continueLegathon: "继续Legathon",
+    resumeLegathon: "恢复Legathon",
+    activateLegathon: "开始Legathon",
 
     syncProgress: "同步步行进度",
-    pauseLegathon: "暂停 Legathon",
-    returnJourney: "返回 Journey 模式",
+    pauseLegathon: "暂停Legathon",
+    returnJourney: "返回Journey模式",
 
     lastSynced: "最后同步：{time}",
 
-    allComplete: "所有 Legathon 已完成！",
-    noChallenge: "没有可用挑战",
+    allComplete: "26项Legathon全部完成！",
+    noChallenge: "没有可用的Legathon",
     savedChallenges:
-      "你保存的挑战显示在下方。",
+      "已保存的Legathon显示在下方。",
 
     completed: "已完成",
     unlocked: "已解锁",
-    wcoinsClaimed: "已领取 WCoins",
+    wcoinsClaimed: "已领取WCoins",
 
     totalPointsClaimed:
-      "已领取 LEGATHON 积分总数",
+      "已领取LEGATHON积分总数",
 
     globalChallenges:
-      "全球 Legathon 挑战",
+      "全球Legathon挑战",
 
     challengeIntro:
-      "完成每个已解锁的挑战，继续推进全球 Legathon 系列。",
+      "完成每个已解锁的Legathon，继续推进全球系列。",
 
     view: "查看",
     locked: "已锁定",
@@ -990,31 +1029,31 @@ const TEXT = {
 
     rewardsClaimed: "奖励已领取",
 
-    howItWorks: "Legathon 模式如何运作",
+    howItWorks: "Legathon模式如何运作",
 
     how1:
       "激活后会建立新的步数检查点。步行时请随身携带手机。",
 
     how2:
-      "模式开启时，新步数会计入 Legathon。暂停后，步数会重新计入 Journey 模式，同时保留马拉松进度。",
+      "模式开启时，新步数计入Legathon。暂停后步数重新计入Journey模式，Legathon进度继续保存。",
 
     how3:
-      "此页面在打开时以及应用重新回到前台时检查已保存的步行进度。",
+      "页面打开和应用重新回到前台时，会同步已保存的进度。",
 
     retrySync: "重新同步",
 
-    completeAlert: "Legathon 完成！",
+    completeAlert: "Legathon完成！",
     completeAlertMessage:
-      "{title} 已完成。打开详情查看你的奖励。",
+      "{title}已完成。打开详情查看你的奖励。",
 
     completeSaved:
-      "此 Legathon 已完成。你的进度已保存。",
+      "此Legathon已完成。你的进度已保存。",
 
     previousRequired:
-      "完成上一个 Legathon 即可解锁此挑战。",
+      "完成上一个Legathon即可解锁此挑战。",
 
     couldNotFinish:
-      "无法完成步行会话。",
+      "无法完成Legathon会话。",
 
     couldNotRead:
       "无法读取步行会话。",
@@ -1023,24 +1062,26 @@ const TEXT = {
       "无法保存步行进度。请重试。",
 
     couldNotActivate:
-      "无法激活 Legathon。",
+      "无法激活Legathon。",
 
     ownerMismatch:
-      "会话已启动，但步数归属不匹配。请确认最新的会话和引擎文件均已保存。",
+      "会话已启动，但步数未分配给Legathon。请检查会话和引擎文件。",
 
     couldNotUpdate:
-      "无法更新步行会话。",
+      "无法更新Legathon会话。",
 
     iphoneOnly:
-      "此步数引擎目前支持 iPhone。Android 需要兼容的步数来源。",
+      "此系统目前支持iPhone。Android需要兼容的步数来源。",
 
     permission:
-      "请在 iPhone 设置中为此应用启用“运动与健身”权限，然后重试。",
+      "请在iPhone设置中为Legathon Walk启用“运动与健身”权限。",
 
     unavailable:
-      "计步器不可用。请在实体 iPhone 上尝试。",
+      "计步器不可用。请使用实体iPhone。",
 
     accessibilityWcoin: "WCoin",
+    progress: "进度",
+    challengeNumber: "LEGATHON {number} / {total}",
   },
 
   it: {
@@ -1048,7 +1089,7 @@ const TEXT = {
     loading: "Caricamento dei tuoi Legathon…",
     worldLegathons: "Legathon Mondiali",
     intro:
-      "Affronta sfide globali di resistenza a piedi e costruisci il tuo percorso Legathon.",
+      "26 sfide globali di camminata. Una versione più forte di te.",
 
     modeActive: "Modalità Legathon attiva",
     modePaused: "Legathon in pausa",
@@ -1059,7 +1100,7 @@ const TEXT = {
     pausedMessage:
       "I tuoi progressi sono salvati. Riprendi quando sei pronto.",
     readyMessage:
-      "Scegli una sfida sbloccata per iniziare.",
+      "Scegli un Legathon sbloccato per iniziare.",
 
     activeLegathon: "LEGATHON ATTIVO",
     pausedLegathon: "LEGATHON IN PAUSA",
@@ -1070,7 +1111,7 @@ const TEXT = {
     miles: "Miglia",
     remaining: "Rimanenti",
 
-    completionRewards: "RICOMPENSE",
+    completionRewards: "RICOMPENSE LEGATHON",
     legathonPoints: "Punti Legathon",
     avatarXP: "XP Avatar",
 
@@ -1084,10 +1125,10 @@ const TEXT = {
 
     lastSynced: "Ultima sincronizzazione: {time}",
 
-    allComplete: "Tutti i Legathon completati!",
-    noChallenge: "Nessuna sfida disponibile",
+    allComplete: "Tutti i 26 Legathon completati!",
+    noChallenge: "Nessun Legathon disponibile",
     savedChallenges:
-      "Le tue sfide salvate sono elencate qui sotto.",
+      "I tuoi Legathon salvati sono elencati sotto.",
 
     completed: "Completati",
     unlocked: "Sbloccati",
@@ -1100,7 +1141,7 @@ const TEXT = {
       "Sfide Legathon Globali",
 
     challengeIntro:
-      "Completa ogni sfida sbloccata per avanzare nella serie globale Legathon.",
+      "Completa ogni Legathon sbloccato per avanzare nella serie mondiale.",
 
     view: "Visualizza",
     locked: "Bloccato",
@@ -1116,10 +1157,10 @@ const TEXT = {
       "L'attivazione avvia un nuovo checkpoint dei passi. Porta il telefono con te mentre cammini.",
 
     how2:
-      "Quando è attiva, i nuovi passi vanno al tuo Legathon. La pausa riporta i passi alla modalità Journey e conserva i progressi della maratona.",
+      "Quando è attiva, i nuovi passi vanno al Legathon. La pausa riporta i passi alla modalità Journey e conserva i progressi.",
 
     how3:
-      "Questa schermata controlla i progressi salvati mentre è aperta e quando l'app torna in primo piano.",
+      "I progressi vengono sincronizzati con la schermata aperta e al ritorno in primo piano.",
 
     retrySync: "Riprova sincronizzazione",
 
@@ -1128,13 +1169,13 @@ const TEXT = {
       "{title} è completato. Apri i dettagli per vedere le ricompense.",
 
     completeSaved:
-      "Questo Legathon è completato. I tuoi progressi sono salvati.",
+      "Questo Legathon è completato. I progressi sono salvati.",
 
     previousRequired:
       "Completa il Legathon precedente per sbloccare questa sfida.",
 
     couldNotFinish:
-      "Impossibile completare la sessione di camminata.",
+      "Impossibile completare la sessione Legathon.",
 
     couldNotRead:
       "Impossibile leggere la sessione di camminata.",
@@ -1146,21 +1187,23 @@ const TEXT = {
       "Impossibile attivare il Legathon.",
 
     ownerMismatch:
-      "La sessione è iniziata, ma il proprietario dei passi non corrisponde. Controlla che i file più recenti della sessione e del motore siano salvati.",
+      "La sessione è iniziata, ma i passi non sono assegnati al Legathon. Controlla i file di sessione e del motore.",
 
     couldNotUpdate:
-      "Impossibile aggiornare la sessione di camminata.",
+      "Impossibile aggiornare la sessione Legathon.",
 
     iphoneOnly:
-      "Questo sistema di passi attualmente supporta iPhone. Android richiede una fonte di conteggio passi compatibile.",
+      "Questo sistema supporta attualmente iPhone. Android richiede una fonte di passi compatibile.",
 
     permission:
-      "Abilita Movimento e fitness per questa app nelle Impostazioni dell'iPhone.",
+      "Abilita Movimento e fitness per Legathon Walk nelle impostazioni dell'iPhone.",
 
     unavailable:
       "Il pedometro non è disponibile. Prova su un iPhone fisico.",
 
     accessibilityWcoin: "WCoin",
+    progress: "Progresso",
+    challengeNumber: "LEGATHON {number} DI {total}",
   },
 
   ar: {
@@ -1168,7 +1211,7 @@ const TEXT = {
     loading: "جارٍ تحميل Legathons…",
     worldLegathons: "Legathons العالمية",
     intro:
-      "شارك في تحديات المشي العالمية وابنِ إنجازاتك في Legathon.",
+      "26 تحديًا عالميًا للمشي. نحو نسخة أقوى منك.",
 
     modeActive: "وضع Legathon نشط",
     modePaused: "Legathon متوقف مؤقتًا",
@@ -1179,7 +1222,7 @@ const TEXT = {
     pausedMessage:
       "تم حفظ تقدمك. استأنف عندما تكون جاهزًا.",
     readyMessage:
-      "اختر تحديًا مفتوحًا للبدء.",
+      "اختر Legathon مفتوحًا للبدء.",
 
     activeLegathon: "LEGATHON النشط",
     pausedLegathon: "LEGATHON المتوقف",
@@ -1190,7 +1233,7 @@ const TEXT = {
     miles: "الأميال",
     remaining: "المتبقي",
 
-    completionRewards: "مكافآت الإكمال",
+    completionRewards: "مكافآت إكمال LEGATHON",
     legathonPoints: "نقاط Legathon",
     avatarXP: "XP للشخصية",
 
@@ -1204,10 +1247,10 @@ const TEXT = {
 
     lastSynced: "آخر مزامنة: {time}",
 
-    allComplete: "تم إكمال جميع Legathons!",
-    noChallenge: "لا يوجد تحدٍ متاح",
+    allComplete: "تم إكمال جميع Legathons الـ26!",
+    noChallenge: "لا يوجد Legathon متاح",
     savedChallenges:
-      "تظهر تحدياتك المحفوظة أدناه.",
+      "تظهر تحديات Legathon المحفوظة أدناه.",
 
     completed: "المكتملة",
     unlocked: "المفتوحة",
@@ -1220,7 +1263,7 @@ const TEXT = {
       "تحديات Legathon العالمية",
 
     challengeIntro:
-      "أكمل كل تحدٍ مفتوح للتقدم عبر سلسلة Legathon العالمية.",
+      "أكمل كل Legathon مفتوح للتقدم عبر السلسلة العالمية.",
 
     view: "عرض",
     locked: "مغلق",
@@ -1236,10 +1279,10 @@ const TEXT = {
       "يبدأ التفعيل نقطة تحقق جديدة للخطوات. احتفظ بهاتفك معك أثناء المشي.",
 
     how2:
-      "أثناء النشاط، تُضاف الخطوات الجديدة إلى Legathon. عند الإيقاف المؤقت تعود الخطوات إلى وضع Journey مع الاحتفاظ بتقدم الماراثون.",
+      "أثناء النشاط، تُضاف الخطوات الجديدة إلى Legathon. عند الإيقاف المؤقت تعود الخطوات إلى وضع Journey مع الاحتفاظ بالتقدم.",
 
     how3:
-      "تتحقق هذه الشاشة من تقدم المشي المحفوظ أثناء فتحها وعندما يعود التطبيق إلى الواجهة.",
+      "تتم مزامنة التقدم أثناء فتح الشاشة وعند عودة التطبيق إلى الواجهة.",
 
     retrySync: "إعادة محاولة المزامنة",
 
@@ -1254,7 +1297,7 @@ const TEXT = {
       "أكمل Legathon السابق لفتح هذا التحدي.",
 
     couldNotFinish:
-      "تعذر إنهاء جلسة المشي.",
+      "تعذر إنهاء جلسة Legathon.",
 
     couldNotRead:
       "تعذر قراءة جلسة المشي.",
@@ -1266,21 +1309,23 @@ const TEXT = {
       "تعذر تفعيل Legathon.",
 
     ownerMismatch:
-      "بدأت الجلسة ولكن وجهة الخطوات لا تتطابق. تحقق من حفظ أحدث ملفات الجلسة ومحرك الخطوات.",
+      "بدأت الجلسة ولكن الخطوات لم تُوجَّه إلى Legathon. تحقق من ملفات الجلسة ومحرك الخطوات.",
 
     couldNotUpdate:
-      "تعذر تحديث جلسة المشي.",
+      "تعذر تحديث جلسة Legathon.",
 
     iphoneOnly:
-      "محرك الخطوات هذا يدعم iPhone حاليًا. يحتاج Android إلى مصدر متوافق لعد الخطوات.",
+      "يدعم هذا النظام iPhone حاليًا. يحتاج Android إلى مصدر خطوات متوافق.",
 
     permission:
-      "فعّل إذن الحركة واللياقة لهذا التطبيق من إعدادات iPhone ثم حاول مرة أخرى.",
+      "فعّل إذن الحركة واللياقة لتطبيق Legathon Walk من إعدادات iPhone.",
 
     unavailable:
       "عداد الخطوات غير متاح. جرّب على جهاز iPhone فعلي.",
 
     accessibilityWcoin: "WCoin",
+    progress: "التقدم",
+    challengeNumber: "LEGATHON {number} من {total}",
   },
 };
 
@@ -1292,18 +1337,21 @@ function normalizeLanguage(language) {
   const normalized = String(language || "en")
     .trim()
     .toLowerCase()
-    .split("-")[0];
+    .split(/[-_]/)[0];
 
   return TEXT[normalized] ? normalized : "en";
 }
 
 function fillTemplate(value, variables = {}) {
-  return String(value || "").replace(
+  return String(value ?? "").replace(
     /\{(\w+)\}/g,
-    (_, key) =>
-      variables[key] !== undefined
+    (match, key) =>
+      Object.prototype.hasOwnProperty.call(
+        variables,
+        key
+      )
         ? String(variables[key])
-        : ""
+        : match
   );
 }
 
@@ -1311,12 +1359,13 @@ function fillTemplate(value, variables = {}) {
 // PROGRESS HELPERS
 // ============================================================
 
-function getProgress(marathon, progressMap) {
-  const saved = progressMap?.[marathon.id] || {};
+function getProgress(legathon, progressMap) {
+  const saved =
+    progressMap?.[legathon.id] || {};
 
   const totalSteps =
     safeNumber(saved.totalSteps) ||
-    safeNumber(marathon.totalSteps) ||
+    safeNumber(legathon.totalSteps) ||
     safeNumber(MARATHON_TOTAL_STEPS) ||
     52400;
 
@@ -1326,7 +1375,8 @@ function getProgress(marathon, progressMap) {
   );
 
   const completed =
-    saved.completed === true || steps >= totalSteps;
+    saved.completed === true ||
+    steps >= totalSteps;
 
   return {
     ...saved,
@@ -1337,17 +1387,21 @@ function getProgress(marathon, progressMap) {
     unlocked:
       completed ||
       saved.unlocked === true ||
-      marathon.unlockedByDefault === true,
+      legathon.unlockedByDefault === true,
 
     percent: completed
       ? 100
-      : Math.min(100, (steps / totalSteps) * 100),
+      : Math.min(
+          100,
+          (steps / totalSteps) * 100
+        ),
   };
 }
 
 function createResultError(result, fallback) {
   const error =
-    result?.error || result?.result?.error;
+    result?.error ||
+    result?.result?.error;
 
   const message =
     error?.message ||
@@ -1357,21 +1411,24 @@ function createResultError(result, fallback) {
   return new Error(message);
 }
 
-function isMarathonActive(state, marathonId) {
+// Keep internal "marathon" owner values unchanged.
+// These are step-routing identifiers, not display text.
+
+function isLegathonActive(state, legathonId) {
   return Boolean(
-    marathonId &&
-      state.activeId === marathonId &&
-      state.session?.marathonId === marathonId &&
+    legathonId &&
+      state.activeId === legathonId &&
+      state.session?.marathonId === legathonId &&
       state.session?.active === true &&
       state.session?.status === "active" &&
       state.session?.ownsStepRouting === true &&
       state.owner?.owner === "marathon" &&
-      state.owner?.marathonId === marathonId
+      state.owner?.marathonId === legathonId
   );
 }
 
 // ============================================================
-// MARATHON SCREEN
+// WORLD LEGATHONS SCREEN
 // ============================================================
 
 export default function MarathonScreen({
@@ -1379,8 +1436,11 @@ export default function MarathonScreen({
   goBack,
   goToWorldMarathonDetail,
 }) {
-  const languageCode = normalizeLanguage(language);
-  const isRTL = languageCode === "ar";
+  const languageCode =
+    normalizeLanguage(language);
+
+  const isRTL =
+    languageCode === "ar";
 
   const t = useCallback(
     (key, variables = {}) => {
@@ -1426,27 +1486,56 @@ export default function MarathonScreen({
     [t]
   );
 
-  const [screenState, setScreenState] = useState({
+  // ==========================================================
+  // STATE
+  // ==========================================================
+
+  const [
+    screenState,
+    setScreenState,
+  ] = useState({
     progressMap: {},
     activeId: null,
     session: null,
     owner: null,
   });
 
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [lastSync, setLastSync] = useState(null);
+  const [loading, setLoading] =
+    useState(true);
 
-  const mountedRef = useRef(false);
-  const appStateRef = useRef(AppState.currentState);
+  const [busy, setBusy] =
+    useState(false);
 
-  const operationQueueRef = useRef(Promise.resolve());
-  const pendingOperationsRef = useRef(0);
-  const completionAlertsRef = useRef(new Set());
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState("");
+
+  const [lastSync, setLastSync] =
+    useState(null);
 
   // ==========================================================
-  // SERIALIZE OPERATIONS
+  // REFS
+  // ==========================================================
+
+  const mountedRef = useRef(false);
+
+  const appStateRef = useRef(
+    AppState.currentState
+  );
+
+  const operationQueueRef = useRef(
+    Promise.resolve()
+  );
+
+  const pendingOperationsRef = useRef(0);
+
+  const completionAlertsRef = useRef(
+    new Set()
+  );
+
+  // ==========================================================
+  // SERIALIZED OPERATIONS
   // ==========================================================
 
   const runOperation = useCallback(
@@ -1465,46 +1554,60 @@ export default function MarathonScreen({
       }
 
       const queuedOperation =
-        operationQueueRef.current.then(async () => {
-          if (!mountedRef.current) return;
-
-          try {
-            await operation();
-
-            if (mountedRef.current) {
-              setErrorMessage("");
+        operationQueueRef.current.then(
+          async () => {
+            if (!mountedRef.current) {
+              return;
             }
-          } catch (error) {
-            const message =
-              error?.message || String(error);
 
-            console.error(
-              "MarathonScreen operation error:",
-              error
-            );
+            try {
+              await operation();
 
-            if (mountedRef.current) {
-              setErrorMessage(message);
+              if (mountedRef.current) {
+                setErrorMessage("");
+              }
+            } catch (error) {
+              const message =
+                error?.message ||
+                String(error);
 
-              if (showErrorAlert) {
-                Alert.alert("Legathon", message);
+              console.error(
+                "WorldLegathons operation error:",
+                error
+              );
+
+              if (mountedRef.current) {
+                setErrorMessage(message);
+
+                if (showErrorAlert) {
+                  Alert.alert(
+                    "Legathon",
+                    message
+                  );
+                }
+              }
+            } finally {
+              if (mountedRef.current) {
+                setLoading(false);
               }
             }
-          } finally {
-            if (mountedRef.current) {
-              setLoading(false);
-            }
           }
-        });
+        );
 
       operationQueueRef.current =
         queuedOperation.catch(() => {});
 
       return queuedOperation.finally(() => {
-        pendingOperationsRef.current -= 1;
+        pendingOperationsRef.current =
+          Math.max(
+            0,
+            pendingOperationsRef.current - 1
+          );
 
         if (mountedRef.current) {
-          setBusy(pendingOperationsRef.current > 0);
+          setBusy(
+            pendingOperationsRef.current > 0
+          );
         }
       });
     },
@@ -1512,169 +1615,196 @@ export default function MarathonScreen({
   );
 
   // ==========================================================
-  // LOAD SAVED STATE
+  // READ SAVED LEGATHON STATE
   // ==========================================================
 
-  const refreshMarathonState = useCallback(async () => {
-    const progressMap =
-      await loadMarathonProgressMap();
+  const refreshLegathonState = useCallback(
+    async () => {
+      const progressMap =
+        await loadMarathonProgressMap();
 
-    let session =
-      await loadLegathonSession();
+      let session =
+        await loadLegathonSession();
 
-    const sessionMarathon =
-      MARATHON_CATALOG.find(
-        (marathon) =>
-          marathon.id === session?.marathonId
-      );
-
-    if (
-      sessionMarathon &&
-      session.status !== "completed" &&
-      getProgress(
-        sessionMarathon,
-        progressMap
-      ).completed
-    ) {
-      const result =
-        await completeLegathonSession(
-          sessionMarathon.id
-        );
-
-      if (result?.completed !== true) {
-        throw createResultError(
-          result,
-          t("couldNotFinish")
-        );
-      }
-
-      session = await loadLegathonSession();
-    }
-
-    const activeMarathon =
-      await getActiveMarathon();
-
-    const owner =
-      await getCurrentStepOwner();
-
-    if (owner?.error) {
-      throw createResultError(
-        owner,
-        t("couldNotRead")
-      );
-    }
-
-    const nextState = {
-      progressMap: progressMap || {},
-      session,
-      owner,
-
-      activeId:
-        activeMarathon?.marathonId ||
-        activeMarathon?.id ||
-        activeMarathon?.marathon?.id ||
-        null,
-    };
-
-    if (mountedRef.current) {
-      setScreenState(nextState);
-    }
-
-    return nextState;
-  }, [t]);
-
-  // ==========================================================
-  // SYNC PHYSICAL STEPS
-  // ==========================================================
-
-  const syncWalkingProgress = useCallback(async () => {
-    await refreshMarathonState();
-    await requirePedometer();
-
-    const result = await syncTodaySteps();
-
-    const routingFailed =
-      safeNumber(result?.delta) > 0 &&
-      result?.destination === "marathon" &&
-      result?.routed !== true;
-
-    if (
-      !result ||
-      result.synced !== true ||
-      result.error ||
-      result.result?.error ||
-      result.result?.saved === false ||
-      result.saved === false ||
-      routingFailed
-    ) {
-      throw createResultError(
-        result,
-        t("couldNotSave")
-      );
-    }
-
-    const nextState =
-      await refreshMarathonState();
-
-    if (mountedRef.current) {
-      setLastSync(new Date());
-    }
-
-    if (result.completedNow === true) {
-      const completedId =
-        result.marathonId ||
-        result.marathon?.id;
-
-      const completedMarathon =
+      const sessionLegathon =
         MARATHON_CATALOG.find(
-          (marathon) =>
-            marathon.id === completedId
+          (legathon) =>
+            legathon.id ===
+            session?.marathonId
         );
 
       if (
-        completedMarathon &&
+        sessionLegathon &&
+        session.status !== "completed" &&
         getProgress(
-          completedMarathon,
-          nextState.progressMap
-        ).completed &&
-        !completionAlertsRef.current.has(
-          completedId
-        ) &&
-        mountedRef.current
+          sessionLegathon,
+          progressMap
+        ).completed
       ) {
-        completionAlertsRef.current.add(
-          completedId
-        );
+        const result =
+          await completeLegathonSession(
+            sessionLegathon.id
+          );
 
-        Alert.alert(
-          t("completeAlert"),
-          t("completeAlertMessage", {
-            title: completedMarathon.title,
-          })
+        if (result?.completed !== true) {
+          throw createResultError(
+            result,
+            t("couldNotFinish")
+          );
+        }
+
+        session =
+          await loadLegathonSession();
+      }
+
+      const activeLegathon =
+        await getActiveMarathon();
+
+      const owner =
+        await getCurrentStepOwner();
+
+      if (owner?.error) {
+        throw createResultError(
+          owner,
+          t("couldNotRead")
         );
       }
-    }
 
-    return nextState;
-  }, [
-    refreshMarathonState,
-    requirePedometer,
-    t,
-  ]);
+      const nextState = {
+        progressMap: progressMap || {},
+        session,
+        owner,
+
+        activeId:
+          activeLegathon?.marathonId ||
+          activeLegathon?.id ||
+          activeLegathon?.marathon?.id ||
+          null,
+      };
+
+      if (mountedRef.current) {
+        setScreenState(nextState);
+      }
+
+      return nextState;
+    },
+    [t]
+  );
 
   // ==========================================================
-  // INITIAL LOAD + AUTO SYNC
+  // SYNC PHYSICAL WALKING STEPS
+  // ==========================================================
+
+  const syncWalkingProgress = useCallback(
+    async () => {
+      await refreshLegathonState();
+
+      await requirePedometer();
+
+      const result =
+        await syncTodaySteps();
+
+      const routingFailed =
+        safeNumber(result?.delta) > 0 &&
+        result?.destination === "marathon" &&
+        result?.routed !== true;
+
+      if (
+        !result ||
+        result.synced !== true ||
+        result.error ||
+        result.result?.error ||
+        result.result?.saved === false ||
+        result.saved === false ||
+        routingFailed
+      ) {
+        throw createResultError(
+          result,
+          t("couldNotSave")
+        );
+      }
+
+      const nextState =
+        await refreshLegathonState();
+
+      if (mountedRef.current) {
+        setLastSync(new Date());
+      }
+
+      if (result.completedNow === true) {
+        const completedId =
+          result.marathonId ||
+          result.marathon?.id;
+
+        const completedLegathon =
+          MARATHON_CATALOG.find(
+            (legathon) =>
+              legathon.id === completedId
+          );
+
+        if (
+          completedLegathon &&
+          getProgress(
+            completedLegathon,
+            nextState.progressMap
+          ).completed &&
+          !completionAlertsRef.current.has(
+            completedId
+          ) &&
+          mountedRef.current
+        ) {
+          completionAlertsRef.current.add(
+            completedId
+          );
+
+          Alert.alert(
+            t("completeAlert"),
+            t("completeAlertMessage", {
+              title: completedLegathon.title,
+            })
+          );
+        }
+      }
+
+      return nextState;
+    },
+    [
+      refreshLegathonState,
+      requirePedometer,
+      t,
+    ]
+  );
+
+  // ==========================================================
+  // INITIAL LOAD + AUTOMATIC SYNCHRONIZATION
+  //
+  // Show saved data first, then sync physical steps.
   // ==========================================================
 
   useEffect(() => {
     mountedRef.current = true;
-    appStateRef.current = AppState.currentState;
 
-    void runOperation(syncWalkingProgress);
+    appStateRef.current =
+      AppState.currentState;
+
+    // Read locally saved progress quickly.
+    void runOperation(
+      refreshLegathonState
+    ).then(() => {
+      if (mountedRef.current) {
+        void runOperation(
+          syncWalkingProgress
+        );
+      }
+    });
 
     const interval = setInterval(() => {
-      if (appStateRef.current === "active") {
-        void runOperation(syncWalkingProgress);
+      if (
+        appStateRef.current === "active"
+      ) {
+        void runOperation(
+          syncWalkingProgress
+        );
       }
     }, SYNC_INTERVAL_MS);
 
@@ -1685,7 +1815,8 @@ export default function MarathonScreen({
           const previousAppState =
             appStateRef.current;
 
-          appStateRef.current = nextAppState;
+          appStateRef.current =
+            nextAppState;
 
           if (
             nextAppState === "active" &&
@@ -1700,124 +1831,139 @@ export default function MarathonScreen({
 
     return () => {
       mountedRef.current = false;
+
       clearInterval(interval);
+
       subscription.remove();
     };
   }, [
     runOperation,
+    refreshLegathonState,
     syncWalkingProgress,
   ]);
 
   // ==========================================================
-  // NAVIGATION
+  // DETAILS NAVIGATION
   // ==========================================================
 
-  const openMarathonDetails = useCallback(
-    (marathonId) => {
+  const openLegathonDetails = useCallback(
+    (legathonId) => {
       if (
         typeof goToWorldMarathonDetail ===
         "function"
       ) {
-        goToWorldMarathonDetail(marathonId);
+        goToWorldMarathonDetail(
+          legathonId
+        );
       }
     },
     [goToWorldMarathonDetail]
   );
 
   // ==========================================================
-  // START / RESUME / OPEN
+  // ACTIVATE / RESUME / OPEN LEGATHON
   // ==========================================================
 
-  const handleOpenMarathon = useCallback(
-    (marathon) => {
-      void runOperation(async () => {
-        const currentState =
-          await refreshMarathonState();
+  const handleOpenLegathon = useCallback(
+    (legathon) => {
+      void runOperation(
+        async () => {
+          const currentState =
+            await refreshLegathonState();
 
-        const progress = getProgress(
-          marathon,
-          currentState.progressMap
-        );
-
-        if (progress.completed) {
-          if (
-            typeof goToWorldMarathonDetail ===
-            "function"
-          ) {
-            openMarathonDetails(marathon.id);
-          } else {
-            Alert.alert(
-              marathon.title,
-              t("completeSaved")
-            );
-          }
-
-          return;
-        }
-
-        if (!progress.unlocked) {
-          throw new Error(
-            t("previousRequired")
+          const progress = getProgress(
+            legathon,
+            currentState.progressMap
           );
-        }
 
-        await requirePedometer(true);
+          if (progress.completed) {
+            if (
+              typeof goToWorldMarathonDetail ===
+              "function"
+            ) {
+              openLegathonDetails(
+                legathon.id
+              );
+            } else {
+              Alert.alert(
+                legathon.title,
+                t("completeSaved")
+              );
+            }
 
-        if (
-          !isMarathonActive(
-            currentState,
-            marathon.id
-          )
-        ) {
-          const shouldResume =
-            currentState.activeId === marathon.id &&
-            currentState.session?.marathonId ===
-              marathon.id &&
-            currentState.session?.status ===
-              "paused";
+            return;
+          }
 
-          const result = shouldResume
-            ? await resumeLegathon()
-            : await startLegathon(marathon.id);
-
-          const succeeded = shouldResume
-            ? result?.resumed
-            : result?.started;
-
-          if (succeeded !== true) {
-            throw createResultError(
-              result,
-              t("couldNotActivate")
+          if (!progress.unlocked) {
+            throw new Error(
+              t("previousRequired")
             );
           }
 
-          const updatedState =
-            await syncWalkingProgress();
+          await requirePedometer(true);
 
           if (
-            !isMarathonActive(
-              updatedState,
-              marathon.id
+            !isLegathonActive(
+              currentState,
+              legathon.id
             )
           ) {
-            throw new Error(
-              t("ownerMismatch")
+            const shouldResume =
+              currentState.activeId ===
+                legathon.id &&
+              currentState.session?.marathonId ===
+                legathon.id &&
+              currentState.session?.status ===
+                "paused";
+
+            const result = shouldResume
+              ? await resumeLegathon()
+              : await startLegathon(
+                  legathon.id
+                );
+
+            const succeeded = shouldResume
+              ? result?.resumed
+              : result?.started;
+
+            if (succeeded !== true) {
+              throw createResultError(
+                result,
+                t("couldNotActivate")
+              );
+            }
+
+            const updatedState =
+              await syncWalkingProgress();
+
+            if (
+              !isLegathonActive(
+                updatedState,
+                legathon.id
+              )
+            ) {
+              throw new Error(
+                t("ownerMismatch")
+              );
+            }
+          } else {
+            await syncWalkingProgress();
+          }
+
+          if (mountedRef.current) {
+            openLegathonDetails(
+              legathon.id
             );
           }
-        } else {
-          await syncWalkingProgress();
-        }
-
-        if (mountedRef.current) {
-          openMarathonDetails(marathon.id);
-        }
-      }, true);
+        },
+        true
+      );
     },
     [
       runOperation,
-      refreshMarathonState,
+      refreshLegathonState,
       syncWalkingProgress,
-      openMarathonDetails,
+      openLegathonDetails,
       goToWorldMarathonDetail,
       requirePedometer,
       t,
@@ -1830,36 +1976,39 @@ export default function MarathonScreen({
 
   const handleSessionAction = useCallback(
     (action) => {
-      void runOperation(async () => {
-        const currentState =
+      void runOperation(
+        async () => {
+          const currentState =
+            await syncWalkingProgress();
+
+          if (
+            currentState.session?.status ===
+            "completed"
+          ) {
+            return;
+          }
+
+          const result =
+            action === "pause"
+              ? await pauseLegathon()
+              : await exitLegathon();
+
+          const succeeded =
+            action === "pause"
+              ? result?.paused
+              : result?.exited;
+
+          if (succeeded !== true) {
+            throw createResultError(
+              result,
+              t("couldNotUpdate")
+            );
+          }
+
           await syncWalkingProgress();
-
-        if (
-          currentState.session?.status ===
-          "completed"
-        ) {
-          return;
-        }
-
-        const result =
-          action === "pause"
-            ? await pauseLegathon()
-            : await exitLegathon();
-
-        const succeeded =
-          action === "pause"
-            ? result?.paused
-            : result?.exited;
-
-        if (succeeded !== true) {
-          throw createResultError(
-            result,
-            t("couldNotUpdate")
-          );
-        }
-
-        await syncWalkingProgress();
-      }, true);
+        },
+        true
+      );
     },
     [
       runOperation,
@@ -1869,81 +2018,89 @@ export default function MarathonScreen({
   );
 
   // ==========================================================
-  // DERIVED VALUES
+  // DERIVED LEGATHON DATA
   // ==========================================================
 
-  const marathonRows = useMemo(
+  const legathonRows = useMemo(
     () =>
-      MARATHON_CATALOG.map((marathon) => ({
-        marathon,
-        progress: getProgress(
-          marathon,
-          screenState.progressMap
-        ),
-      })),
+      MARATHON_CATALOG.map(
+        (legathon) => ({
+          legathon,
+
+          progress: getProgress(
+            legathon,
+            screenState.progressMap
+          ),
+        })
+      ),
     [screenState.progressMap]
   );
 
-  const selectedMarathon =
-    marathonRows.find(
+  const selectedLegathon =
+    legathonRows.find(
       (row) =>
-        row.marathon.id === screenState.activeId
+        row.legathon.id ===
+        screenState.activeId
     ) ||
-    marathonRows.find(
+    legathonRows.find(
       (row) =>
         row.progress.unlocked &&
         !row.progress.completed
     );
 
-  const modeActive = selectedMarathon
-    ? isMarathonActive(
+  const modeActive = selectedLegathon
+    ? isLegathonActive(
         screenState,
-        selectedMarathon.marathon.id
+        selectedLegathon.legathon.id
       )
     : false;
 
   const modePaused = Boolean(
-    selectedMarathon &&
-      screenState.session?.status === "paused" &&
-      screenState.session?.marathonId ===
-        selectedMarathon.marathon.id
+    selectedLegathon &&
+    screenState.session?.status ===
+      "paused" &&
+    screenState.session?.marathonId ===
+      selectedLegathon.legathon.id
   );
 
-  const completedCount = marathonRows.filter(
-    (row) => row.progress.completed
-  ).length;
+  const completedCount =
+    legathonRows.filter(
+      (row) => row.progress.completed
+    ).length;
 
-  const unlockedCount = marathonRows.filter(
-    (row) => row.progress.unlocked
-  ).length;
+  const unlockedCount =
+    legathonRows.filter(
+      (row) => row.progress.unlocked
+    ).length;
 
-  const claimedMarathons = marathonRows.filter(
-    (row) =>
-      row.progress.rewardClaimed === true
-  );
+  const claimedLegathons =
+    legathonRows.filter(
+      (row) =>
+        row.progress.rewardClaimed === true
+    );
 
   const claimedCoins =
-    claimedMarathons.reduce(
+    claimedLegathons.reduce(
       (total, row) =>
         total +
         safeNumber(
-          row.marathon.rewardCoins
+          row.legathon.rewardCoins
         ),
       0
     );
 
   const claimedPoints =
-    claimedMarathons.reduce(
+    claimedLegathons.reduce(
       (total, row) =>
         total +
         safeNumber(
-          row.marathon.rewardPoints
+          row.legathon.rewardPoints
         ),
       0
     );
 
   // ==========================================================
-  // LOADING
+  // LOADING SCREEN
   // ==========================================================
 
   if (loading) {
@@ -1971,7 +2128,7 @@ export default function MarathonScreen({
   }
 
   // ==========================================================
-  // RENDER
+  // MAIN UI
   // ==========================================================
 
   return (
@@ -1980,7 +2137,14 @@ export default function MarathonScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
+        {/* HEADER */}
+
+        <View
+          style={[
+            styles.headerRow,
+            isRTL && styles.rowRTL,
+          ]}
+        >
           <TouchableOpacity
             style={styles.backButton}
             accessibilityRole="button"
@@ -2023,6 +2187,8 @@ export default function MarathonScreen({
           {t("intro")}
         </Text>
 
+        {/* ERRORS */}
+
         {!!errorMessage && (
           <View style={styles.errorCard}>
             <Text
@@ -2046,6 +2212,8 @@ export default function MarathonScreen({
             />
           </View>
         )}
+
+        {/* MODE STATUS */}
 
         <View
           style={[
@@ -2075,7 +2243,7 @@ export default function MarathonScreen({
             {modeActive
               ? t("activeMessage", {
                   title:
-                    selectedMarathon?.marathon
+                    selectedLegathon?.legathon
                       ?.title || "",
                 })
               : modePaused
@@ -2084,16 +2252,28 @@ export default function MarathonScreen({
           </Text>
         </View>
 
-        {selectedMarathon ? (
+        {/* FEATURED LEGATHON */}
+
+        {selectedLegathon ? (
           <View
             style={[
               styles.card,
               styles.heroCard,
             ]}
           >
-            <View style={styles.row}>
-              <Text style={styles.heroFlag}>
-                {selectedMarathon.marathon.flag}
+            <View
+              style={[
+                styles.row,
+                isRTL && styles.rowRTL,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.heroFlag,
+                  isRTL && styles.heroFlagRTL,
+                ]}
+              >
+                {selectedLegathon.legathon.flag}
               </Text>
 
               <View style={styles.flex}>
@@ -2116,10 +2296,7 @@ export default function MarathonScreen({
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {
-                    selectedMarathon.marathon
-                      .title
-                  }
+                  {selectedLegathon.legathon.title}
                 </Text>
 
                 <Text
@@ -2128,50 +2305,40 @@ export default function MarathonScreen({
                     isRTL && styles.rtlText,
                   ]}
                 >
-                  {
-                    selectedMarathon.marathon
-                      .city
-                  }
-                  ,{" "}
-                  {
-                    selectedMarathon.marathon
-                      .country
-                  }
+                  {selectedLegathon.legathon.city}
+                  {", "}
+                  {selectedLegathon.legathon.country}
                 </Text>
               </View>
             </View>
 
+            {/* PROGRESS CIRCLE */}
+
             <View style={styles.percentCircle}>
               <Text style={styles.percentValue}>
                 {Math.floor(
-                  selectedMarathon.progress
-                    .percent
+                  selectedLegathon.progress.percent
                 )}
                 %
               </Text>
 
-              <Text
-                style={[
-                  styles.label,
-                  isRTL && styles.rtlText,
-                ]}
-              >
+              <Text style={styles.label}>
                 {t("complete")}
               </Text>
             </View>
 
             <ProgressBar
               percent={
-                selectedMarathon.progress
-                  .percent
+                selectedLegathon.progress.percent
               }
             />
+
+            {/* WALKING METRICS */}
 
             <View style={styles.metricsRow}>
               <MetricCard
                 value={formatNumber(
-                  selectedMarathon.progress
-                    .steps,
+                  selectedLegathon.progress.steps,
                   languageCode
                 )}
                 label={t("steps")}
@@ -2179,8 +2346,7 @@ export default function MarathonScreen({
 
               <MetricCard
                 value={(
-                  selectedMarathon.progress
-                    .steps /
+                  selectedLegathon.progress.steps /
                   STEPS_IN_ONE_MILE
                 ).toFixed(2)}
                 label={t("miles")}
@@ -2188,10 +2354,8 @@ export default function MarathonScreen({
 
               <MetricCard
                 value={formatNumber(
-                  selectedMarathon.progress
-                    .totalSteps -
-                    selectedMarathon.progress
-                      .steps,
+                  selectedLegathon.progress.totalSteps -
+                    selectedLegathon.progress.steps,
                   languageCode
                 )}
                 label={t("remaining")}
@@ -2200,31 +2364,33 @@ export default function MarathonScreen({
 
             <Text style={styles.centerText}>
               {formatNumber(
-                selectedMarathon.progress.steps,
+                selectedLegathon.progress.steps,
                 languageCode
-              )}{" "}
-              /{" "}
+              )}
+              {" / "}
               {formatNumber(
-                selectedMarathon.progress
-                  .totalSteps,
+                selectedLegathon.progress.totalSteps,
                 languageCode
-              )}{" "}
+              )}
+              {" "}
               {t("steps")}
             </Text>
 
             <Text style={styles.centerText}>
               {(
-                selectedMarathon.progress.steps /
+                selectedLegathon.progress.steps /
                 STEPS_IN_ONE_MILE
-              ).toFixed(2)}{" "}
-              /{" "}
+              ).toFixed(2)}
+              {" / "}
               {(
-                selectedMarathon.progress
-                  .totalSteps /
+                selectedLegathon.progress.totalSteps /
                 STEPS_IN_ONE_MILE
-              ).toFixed(2)}{" "}
+              ).toFixed(2)}
+              {" "}
               {t("miles")}
             </Text>
+
+            {/* COMPLETION REWARDS */}
 
             <View style={styles.rewardsCard}>
               <Text
@@ -2236,46 +2402,70 @@ export default function MarathonScreen({
                 {t("completionRewards")}
               </Text>
 
-              <View style={styles.wcoinRewardRow}>
+              <View
+                style={[
+                  styles.wcoinRewardRow,
+                  isRTL && styles.rowRTL,
+                ]}
+              >
                 <Image
                   source={WCOIN_IMAGE}
-                  style={styles.wcoinHeroIcon}
+                  style={[
+                    styles.wcoinHeroIcon,
+                    isRTL && styles.wcoinHeroIconRTL,
+                  ]}
                   resizeMode="contain"
                   accessibilityLabel={t(
                     "accessibilityWcoin"
                   )}
                 />
 
-                <Text style={styles.wcoinHeroText}>
+                <Text
+                  style={styles.wcoinHeroText}
+                >
                   {formatNumber(
-                    selectedMarathon.marathon
+                    selectedLegathon.legathon
                       .rewardCoins,
                     languageCode
-                  )}{" "}
-                  WCoins
+                  )}
+                  {" WCoins"}
                 </Text>
               </View>
 
-              <Text style={styles.bodyText}>
-                ⭐{" "}
+              <Text
+                style={[
+                  styles.bodyText,
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {"⭐ "}
                 {formatNumber(
-                  selectedMarathon.marathon
+                  selectedLegathon.legathon
                     .rewardPoints,
                   languageCode
-                )}{" "}
+                )}
+                {" "}
                 {t("legathonPoints")}
               </Text>
 
-              <Text style={styles.bodyText}>
-                ✨{" "}
+              <Text
+                style={[
+                  styles.bodyText,
+                  isRTL && styles.rtlText,
+                ]}
+              >
+                {"✨ "}
                 {formatNumber(
-                  selectedMarathon.marathon
+                  selectedLegathon.legathon
                     .avatarXP,
                   languageCode
-                )}{" "}
+                )}
+                {" "}
                 {t("avatarXP")}
               </Text>
             </View>
+
+            {/* PRIMARY ACTION */}
 
             <ActionButton
               primary
@@ -2288,8 +2478,8 @@ export default function MarathonScreen({
                   : t("activateLegathon")
               }
               onPress={() =>
-                handleOpenMarathon(
-                  selectedMarathon.marathon
+                handleOpenLegathon(
+                  selectedLegathon.legathon
                 )
               }
             />
@@ -2335,10 +2525,9 @@ export default function MarathonScreen({
             {lastSync && (
               <Text style={styles.centerText}>
                 {t("lastSynced", {
-                  time:
-                    lastSync.toLocaleTimeString(
-                      languageCode
-                    ),
+                  time: lastSync.toLocaleTimeString(
+                    languageCode
+                  ),
                 })}
               </Text>
             )}
@@ -2352,8 +2541,8 @@ export default function MarathonScreen({
               ]}
             >
               {completedCount ===
-                marathonRows.length &&
-              marathonRows.length > 0
+                legathonRows.length &&
+              legathonRows.length > 0
                 ? t("allComplete")
                 : t("noChallenge")}
             </Text>
@@ -2368,6 +2557,8 @@ export default function MarathonScreen({
             </Text>
           </View>
         )}
+
+        {/* OVERALL LEGATHON STATS */}
 
         <View style={styles.metricsRow}>
           <MetricCard
@@ -2396,6 +2587,8 @@ export default function MarathonScreen({
           />
         </View>
 
+        {/* TOTAL LEGATHON POINTS */}
+
         <View style={styles.card}>
           <Text
             style={[
@@ -2407,13 +2600,15 @@ export default function MarathonScreen({
           </Text>
 
           <Text style={styles.heroTitle}>
-            ⭐{" "}
+            {"⭐ "}
             {formatNumber(
               claimedPoints,
               languageCode
             )}
           </Text>
         </View>
+
+        {/* GLOBAL LEGATHON LIST */}
 
         <Text
           style={[
@@ -2433,19 +2628,19 @@ export default function MarathonScreen({
           {t("challengeIntro")}
         </Text>
 
-        {marathonRows.map(
-          ({ marathon, progress }) => {
+        {legathonRows.map(
+          ({ legathon, progress }) => {
             const isRunning =
-              isMarathonActive(
+              isLegathonActive(
                 screenState,
-                marathon.id
+                legathon.id
               );
 
             const isPaused =
               screenState.session?.status ===
                 "paused" &&
               screenState.session?.marathonId ===
-                marathon.id;
+                legathon.id;
 
             const statusLabel =
               progress.completed
@@ -2460,69 +2655,115 @@ export default function MarathonScreen({
 
             return (
               <TouchableOpacity
-                key={marathon.id}
+                key={legathon.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${marathon.title}, ${statusLabel}`}
-                disabled={busy}
-                onPress={() =>
-                  handleOpenMarathon(marathon)
+                accessibilityLabel={
+                  `${legathon.title}, ${statusLabel}`
                 }
+                disabled={
+                  busy || !progress.unlocked
+                }
+                onPress={() =>
+                  handleOpenLegathon(
+                    legathon
+                  )
+                }
+                activeOpacity={0.85}
                 style={[
                   styles.card,
-                  styles.row,
-                  isRunning &&
-                    styles.activeCard,
+                  styles.challengeRow,
+                  isRTL && styles.rowRTL,
+                  isRunning && styles.activeCard,
                   !progress.unlocked &&
                     styles.lockedCard,
                 ]}
               >
-                <Text style={styles.cardFlag}>
-                  {marathon.flag}
+                <Text
+                  style={[
+                    styles.cardFlag,
+                    isRTL && styles.cardFlagRTL,
+                  ]}
+                >
+                  {legathon.flag}
                 </Text>
 
                 <View style={styles.flex}>
-                  <Text style={styles.cardTitle}>
-                    {marathon.title}
+                  <Text
+                    style={[
+                      styles.challengeOrder,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {t("challengeNumber", {
+                      number: legathon.order,
+                      total: MARATHON_CATALOG.length,
+                    })}
                   </Text>
 
-                  <Text style={styles.smallText}>
-                    {marathon.city},{" "}
-                    {marathon.country}
+                  <Text
+                    style={[
+                      styles.cardTitle,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {legathon.title}
                   </Text>
 
-                  <Text style={styles.smallText}>
+                  <Text
+                    style={[
+                      styles.smallText,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
+                    {legathon.city}
+                    {", "}
+                    {legathon.country}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.smallText,
+                      isRTL && styles.rtlText,
+                    ]}
+                  >
                     {(
                       progress.steps /
                       STEPS_IN_ONE_MILE
-                    ).toFixed(2)}{" "}
-                    /{" "}
+                    ).toFixed(2)}
+                    {" / "}
                     {(
                       progress.totalSteps /
                       STEPS_IN_ONE_MILE
-                    ).toFixed(2)}{" "}
+                    ).toFixed(2)}
+                    {" "}
                     {t("miles")}
                   </Text>
 
                   <View
-                    style={styles.wcoinListRow}
+                    style={[
+                      styles.wcoinListRow,
+                      isRTL && styles.rowRTL,
+                    ]}
                   >
                     <Image
                       source={WCOIN_IMAGE}
-                      style={styles.wcoinListIcon}
+                      style={[
+                        styles.wcoinListIcon,
+                        isRTL &&
+                          styles.wcoinListIconRTL,
+                      ]}
                       resizeMode="contain"
                       accessibilityLabel={t(
                         "accessibilityWcoin"
                       )}
                     />
 
-                    <Text
-                      style={styles.rewardText}
-                    >
+                    <Text style={styles.rewardText}>
                       {formatNumber(
-                        marathon.rewardCoins,
+                        legathon.rewardCoins,
                         languageCode
-                      )}{" "}
-                      WCoins
+                      )}
+                      {" WCoins"}
                     </Text>
                   </View>
 
@@ -2532,20 +2773,24 @@ export default function MarathonScreen({
 
                   {progress.completed && (
                     <Text
-                      style={styles.successText}
+                      style={[
+                        styles.successText,
+                        isRTL && styles.rtlText,
+                      ]}
                     >
                       {t("completed")}
                       {progress.rewardClaimed
-                        ? ` • ${t(
-                            "rewardsClaimed"
-                          )}`
+                        ? ` • ${t("rewardsClaimed")}`
                         : ""}
                     </Text>
                   )}
                 </View>
 
                 <Text
-                  style={styles.statusText}
+                  style={[
+                    styles.statusText,
+                    isRTL && styles.statusTextRTL,
+                  ]}
                 >
                   {statusLabel}
                 </Text>
@@ -2553,6 +2798,8 @@ export default function MarathonScreen({
             );
           }
         )}
+
+        {/* HOW LEGATHON MODE WORKS */}
 
         <View style={styles.card}>
           <Text
@@ -2597,7 +2844,7 @@ export default function MarathonScreen({
 }
 
 // ============================================================
-// REUSABLE COMPONENTS
+// REUSABLE ACTION BUTTON
 // ============================================================
 
 function ActionButton({
@@ -2610,8 +2857,9 @@ function ActionButton({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      onPress={onPress}
       disabled={disabled}
+      onPress={onPress}
+      activeOpacity={0.85}
       style={[
         styles.actionButton,
         primary && styles.primaryButton,
@@ -2623,8 +2871,9 @@ function ActionButton({
           styles.actionButtonText,
           primary && styles.primaryButtonText,
         ]}
-        adjustsFontSizeToFit
         numberOfLines={2}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
       >
         {label}
       </Text>
@@ -2632,8 +2881,12 @@ function ActionButton({
   );
 }
 
+// ============================================================
+// PROGRESS BAR
+// ============================================================
+
 function ProgressBar({ percent }) {
-  const width = Math.min(
+  const progress = Math.min(
     100,
     safeNumber(percent)
   );
@@ -2644,13 +2897,20 @@ function ProgressBar({ percent }) {
         style={[
           styles.progressFill,
           {
-            width: `${width}%`,
+            width: `${progress}%`,
           },
         ]}
       />
     </View>
   );
 }
+
+// ============================================================
+// METRIC CARD — ALIGNED WCOIN FIX
+//
+// WCoin is beside its number, not above it.
+// All three metric values share the same height.
+// ============================================================
 
 function MetricCard({
   value,
@@ -2659,27 +2919,31 @@ function MetricCard({
 }) {
   return (
     <View style={styles.metricCard}>
-      {wcoin && (
-        <Image
-          source={WCOIN_IMAGE}
-          style={styles.wcoinMetricIcon}
-          resizeMode="contain"
-          accessibilityLabel="WCoin"
-        />
-      )}
+      <View style={styles.metricValueRow}>
+        {wcoin && (
+          <Image
+            source={WCOIN_IMAGE}
+            style={styles.wcoinMetricIcon}
+            resizeMode="contain"
+            accessibilityLabel="WCoin"
+          />
+        )}
 
-      <Text
-        style={styles.metricValue}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {value}
-      </Text>
+        <Text
+          style={styles.metricValue}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {value}
+        </Text>
+      </View>
 
       <Text
         style={styles.metricLabel}
         numberOfLines={2}
         adjustsFontSizeToFit
+        minimumFontScale={0.75}
       >
         {label}
       </Text>
@@ -2694,12 +2958,13 @@ function MetricCard({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#02060D",
+    backgroundColor: COLORS.background,
   },
 
   content: {
-    padding: 20,
-    paddingBottom: 140,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 150,
   },
 
   loadingContainer: {
@@ -2726,28 +2991,30 @@ const styles = StyleSheet.create({
     borderColor: GOLD,
     borderWidth: 1,
     borderRadius: 20,
-    padding: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 15,
     fontWeight: "900",
     letterSpacing: 2,
   },
 
   screenTitle: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 38,
+    lineHeight: 45,
     fontWeight: "900",
   },
 
   bodyText: {
-    color: "#A7B2C5",
+    color: COLORS.muted,
     fontSize: 16,
     lineHeight: 24,
     marginTop: 8,
   },
 
   card: {
-    backgroundColor: "#0B1422",
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: "#283447",
+    borderColor: COLORS.border,
     borderRadius: 24,
     padding: 18,
     marginTop: 18,
@@ -2777,8 +3044,13 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
 
+  heroFlagRTL: {
+    marginRight: 0,
+    marginLeft: 14,
+  },
+
   heroTitle: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 28,
     fontWeight: "900",
     marginTop: 6,
@@ -2788,7 +3060,7 @@ const styles = StyleSheet.create({
     color: "#9EACC0",
     fontSize: 12,
     fontWeight: "800",
-    letterSpacing: 1.3,
+    letterSpacing: 1.2,
   },
 
   goldText: {
@@ -2811,7 +3083,7 @@ const styles = StyleSheet.create({
   },
 
   percentValue: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 44,
     fontWeight: "900",
   },
@@ -2829,6 +3101,10 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
   },
 
+  // ==========================================================
+  // THREE-COLUMN STATISTICS
+  // ==========================================================
+
   metricsRow: {
     flexDirection: "row",
     marginHorizontal: -4,
@@ -2837,13 +3113,24 @@ const styles = StyleSheet.create({
 
   metricCard: {
     flex: 1,
+    minWidth: 0,
+    minHeight: 116,
     marginHorizontal: 4,
-    paddingVertical: 17,
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#283447",
-    backgroundColor: "#0B1422",
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+  },
+
+  metricValueRow: {
+    width: "100%",
+    height: 40,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
   },
 
@@ -2851,25 +3138,40 @@ const styles = StyleSheet.create({
     color: GOLD,
     fontSize: 27,
     fontWeight: "900",
+    includeFontPadding: false,
+    textAlign: "center",
+    flexShrink: 1,
   },
 
   metricLabel: {
-    color: "#A7B2C5",
+    color: COLORS.muted,
     fontSize: 12,
+    lineHeight: 17,
     fontWeight: "700",
     textAlign: "center",
-    marginTop: 7,
+    marginTop: 8,
+    minHeight: 34,
+  },
+
+  wcoinMetricIcon: {
+    width: 23,
+    height: 23,
+    marginRight: 5,
   },
 
   centerText: {
-    color: "#A7B2C5",
+    color: COLORS.muted,
     textAlign: "center",
     fontSize: 13,
     marginTop: 10,
   },
 
+  // ==========================================================
+  // REWARDS
+  // ==========================================================
+
   rewardsCard: {
-    backgroundColor: "#111D2E",
+    backgroundColor: COLORS.cardAlt,
     borderRadius: 18,
     padding: 16,
     marginTop: 20,
@@ -2885,6 +3187,11 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     marginRight: 9,
+  },
+
+  wcoinHeroIconRTL: {
+    marginRight: 0,
+    marginLeft: 9,
   },
 
   wcoinHeroText: {
@@ -2906,11 +3213,14 @@ const styles = StyleSheet.create({
     marginRight: 7,
   },
 
-  wcoinMetricIcon: {
-    width: 30,
-    height: 30,
-    marginBottom: 8,
+  wcoinListIconRTL: {
+    marginRight: 0,
+    marginLeft: 7,
   },
+
+  // ==========================================================
+  // BUTTONS
+  // ==========================================================
 
   actionButton: {
     minHeight: 50,
@@ -2946,11 +3256,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 
+  // ==========================================================
+  // LEGATHON CHALLENGE LIST
+  // ==========================================================
+
   sectionTitle: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 30,
+    lineHeight: 37,
     fontWeight: "900",
     marginTop: 28,
+  },
+
+  challengeRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   cardFlag: {
@@ -2958,15 +3278,29 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
+  cardFlagRTL: {
+    marginRight: 0,
+    marginLeft: 12,
+  },
+
+  challengeOrder: {
+    color: GOLD,
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    marginBottom: 5,
+  },
+
   cardTitle: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 19,
     fontWeight: "800",
   },
 
   smallText: {
-    color: "#A7B2C5",
+    color: COLORS.muted,
     fontSize: 13,
+    lineHeight: 19,
     marginTop: 5,
   },
 
@@ -2982,6 +3316,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     marginLeft: 9,
+    maxWidth: 68,
+    textAlign: "right",
+  },
+
+  statusTextRTL: {
+    marginLeft: 0,
+    marginRight: 9,
+    textAlign: "left",
   },
 
   lockedCard: {
@@ -2989,10 +3331,14 @@ const styles = StyleSheet.create({
   },
 
   successText: {
-    color: "#75D5A5",
+    color: COLORS.green,
     fontSize: 12,
     marginTop: 8,
   },
+
+  // ==========================================================
+  // ERROR MESSAGE
+  // ==========================================================
 
   errorCard: {
     backgroundColor: "#291922",
@@ -3002,9 +3348,17 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: "#FFD0D0",
+    color: COLORS.red,
     fontSize: 14,
     lineHeight: 21,
+  },
+
+  // ==========================================================
+  // RIGHT-TO-LEFT SUPPORT
+  // ==========================================================
+
+  rowRTL: {
+    flexDirection: "row-reverse",
   },
 
   rtlText: {

@@ -1,4 +1,3 @@
-// screens/PassportScreen.js
 
 import React, {
   useCallback,
@@ -16,84 +15,91 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  AppState,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import passportImages from
-  "../data/passportImages";
+import passportImages from "../data/passportImages";
+import JOURNEY_CATALOG from "../data/journeyCatalog";
 
-import JOURNEY_CATALOG from
-  "../data/journeyCatalog";
-
-import {
-  translate,
-} from "../i18n/i18n";
-
-import {
-  getJourneyTranslation,
-} from "../i18n/journeyTranslations";
+import { translate } from "../i18n/i18n";
+import { getJourneyTranslation } from "../i18n/journeyTranslations";
 
 // ============================================================
-// ASSETS
+// LEGATHON WALK - PASSPORT SCREEN
+//
+// JOURNEYS ONLY - PASSPORTS
+// LEGATHONS - MEDALS (SEPARATE SYSTEM)
+//
+// PASSPORT RULES:
+//
+// 0%       = LOCKED
+// 1%-99%   = IN PROGRESS, PASSPORT STILL HIDDEN
+// 100%     = COMPLETED, REAL PASSPORT REVEALED
+//
+// SELECTING A PASSPORT NEVER UNLOCKS IT.
+// ============================================================
+
+// ============================================================
+// COLORS
+// ============================================================
+
+const GOLD = "#D4AF37";
+const WHITE = "#FFFFFF";
+const NAVY = "#081426";
+const CARD = "#102038";
+const MUTED = "#B9C3D6";
+
+// ============================================================
+// IMAGES
 // ============================================================
 
 const PASSPORT_BG = require(
   "../assets/passports/passport-background.png"
 );
 
-// ============================================================
-// STORAGE
-// ============================================================
-
-const PROGRESS_STORAGE_KEY =
-  "journeyProgressData";
-
-const ACTIVE_JOURNEY_KEY =
-  "activeJourney";
+const LOCKED_PASSPORT = require(
+  "../assets/locked/legacy-lock.png"
+);
 
 // ============================================================
-// PASSPORT TRANSLATIONS
+// EXISTING STORAGE KEYS
+// DO NOT CHANGE - PRESERVES SAVED JOURNEY PROGRESS
 // ============================================================
 
-const PASSPORT_TEXT = {
-  // ==========================================================
-  // ENGLISH
-  // ==========================================================
+const PROGRESS_STORAGE_KEY = "journeyProgressData";
+const ACTIVE_JOURNEY_KEY = "activeJourney";
 
+// ============================================================
+// TRANSLATIONS
+// ============================================================
+
+const SCREEN_TEXT = {
   en: {
     back: "Back",
-    passportHub: "LEGATHON PASSPORT HUB",
-    passportCollection: "Passport Collection",
-    refreshProgress: "↻ Refresh Progress",
-
-    stamps: "Stamps",
+    hub: "LEGATHON PASSPORT HUB",
+    collection: "Passport Collection",
+    refresh: "↻ Refresh Progress",
+    featured: "Featured Passport",
+    selected: "SELECTED JOURNEY",
+    stamps: "Passport Stamps",
+    stampCount: "Stamps",
     completed: "Completed",
     level: "Level",
-
-    loadingPassports: "Loading passports...",
-    noJourneys: "No journeys available",
-    addJourneys:
-      "Add journeys to journeyCatalog.js.",
-
-    featuredPassport: "Featured Passport",
-    selectedJourney: "SELECTED JOURNEY",
-    complete: "Complete",
-
-    passportStamps: "Passport Stamps",
-    stamped: "Stamped",
     locked: "Locked",
-
-    passportShelf: "Passport Shelf",
-
+    inProgress: "In Progress",
+    stamped: "Stamped",
+    shelf: "Passport Shelf",
+    world: "WORLD COLLECTION",
+    collected: "Passports Completed",
+    loading: "Loading passports...",
+    empty: "No journeys available",
     start: "Start",
-    checkpoint: "Checkpoint {count}",
+    checkpoint: "Checkpoint",
     finish: "Finish",
-
-    untitledJourney: "Untitled Journey",
-    legathonJourney: "Legathon Journey",
-
+    untitled: "Untitled Journey",
+    journey: "Legathon Journey",
     newExplorer: "New Explorer",
     explorer: "Explorer",
     pathfinder: "Pathfinder",
@@ -102,42 +108,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Elite Explorer",
   },
 
-  // ==========================================================
-  // SPANISH
-  // ==========================================================
-
   es: {
     back: "Atrás",
-    passportHub: "CENTRO DE PASAPORTES LEGATHON",
-    passportCollection: "Colección de Pasaportes",
-    refreshProgress: "↻ Actualizar Progreso",
-
-    stamps: "Sellos",
-    completed: "Completados",
+    hub: "CENTRO DE PASAPORTES LEGATHON",
+    collection: "Colección de Pasaportes",
+    refresh: "↻ Actualizar Progreso",
+    featured: "Pasaporte Destacado",
+    selected: "VIAJE SELECCIONADO",
+    stamps: "Sellos del Pasaporte",
+    stampCount: "Sellos",
+    completed: "Completado",
     level: "Nivel",
-
-    loadingPassports: "Cargando pasaportes...",
-    noJourneys: "No hay viajes disponibles",
-    addJourneys:
-      "Agrega viajes a journeyCatalog.js.",
-
-    featuredPassport: "Pasaporte Destacado",
-    selectedJourney: "VIAJE SELECCIONADO",
-    complete: "Completado",
-
-    passportStamps: "Sellos del Pasaporte",
-    stamped: "Sellado",
     locked: "Bloqueado",
-
-    passportShelf: "Colección de Pasaportes",
-
+    inProgress: "En Progreso",
+    stamped: "Sellado",
+    shelf: "Colección de Pasaportes",
+    world: "COLECCIÓN MUNDIAL",
+    collected: "Pasaportes Completados",
+    loading: "Cargando pasaportes...",
+    empty: "No hay viajes disponibles",
     start: "Inicio",
-    checkpoint: "Punto {count}",
+    checkpoint: "Punto",
     finish: "Final",
-
-    untitledJourney: "Viaje sin Título",
-    legathonJourney: "Viaje Legathon",
-
+    untitled: "Viaje sin Título",
+    journey: "Viaje Legathon",
     newExplorer: "Nuevo Explorador",
     explorer: "Explorador",
     pathfinder: "Pionero",
@@ -146,42 +140,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Explorador Elite",
   },
 
-  // ==========================================================
-  // FRENCH
-  // ==========================================================
-
   fr: {
     back: "Retour",
-    passportHub: "CENTRE DES PASSEPORTS LEGATHON",
-    passportCollection: "Collection de Passeports",
-    refreshProgress: "↻ Actualiser la Progression",
-
-    stamps: "Tampons",
-    completed: "Terminés",
+    hub: "CENTRE DES PASSEPORTS LEGATHON",
+    collection: "Collection de Passeports",
+    refresh: "↻ Actualiser la Progression",
+    featured: "Passeport en Vedette",
+    selected: "VOYAGE SÉLECTIONNÉ",
+    stamps: "Tampons du Passeport",
+    stampCount: "Tampons",
+    completed: "Terminé",
     level: "Niveau",
-
-    loadingPassports: "Chargement des passeports...",
-    noJourneys: "Aucun voyage disponible",
-    addJourneys:
-      "Ajoutez des voyages dans journeyCatalog.js.",
-
-    featuredPassport: "Passeport en Vedette",
-    selectedJourney: "VOYAGE SÉLECTIONNÉ",
-    complete: "Terminé",
-
-    passportStamps: "Tampons du Passeport",
-    stamped: "Tamponné",
     locked: "Verrouillé",
-
-    passportShelf: "Collection de Passeports",
-
+    inProgress: "En Cours",
+    stamped: "Tamponné",
+    shelf: "Collection de Passeports",
+    world: "COLLECTION MONDIALE",
+    collected: "Passeports Terminés",
+    loading: "Chargement des passeports...",
+    empty: "Aucun voyage disponible",
     start: "Départ",
-    checkpoint: "Étape {count}",
+    checkpoint: "Étape",
     finish: "Arrivée",
-
-    untitledJourney: "Voyage sans Titre",
-    legathonJourney: "Voyage Legathon",
-
+    untitled: "Voyage sans Titre",
+    journey: "Voyage Legathon",
     newExplorer: "Nouvel Explorateur",
     explorer: "Explorateur",
     pathfinder: "Éclaireur",
@@ -190,42 +172,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Explorateur Elite",
   },
 
-  // ==========================================================
-  // GERMAN
-  // ==========================================================
-
   de: {
     back: "Zurück",
-    passportHub: "LEGATHON-PASSZENTRUM",
-    passportCollection: "Pass-Sammlung",
-    refreshProgress: "↻ Fortschritt Aktualisieren",
-
-    stamps: "Stempel",
+    hub: "LEGATHON-PASSZENTRUM",
+    collection: "Pass-Sammlung",
+    refresh: "↻ Fortschritt Aktualisieren",
+    featured: "Ausgewählter Pass",
+    selected: "AUSGEWÄHLTE REISE",
+    stamps: "Passstempel",
+    stampCount: "Stempel",
     completed: "Abgeschlossen",
     level: "Level",
-
-    loadingPassports: "Pässe werden geladen...",
-    noJourneys: "Keine Reisen verfügbar",
-    addJourneys:
-      "Füge Reisen zu journeyCatalog.js hinzu.",
-
-    featuredPassport: "Ausgewählter Pass",
-    selectedJourney: "AUSGEWÄHLTE REISE",
-    complete: "Abgeschlossen",
-
-    passportStamps: "Passstempel",
-    stamped: "Gestempelt",
     locked: "Gesperrt",
-
-    passportShelf: "Pass-Sammlung",
-
+    inProgress: "In Bearbeitung",
+    stamped: "Gestempelt",
+    shelf: "Pass-Sammlung",
+    world: "WELTKOLLEKTION",
+    collected: "Abgeschlossene Pässe",
+    loading: "Pässe werden geladen...",
+    empty: "Keine Reisen verfügbar",
     start: "Start",
-    checkpoint: "Kontrollpunkt {count}",
+    checkpoint: "Kontrollpunkt",
     finish: "Ziel",
-
-    untitledJourney: "Unbenannte Reise",
-    legathonJourney: "Legathon-Reise",
-
+    untitled: "Unbenannte Reise",
+    journey: "Legathon-Reise",
     newExplorer: "Neuer Entdecker",
     explorer: "Entdecker",
     pathfinder: "Pfadfinder",
@@ -234,42 +204,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Elite-Entdecker",
   },
 
-  // ==========================================================
-  // PORTUGUESE
-  // ==========================================================
-
   pt: {
     back: "Voltar",
-    passportHub: "CENTRO DE PASSAPORTES LEGATHON",
-    passportCollection: "Coleção de Passaportes",
-    refreshProgress: "↻ Atualizar Progresso",
-
-    stamps: "Carimbos",
-    completed: "Concluídos",
+    hub: "CENTRO DE PASSAPORTES LEGATHON",
+    collection: "Coleção de Passaportes",
+    refresh: "↻ Atualizar Progresso",
+    featured: "Passaporte em Destaque",
+    selected: "JORNADA SELECIONADA",
+    stamps: "Carimbos do Passaporte",
+    stampCount: "Carimbos",
+    completed: "Concluído",
     level: "Nível",
-
-    loadingPassports: "Carregando passaportes...",
-    noJourneys: "Nenhuma jornada disponível",
-    addJourneys:
-      "Adicione jornadas ao journeyCatalog.js.",
-
-    featuredPassport: "Passaporte em Destaque",
-    selectedJourney: "JORNADA SELECIONADA",
-    complete: "Concluído",
-
-    passportStamps: "Carimbos do Passaporte",
-    stamped: "Carimbado",
     locked: "Bloqueado",
-
-    passportShelf: "Coleção de Passaportes",
-
+    inProgress: "Em Andamento",
+    stamped: "Carimbado",
+    shelf: "Coleção de Passaportes",
+    world: "COLEÇÃO MUNDIAL",
+    collected: "Passaportes Concluídos",
+    loading: "Carregando passaportes...",
+    empty: "Nenhuma jornada disponível",
     start: "Início",
-    checkpoint: "Ponto {count}",
+    checkpoint: "Ponto",
     finish: "Final",
-
-    untitledJourney: "Jornada sem Título",
-    legathonJourney: "Jornada Legathon",
-
+    untitled: "Jornada sem Título",
+    journey: "Jornada Legathon",
     newExplorer: "Novo Explorador",
     explorer: "Explorador",
     pathfinder: "Desbravador",
@@ -278,42 +236,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Explorador Elite",
   },
 
-  // ==========================================================
-  // JAPANESE
-  // ==========================================================
-
   ja: {
     back: "戻る",
-    passportHub: "LEGATHON パスポートハブ",
-    passportCollection: "パスポートコレクション",
-    refreshProgress: "↻ 進捗を更新",
-
-    stamps: "スタンプ",
+    hub: "LEGATHON パスポートハブ",
+    collection: "パスポートコレクション",
+    refresh: "↻ 進捗を更新",
+    featured: "注目のパスポート",
+    selected: "選択したジャーニー",
+    stamps: "パスポートスタンプ",
+    stampCount: "スタンプ",
     completed: "完了",
     level: "レベル",
-
-    loadingPassports: "パスポートを読み込み中...",
-    noJourneys: "利用できるジャーニーがありません",
-    addJourneys:
-      "journeyCatalog.js にジャーニーを追加してください。",
-
-    featuredPassport: "注目のパスポート",
-    selectedJourney: "選択したジャーニー",
-    complete: "完了",
-
-    passportStamps: "パスポートスタンプ",
-    stamped: "獲得済み",
     locked: "ロック中",
-
-    passportShelf: "パスポート一覧",
-
+    inProgress: "進行中",
+    stamped: "獲得済み",
+    shelf: "パスポート一覧",
+    world: "ワールドコレクション",
+    collected: "完了したパスポート",
+    loading: "パスポートを読み込み中...",
+    empty: "利用できるジャーニーがありません",
     start: "スタート",
-    checkpoint: "チェックポイント {count}",
+    checkpoint: "チェックポイント",
     finish: "ゴール",
-
-    untitledJourney: "無題のジャーニー",
-    legathonJourney: "Legathonジャーニー",
-
+    untitled: "無題のジャーニー",
+    journey: "Legathonジャーニー",
     newExplorer: "新人エクスプローラー",
     explorer: "エクスプローラー",
     pathfinder: "パスファインダー",
@@ -322,42 +268,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Eliteエクスプローラー",
   },
 
-  // ==========================================================
-  // KOREAN
-  // ==========================================================
-
   ko: {
     back: "뒤로",
-    passportHub: "LEGATHON 패스포트 허브",
-    passportCollection: "패스포트 컬렉션",
-    refreshProgress: "↻ 진행 상황 새로고침",
-
-    stamps: "스탬프",
+    hub: "LEGATHON 패스포트 허브",
+    collection: "패스포트 컬렉션",
+    refresh: "↻ 진행 상황 새로고침",
+    featured: "추천 패스포트",
+    selected: "선택된 여정",
+    stamps: "패스포트 스탬프",
+    stampCount: "스탬프",
     completed: "완료",
     level: "레벨",
-
-    loadingPassports: "패스포트 불러오는 중...",
-    noJourneys: "사용 가능한 여정이 없습니다",
-    addJourneys:
-      "journeyCatalog.js에 여정을 추가하세요.",
-
-    featuredPassport: "추천 패스포트",
-    selectedJourney: "선택된 여정",
-    complete: "완료",
-
-    passportStamps: "패스포트 스탬프",
-    stamped: "획득",
     locked: "잠김",
-
-    passportShelf: "패스포트 목록",
-
+    inProgress: "진행 중",
+    stamped: "획득",
+    shelf: "패스포트 목록",
+    world: "월드 컬렉션",
+    collected: "완료한 패스포트",
+    loading: "패스포트 불러오는 중...",
+    empty: "사용 가능한 여정이 없습니다",
     start: "시작",
-    checkpoint: "체크포인트 {count}",
+    checkpoint: "체크포인트",
     finish: "완료",
-
-    untitledJourney: "제목 없는 여정",
-    legathonJourney: "Legathon 여정",
-
+    untitled: "제목 없는 여정",
+    journey: "Legathon 여정",
     newExplorer: "새 탐험가",
     explorer: "탐험가",
     pathfinder: "개척자",
@@ -366,42 +300,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Elite 탐험가",
   },
 
-  // ==========================================================
-  // CHINESE
-  // ==========================================================
-
   zh: {
     back: "返回",
-    passportHub: "LEGATHON 护照中心",
-    passportCollection: "护照收藏",
-    refreshProgress: "↻ 刷新进度",
-
-    stamps: "印章",
+    hub: "LEGATHON 护照中心",
+    collection: "护照收藏",
+    refresh: "↻ 刷新进度",
+    featured: "精选护照",
+    selected: "已选择旅程",
+    stamps: "护照印章",
+    stampCount: "印章",
     completed: "已完成",
     level: "等级",
-
-    loadingPassports: "正在加载护照...",
-    noJourneys: "没有可用旅程",
-    addJourneys:
-      "请在 journeyCatalog.js 中添加旅程。",
-
-    featuredPassport: "精选护照",
-    selectedJourney: "已选择旅程",
-    complete: "完成",
-
-    passportStamps: "护照印章",
-    stamped: "已盖章",
     locked: "未解锁",
-
-    passportShelf: "护照收藏架",
-
+    inProgress: "进行中",
+    stamped: "已盖章",
+    shelf: "护照收藏架",
+    world: "世界收藏",
+    collected: "已完成护照",
+    loading: "正在加载护照...",
+    empty: "没有可用旅程",
     start: "起点",
-    checkpoint: "检查点 {count}",
+    checkpoint: "检查点",
     finish: "终点",
-
-    untitledJourney: "未命名旅程",
-    legathonJourney: "Legathon旅程",
-
+    untitled: "未命名旅程",
+    journey: "Legathon旅程",
     newExplorer: "新手探索者",
     explorer: "探索者",
     pathfinder: "开拓者",
@@ -410,42 +332,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Elite探索者",
   },
 
-  // ==========================================================
-  // ITALIAN
-  // ==========================================================
-
   it: {
     back: "Indietro",
-    passportHub: "CENTRO PASSAPORTI LEGATHON",
-    passportCollection: "Collezione Passaporti",
-    refreshProgress: "↻ Aggiorna Progressi",
-
-    stamps: "Timbri",
-    completed: "Completati",
+    hub: "CENTRO PASSAPORTI LEGATHON",
+    collection: "Collezione Passaporti",
+    refresh: "↻ Aggiorna Progressi",
+    featured: "Passaporto in Evidenza",
+    selected: "PERCORSO SELEZIONATO",
+    stamps: "Timbri del Passaporto",
+    stampCount: "Timbri",
+    completed: "Completato",
     level: "Livello",
-
-    loadingPassports: "Caricamento passaporti...",
-    noJourneys: "Nessun percorso disponibile",
-    addJourneys:
-      "Aggiungi percorsi a journeyCatalog.js.",
-
-    featuredPassport: "Passaporto in Evidenza",
-    selectedJourney: "PERCORSO SELEZIONATO",
-    complete: "Completato",
-
-    passportStamps: "Timbri del Passaporto",
-    stamped: "Timbrato",
     locked: "Bloccato",
-
-    passportShelf: "Collezione Passaporti",
-
+    inProgress: "In Corso",
+    stamped: "Timbrato",
+    shelf: "Collezione Passaporti",
+    world: "COLLEZIONE MONDIALE",
+    collected: "Passaporti Completati",
+    loading: "Caricamento passaporti...",
+    empty: "Nessun percorso disponibile",
     start: "Inizio",
-    checkpoint: "Checkpoint {count}",
+    checkpoint: "Checkpoint",
     finish: "Fine",
-
-    untitledJourney: "Percorso senza Titolo",
-    legathonJourney: "Percorso Legathon",
-
+    untitled: "Percorso senza Titolo",
+    journey: "Percorso Legathon",
     newExplorer: "Nuovo Esploratore",
     explorer: "Esploratore",
     pathfinder: "Apripista",
@@ -454,42 +364,30 @@ const PASSPORT_TEXT = {
     eliteExplorer: "Esploratore Elite",
   },
 
-  // ==========================================================
-  // ARABIC
-  // ==========================================================
-
   ar: {
     back: "رجوع",
-    passportHub: "مركز جوازات LEGATHON",
-    passportCollection: "مجموعة جوازات السفر",
-    refreshProgress: "↻ تحديث التقدم",
-
-    stamps: "الأختام",
-    completed: "مكتملة",
+    hub: "مركز جوازات LEGATHON",
+    collection: "مجموعة جوازات السفر",
+    refresh: "↻ تحديث التقدم",
+    featured: "جواز السفر المميز",
+    selected: "الرحلة المختارة",
+    stamps: "أختام جواز السفر",
+    stampCount: "الأختام",
+    completed: "مكتمل",
     level: "المستوى",
-
-    loadingPassports: "جارٍ تحميل جوازات السفر...",
-    noJourneys: "لا توجد رحلات متاحة",
-    addJourneys:
-      "أضف الرحلات إلى journeyCatalog.js.",
-
-    featuredPassport: "جواز السفر المميز",
-    selectedJourney: "الرحلة المختارة",
-    complete: "مكتمل",
-
-    passportStamps: "أختام جواز السفر",
-    stamped: "مختوم",
     locked: "مغلق",
-
-    passportShelf: "مجموعة جوازات السفر",
-
+    inProgress: "قيد التقدم",
+    stamped: "مختوم",
+    shelf: "مجموعة جوازات السفر",
+    world: "المجموعة العالمية",
+    collected: "جوازات مكتملة",
+    loading: "جارٍ تحميل جوازات السفر...",
+    empty: "لا توجد رحلات متاحة",
     start: "البداية",
-    checkpoint: "النقطة {count}",
+    checkpoint: "النقطة",
     finish: "النهاية",
-
-    untitledJourney: "رحلة بدون عنوان",
-    legathonJourney: "رحلة Legathon",
-
+    untitled: "رحلة بدون عنوان",
+    journey: "رحلة Legathon",
     newExplorer: "مستكشف جديد",
     explorer: "مستكشف",
     pathfinder: "مكتشف المسار",
@@ -500,421 +398,308 @@ const PASSPORT_TEXT = {
 };
 
 // ============================================================
-// TRANSLATION HELPERS
+// TRANSLATION HELPER
 // ============================================================
 
-function fillTemplate(
-  value,
-  variables = {}
-) {
-  return String(value).replace(
-    /\{(\w+)\}/g,
-    (match, key) =>
-      Object.prototype.hasOwnProperty.call(
-        variables,
-        key
-      )
-        ? String(variables[key])
-        : match
-  );
-}
-
-function getPassportText(
-  language,
-  key,
-  variables = {}
-) {
-  // Screen-specific translations first.
-  // This prevents English fallback from translate()
-  // overriding a Passport-specific translation.
-
+function getText(language, key) {
   const local =
-    PASSPORT_TEXT?.[language]?.[key];
+    SCREEN_TEXT[language]?.[key] ||
+    SCREEN_TEXT.en[key];
 
-  if (local) {
-    return fillTemplate(
-      local,
-      variables
-    );
-  }
+  if (local) return local;
 
-  const central =
-    translate(
-      language,
-      key
-    );
+  const central = translate(language, key);
 
-  if (central !== key) {
-    return fillTemplate(
-      central,
-      variables
-    );
-  }
-
-  return fillTemplate(
-    PASSPORT_TEXT.en?.[key] ||
-      key,
-    variables
-  );
+  return central && central !== key ? central : key;
 }
 
 // ============================================================
-// DATA HELPERS
+// SAFE DATA HELPERS
 // ============================================================
 
-function safeParse(
-  value,
-  fallback = null
-) {
-  if (!value) {
-    return fallback;
-  }
+function safeParse(value, fallback = null) {
+  if (!value) return fallback;
 
   try {
-    return JSON.parse(
-      value
-    );
+    return JSON.parse(value);
   } catch (error) {
-    console.log(
-      "Passport JSON error:",
-      error
-    );
-
+    console.log("Passport JSON parse error:", error);
     return fallback;
   }
 }
 
-function clampProgress(
-  value
-) {
-  const number =
-    Number(
-      value
-    );
+function clampProgress(value) {
+  const number = Number(value);
 
-  if (
-    !Number.isFinite(
-      number
-    )
-  ) {
+  if (!Number.isFinite(number)) return 0;
+
+  return Math.max(0, Math.min(100, number));
+}
+
+// ============================================================
+// COMPLETION - ONE RULE USED EVERYWHERE
+// ============================================================
+
+function readProgress(record) {
+  if (typeof record === "number") {
+    return clampProgress(record);
+  }
+
+  if (!record || typeof record !== "object") {
     return 0;
   }
 
-  return Math.min(
-    100,
-    Math.max(
-      0,
-      number
-    )
-  );
-}
-
-function readProgress(
-  item
-) {
   if (
-    typeof item ===
-    "number"
+    record.completed === true ||
+    record.isCompleted === true ||
+    record.status === "completed"
   ) {
-    return clampProgress(
-      item
-    );
+    return 100;
   }
 
   return clampProgress(
-    item?.progress ??
-      item?.journeyProgress ??
-      item?.progressPercent ??
-      item?.percentComplete ??
+    record.progress ??
+      record.journeyProgress ??
+      record.progressPercent ??
+      record.percentComplete ??
       0
   );
 }
 
-function createProgressMap(
-  savedData
-) {
-  const nextMap = {};
+function getPassportStatus(progress) {
+  const value = clampProgress(progress);
 
-  if (
-    Array.isArray(
-      savedData
-    )
-  ) {
-    savedData.forEach(
-      entry => {
-        const journeyId =
-          entry?.id ??
-          entry?.journeyId ??
-          entry?.routeKey;
+  if (value >= 100) return "completed";
+  if (value > 0) return "inProgress";
 
-        if (
-          !journeyId
-        ) {
-          return;
-        }
+  return "locked";
+}
 
-        nextMap[
-          String(
-            journeyId
-          )
-        ] =
-          readProgress(
-            entry
-          );
-      }
-    );
-
-    return nextMap;
-  }
-
-  if (
-    savedData &&
-    typeof savedData ===
-      "object"
-  ) {
-    const singleJourneyId =
-      savedData.id ??
-      savedData.journeyId ??
-      savedData.routeKey;
-
-    if (
-      singleJourneyId
-    ) {
-      nextMap[
-        String(
-          singleJourneyId
-        )
-      ] =
-        readProgress(
-          savedData
-        );
-
-      return nextMap;
-    }
-
-    Object.entries(
-      savedData
-    ).forEach(
-      ([
-        journeyId,
-        value,
-      ]) => {
-        nextMap[
-          String(
-            journeyId
-          )
-        ] =
-          readProgress(
-            value
-          );
-      }
-    );
-  }
-
-  return nextMap;
+function isPassportUnlocked(passport) {
+  return getPassportStatus(passport?.progress) === "completed";
 }
 
 // ============================================================
-// PASSPORT STAMPS
+// JOURNEY ID
 // ============================================================
 
-function buildJourneyStamps(
-  journey,
-  t
-) {
+function getJourneyId(record) {
+  const id =
+    record?.id ??
+    record?.journeyId ??
+    record?.routeKey;
+
+  if (id === null || id === undefined) {
+    return "";
+  }
+
+  return String(id);
+}
+
+// ============================================================
+// COMPLETION DATES
+// ============================================================
+
+function readCompletionDate(record) {
+  if (!record || typeof record !== "object") {
+    return null;
+  }
+
+  const date =
+    record.completedAt ??
+    record.completionDate ??
+    record.completedDate ??
+    record.finishedAt ??
+    null;
+
+  if (!date) return null;
+
+  const parsed = new Date(date);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString();
+}
+
+function formatDate(value, language) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  try {
+    return date.toLocaleDateString(language, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return date.toDateString();
+  }
+}
+
+// ============================================================
+// CREATE JOURNEY PROGRESS MAP
+// ============================================================
+
+function createProgressMap(savedData) {
+  const map = {};
+
+  function register(id, record) {
+    if (!id) return;
+
+    const progress = readProgress(record);
+    const previous = map[id];
+
+    map[id] = {
+      progress: Math.max(
+        previous?.progress || 0,
+        progress
+      ),
+      completedAt:
+        readCompletionDate(record) ||
+        previous?.completedAt ||
+        null,
+    };
+  }
+
+  if (Array.isArray(savedData)) {
+    savedData.forEach(record => {
+      register(getJourneyId(record), record);
+    });
+
+    return map;
+  }
+
+  if (savedData && typeof savedData === "object") {
+    const singleId = getJourneyId(savedData);
+
+    if (singleId) {
+      register(singleId, savedData);
+      return map;
+    }
+
+    Object.entries(savedData).forEach(([id, record]) => {
+      register(String(id), record);
+    });
+  }
+
+  return map;
+}
+
+// ============================================================
+// CHECKPOINT STAMPS
+// ============================================================
+
+function getUnlockedStampCount(progress) {
+  const value = clampProgress(progress);
+
+  // At 0%, NO stamps are earned.
+  if (value <= 0) return 0;
+
+  if (value >= 100) return 5;
+  if (value >= 75) return 4;
+  if (value >= 50) return 3;
+  if (value >= 25) return 2;
+
+  return 1;
+}
+
+function buildJourneyStamps(journey, t) {
   const defaults = [
-    t(
-      "start"
-    ),
-
-    t(
-      "checkpoint",
-      {
-        count: 2,
-      }
-    ),
-
-    t(
-      "checkpoint",
-      {
-        count: 3,
-      }
-    ),
-
-    t(
-      "checkpoint",
-      {
-        count: 4,
-      }
-    ),
-
-    t(
-      "finish"
-    ),
+    t("start"),
+    `${t("checkpoint")} 2`,
+    `${t("checkpoint")} 3`,
+    `${t("checkpoint")} 4`,
+    t("finish"),
   ];
 
   const source =
-    Array.isArray(
-      journey?.stamps
-    ) &&
-    journey.stamps.length
+    Array.isArray(journey?.stamps) && journey.stamps.length
       ? journey.stamps
-      : Array.isArray(
-          journey?.checkpoints
-        )
+      : Array.isArray(journey?.checkpoints)
       ? journey.checkpoints
       : [];
 
-  return defaults.map(
-    (
-      fallback,
-      index
-    ) => {
-      const item =
-        source[index];
+  return defaults.map((fallback, index) => {
+    const item = source[index];
 
-      if (
-        typeof item ===
-        "string"
-      ) {
-        // Translate the common generic checkpoint names.
-        if (
-          item === "Start"
-        ) {
-          return t(
-            "start"
-          );
-        }
+    if (typeof item === "string") {
+      if (/^Start$/i.test(item)) return t("start");
+      if (/^Finish$/i.test(item)) return t("finish");
 
-        if (
-          item === "Finish"
-        ) {
-          return t(
-            "finish"
-          );
-        }
-
-        if (
-          /^Checkpoint\s+[2-4]$/i.test(
-            item
-          )
-        ) {
-          return t(
-            "checkpoint",
-            {
-              count:
-                index + 1,
-            }
-          );
-        }
-
-        return item;
+      if (/^Checkpoint\s+[2-4]$/i.test(item)) {
+        return `${t("checkpoint")} ${index + 1}`;
       }
 
-      return (
-        item?.title ||
-        item?.name ||
-        item?.label ||
-        fallback
-      );
+      return item;
     }
-  );
-}
 
-// ============================================================
-// STAMP UNLOCKS
-// ============================================================
-
-function getUnlockedStampCount(
-  progress
-) {
-  const value =
-    clampProgress(
-      progress
+    return (
+      item?.title ||
+      item?.name ||
+      item?.label ||
+      fallback
     );
-
-  // Stamp 1 = started
-  // Stamp 2 = 25%
-  // Stamp 3 = 50%
-  // Stamp 4 = 75%
-  // Stamp 5 = 100%
-
-  if (
-    value >= 100
-  ) {
-    return 5;
-  }
-
-  if (
-    value >= 75
-  ) {
-    return 4;
-  }
-
-  if (
-    value >= 50
-  ) {
-    return 3;
-  }
-
-  if (
-    value >= 25
-  ) {
-    return 2;
-  }
-
-  if (
-    value > 0
-  ) {
-    return 1;
-  }
-
-  return 0;
+  });
 }
 
 // ============================================================
 // EXPLORER RANK
 // ============================================================
 
-function getExplorerRank(
-  completedJourneys
-) {
-  if (
-    completedJourneys >=
-    75
-  ) {
-    return "eliteExplorer";
-  }
-
-  if (
-    completedJourneys >=
-    50
-  ) {
-    return "legend";
-  }
-
-  if (
-    completedJourneys >=
-    25
-  ) {
-    return "trailblazer";
-  }
-
-  if (
-    completedJourneys >=
-    10
-  ) {
-    return "pathfinder";
-  }
-
-  if (
-    completedJourneys >=
-    1
-  ) {
-    return "explorer";
-  }
+function getExplorerRank(completed) {
+  if (completed >= 75) return "eliteExplorer";
+  if (completed >= 50) return "legend";
+  if (completed >= 25) return "trailblazer";
+  if (completed >= 10) return "pathfinder";
+  if (completed >= 1) return "explorer";
 
   return "newExplorer";
+}
+
+// ============================================================
+// PASSPORT ARTWORK
+//
+// IMPORTANT:
+// ACTUAL PASSPORT IMAGE ONLY USED AT 100%.
+// ============================================================
+
+function PassportArtwork({
+  passport,
+  style,
+  resizeMode = "contain",
+}) {
+  const unlocked = isPassportUnlocked(passport);
+
+  // A locked or in-progress journey uses
+  // ONLY the official LOCKED artwork.
+  const source = unlocked
+    ? passport.cover
+    : LOCKED_PASSPORT;
+
+  if (!source) {
+    return (
+      <View style={[style, styles.fallbackImage]}>
+        <Text style={styles.fallbackEmoji}>
+          🛂
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={source}
+      style={style}
+      resizeMode={resizeMode}
+    />
+  );
 }
 
 // ============================================================
@@ -927,852 +712,459 @@ export default function PassportScreen({
   userName = "Explorer",
   activeJourney = null,
 }) {
-  function t(
-    key,
-    variables = {}
-  ) {
-    return getPassportText(
-      language,
-      key,
-      variables
-    );
-  }
+  const t = useCallback(
+    key => getText(language, key),
+    [language]
+  );
 
-  // ==========================================================
-  // STATE
-  // ==========================================================
-
-  const [
-    progressMap,
-    setProgressMap,
-  ] =
-    useState({});
-
-  const [
-    selectedPassportId,
-    setSelectedPassportId,
-  ] =
+  const [progressMap, setProgressMap] = useState({});
+  const [selectedPassportId, setSelectedPassportId] =
     useState(null);
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
   // ==========================================================
-  // LOAD PROGRESS
+  // LOAD SAVED JOURNEY PROGRESS
   // ==========================================================
 
-  const loadPassportProgress =
-    useCallback(
-      async () => {
-        try {
-          setLoading(
-            true
-          );
+  const loadPassportProgress = useCallback(async () => {
+    try {
+      setLoading(true);
 
-          const storedValues =
-            await AsyncStorage
-              .multiGet([
-                PROGRESS_STORAGE_KEY,
-                ACTIVE_JOURNEY_KEY,
-              ]);
+      const values = await AsyncStorage.multiGet([
+        PROGRESS_STORAGE_KEY,
+        ACTIVE_JOURNEY_KEY,
+      ]);
 
-          const progressRaw =
-            storedValues[
-              0
-            ]?.[1];
+      const savedProgress = safeParse(
+        values[0]?.[1],
+        []
+      );
 
-          const activeRaw =
-            storedValues[
-              1
-            ]?.[1];
+      const savedActive = safeParse(
+        values[1]?.[1],
+        null
+      );
 
-          const savedProgress =
-            safeParse(
-              progressRaw,
-              []
-            );
+      const nextMap = createProgressMap(savedProgress);
 
-          const savedActive =
-            safeParse(
-              activeRaw,
-              null
-            );
+      // Merge active Journey progress, but never use
+      // a selected passport as an unlock trigger.
+      [savedActive, activeJourney].forEach(record => {
+        const id = getJourneyId(record);
 
-          const nextMap =
-            createProgressMap(
-              savedProgress
-            );
+        if (!id) return;
 
-          const currentActive =
-            activeJourney ||
-            savedActive;
+        const previous = nextMap[id] || {};
 
-          const activeId =
-            currentActive?.id ??
-            currentActive?.journeyId ??
-            currentActive?.routeKey;
+        nextMap[id] = {
+          progress: Math.max(
+            previous.progress || 0,
+            readProgress(record)
+          ),
+          completedAt:
+            readCompletionDate(record) ||
+            previous.completedAt ||
+            null,
+        };
+      });
 
-          if (
-            activeId
-          ) {
-            const savedActiveProgress =
-              readProgress(
-                currentActive
-              );
+      setProgressMap(nextMap);
+    } catch (error) {
+      console.log(
+        "Passport progress load error:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [activeJourney]);
 
-            nextMap[
-              String(
-                activeId
-              )
-            ] =
-              Math.max(
-                nextMap[
-                  String(
-                    activeId
-                  )
-                ] ||
-                  0,
+  useEffect(() => {
+    loadPassportProgress();
+  }, [loadPassportProgress]);
 
-                savedActiveProgress
-              );
-          }
+  // ==========================================================
+  // REFRESH WHEN APP RETURNS TO FOREGROUND
+  // ==========================================================
 
-          setProgressMap(
-            nextMap
-          );
-        } catch (
-          error
-        ) {
-          console.log(
-            "Passport progress load error:",
-            error
-          );
-
-          setProgressMap(
-            {}
-          );
-        } finally {
-          setLoading(
-            false
-          );
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      state => {
+        if (state === "active") {
+          loadPassportProgress();
         }
-      },
-
-      [
-        activeJourney,
-      ]
+      }
     );
 
-  useEffect(
-    () => {
-      loadPassportProgress();
-    },
-
-    [
-      loadPassportProgress,
-    ]
-  );
+    return () => {
+      subscription.remove();
+    };
+  }, [loadPassportProgress]);
 
   // ==========================================================
-  // BUILD PASSPORTS
+  // BUILD PASSPORT CATALOG
   // ==========================================================
 
-  const passports =
-    useMemo(
-      () => {
-        const catalog =
-          Array.isArray(
-            JOURNEY_CATALOG
-          )
-            ? JOURNEY_CATALOG
-            : [];
+  const passports = useMemo(() => {
+    const catalog = Array.isArray(JOURNEY_CATALOG)
+      ? JOURNEY_CATALOG
+      : [];
 
-        return catalog.map(
-          journey => {
-            const journeyId =
-              String(
-                journey?.id ??
-                  journey?.journeyId ??
-                  journey?.routeKey ??
-                  ""
-              );
+    return catalog.map((journey, index) => {
+      const id =
+        getJourneyId(journey) ||
+        `journey-${index}`;
 
-            const localizedJourney =
-              getJourneyTranslation(
-                journey,
-                language
-              ) ||
-              journey;
+      const localized =
+        getJourneyTranslation(journey, language) ||
+        journey;
 
-            return {
-              ...journey,
+      const record = progressMap[id] || {};
 
-              id:
-                journeyId,
+      const progress = clampProgress(
+        record.progress || 0
+      );
 
-              title:
-                localizedJourney?.title ||
-                journey?.title ||
-                t(
-                  "untitledJourney"
-                ),
+      const cover =
+        passportImages[id] ||
+        journey?.passportCover ||
+        journey?.passportImage ||
+        journey?.image ||
+        journey?.routeImage ||
+        null;
 
-              subtitle:
-                localizedJourney?.subtitle ||
-                journey?.subtitle ||
-                journey?.category ||
-                t(
-                  "legathonJourney"
-                ),
+      return {
+        ...journey,
+        id,
 
-              progress:
-                progressMap[
-                  journeyId
-                ] ||
-                0,
+        title:
+          localized?.title ||
+          journey?.title ||
+          t("untitled"),
 
-              cover:
-                passportImages[
-                  journeyId
-                ] ||
-                journey?.passportCover ||
-                journey?.passportImage ||
-                journey?.image ||
-                journey?.routeImage ||
-                null,
+        subtitle:
+          localized?.subtitle ||
+          journey?.subtitle ||
+          journey?.category ||
+          t("journey"),
 
-              stamps:
-                buildJourneyStamps(
-                  journey,
-                  t
-                ),
-            };
-          }
-        );
-      },
+        progress,
+        status: getPassportStatus(progress),
 
-      [
-        progressMap,
-        language,
-      ]
+        completedAt:
+          progress >= 100
+            ? record.completedAt
+            : null,
+
+        cover,
+        stamps: buildJourneyStamps(journey, t),
+      };
+    });
+  }, [progressMap, language, t]);
+
+  // ==========================================================
+  // SELECT DEFAULT PASSPORT
+  // ==========================================================
+
+  useEffect(() => {
+    if (!passports.length) {
+      setSelectedPassportId(null);
+      return;
+    }
+
+    const exists = passports.some(
+      passport => passport.id === selectedPassportId
     );
 
-  // ==========================================================
-  // DEFAULT SELECTED PASSPORT
-  // ==========================================================
+    if (!exists) {
+      const preferred =
+        passports.find(
+          item =>
+            item.progress > 0 &&
+            item.progress < 100
+        ) ||
+        passports.find(
+          item => item.progress >= 100
+        ) ||
+        passports[0];
 
-  useEffect(
-    () => {
-      if (
-        passports.length ===
-        0
-      ) {
-        setSelectedPassportId(
-          null
-        );
-
-        return;
-      }
-
-      const selectionStillExists =
-        passports.some(
-          passport =>
-            passport.id ===
-            selectedPassportId
-        );
-
-      if (
-        !selectionStillExists
-      ) {
-        const activePassport =
-          passports.find(
-            passport =>
-              passport.progress >
-                0 &&
-              passport.progress <
-                100
-          ) ||
-          passports.find(
-            passport =>
-              passport.progress >=
-              100
-          ) ||
-          passports[0];
-
-        setSelectedPassportId(
-          activePassport.id
-        );
-      }
-    },
-
-    [
-      passports,
-      selectedPassportId,
-    ]
-  );
+      setSelectedPassportId(preferred.id);
+    }
+  }, [passports, selectedPassportId]);
 
   // ==========================================================
   // SELECTED PASSPORT
   // ==========================================================
 
-  const selectedPassport =
-    useMemo(
-      () =>
-        passports.find(
-          passport =>
-            passport.id ===
-            selectedPassportId
-        ) ||
-        passports[0] ||
-        null,
-
-      [
-        passports,
-        selectedPassportId,
-      ]
+  const selectedPassport = useMemo(() => {
+    return (
+      passports.find(
+        passport => passport.id === selectedPassportId
+      ) ||
+      passports[0] ||
+      null
     );
+  }, [passports, selectedPassportId]);
 
   // ==========================================================
   // STATS
   // ==========================================================
 
-  const earnedStamps =
-    useMemo(
-      () =>
-        passports.reduce(
-          (
-            total,
-            passport
-          ) =>
-            total +
-            getUnlockedStampCount(
-              passport.progress
-            ),
+  const completedJourneys = useMemo(() => {
+    return passports.filter(
+      passport => isPassportUnlocked(passport)
+    ).length;
+  }, [passports]);
 
-          0
-        ),
-
-      [
-        passports,
-      ]
+  const earnedStamps = useMemo(() => {
+    return passports.reduce(
+      (total, passport) =>
+        total + getUnlockedStampCount(passport.progress),
+      0
     );
+  }, [passports]);
 
-  const completedJourneys =
-    useMemo(
-      () =>
-        passports.filter(
-          passport =>
-            passport.progress >=
-            100
-        ).length,
+  const explorerLevel = completedJourneys + 1;
 
-      [
-        passports,
-      ]
-    );
+  const explorerRank = t(
+    getExplorerRank(completedJourneys)
+  );
 
-  const explorerLevel =
-    Math.max(
-      1,
-      completedJourneys +
-        1
-    );
-
-  const explorerRankKey =
-    getExplorerRank(
-      completedJourneys
-    );
-
-  const explorerRank =
-    t(
-      explorerRankKey
-    );
-
-  const selectedUnlockedStamps =
-    selectedPassport
-      ? getUnlockedStampCount(
-          selectedPassport.progress
-        )
-      : 0;
+  const selectedStampCount = selectedPassport
+    ? getUnlockedStampCount(selectedPassport.progress)
+    : 0;
 
   // ==========================================================
-  // UI
+  // STATUS LABEL
+  // ==========================================================
+
+  const getStatusLabel = useCallback(
+    passport => {
+      const status = getPassportStatus(
+        passport?.progress
+      );
+
+      if (status === "completed") {
+        return t("completed");
+      }
+
+      if (status === "inProgress") {
+        return t("inProgress");
+      }
+
+      return t("locked");
+    },
+    [t]
+  );
+
+  // ==========================================================
+  // MAIN UI
   // ==========================================================
 
   return (
     <ImageBackground
-      source={
-        PASSPORT_BG
-      }
-      style={
-        styles.container
-      }
+      source={PASSPORT_BG}
+      style={styles.container}
       resizeMode="cover"
     >
-      <View
-        style={
-          styles.overlay
-        }
-      >
-        <SafeAreaView
-          style={
-            styles.safe
-          }
-        >
+      <View style={styles.overlay}>
+        <SafeAreaView style={styles.safe}>
           <ScrollView
-            showsVerticalScrollIndicator={
-              false
-            }
-            contentContainerStyle={
-              styles.content
-            }
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.content}
           >
-            {/* ==================================================
-                BACK
-            ================================================== */}
+            {/* BACK BUTTON */}
 
             {!!goBack && (
               <TouchableOpacity
-                style={
-                  styles.backButton
-                }
-                onPress={
-                  goBack
-                }
+                style={styles.backButton}
+                onPress={goBack}
               >
-                <Text
-                  style={
-                    styles.backText
-                  }
-                >
-                  ←{" "}
-                  {t(
-                    "back"
-                  )}
+                <Text style={styles.backText}>
+                  ← {t("back")}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* ==================================================
-                HEADER
-            ================================================== */}
+            {/* HEADER */}
 
-            <Text
-              style={
-                styles.kicker
-              }
-            >
-              {t(
-                "passportHub"
-              )}
+            <Text style={styles.kicker}>
+              {t("hub")}
             </Text>
 
             <Text
-              style={
-                styles.title
-              }
-              numberOfLines={
-                3
-              }
+              style={styles.title}
+              numberOfLines={3}
               adjustsFontSizeToFit
-              minimumFontScale={
-                0.7
-              }
+              minimumFontScale={0.7}
             >
-              {t(
-                "passportCollection"
-              )}
+              {t("collection")}
             </Text>
 
             <TouchableOpacity
-              style={
-                styles.refreshButton
-              }
-              onPress={
-                loadPassportProgress
-              }
-              activeOpacity={
-                0.85
-              }
+              style={styles.refreshButton}
+              onPress={loadPassportProgress}
+              activeOpacity={0.85}
             >
-              <Text
-                style={
-                  styles.refreshText
-                }
-              >
-                {t(
-                  "refreshProgress"
-                )}
+              <Text style={styles.refreshText}>
+                {t("refresh")}
               </Text>
             </TouchableOpacity>
 
-            {/* ==================================================
-                EXPLORER CARD
-            ================================================== */}
+            {/* EXPLORER PROFILE */}
 
-            <View
-              style={
-                styles.explorerCard
-              }
-            >
-              <View
-                style={
-                  styles.avatarWrap
-                }
-              >
-                <Text
-                  style={
-                    styles.avatarIcon
-                  }
-                >
+            <View style={styles.explorerCard}>
+              <View style={styles.avatarWrap}>
+                <Text style={styles.avatarIcon}>
                   👤
                 </Text>
               </View>
 
               <Text
-                style={
-                  styles.name
-                }
-                numberOfLines={
-                  2
-                }
+                style={styles.name}
+                numberOfLines={2}
                 adjustsFontSizeToFit
-                minimumFontScale={
-                  0.7
-                }
+                minimumFontScale={0.7}
               >
-                {
-                  userName
-                }
+                {userName}
               </Text>
 
-              <Text
-                style={
-                  styles.rank
-                }
-              >
-                {
-                  explorerRank
-                }
+              <Text style={styles.rank}>
+                {explorerRank}
               </Text>
 
-              {/* ================================================
-                  PROFILE STATS
-              ================================================ */}
-
-              <View
-                style={
-                  styles.profileStats
-                }
-              >
-                <View
-                  style={
-                    styles.profileStat
-                  }
-                >
-                  <Text
-                    style={
-                      styles.profileNumber
-                    }
-                  >
-                    {
-                      earnedStamps
-                    }
+              <View style={styles.profileStats}>
+                <View style={styles.profileStat}>
+                  <Text style={styles.profileNumber}>
+                    {earnedStamps}
                   </Text>
-
-                  <Text
-                    style={
-                      styles.profileLabel
-                    }
-                    numberOfLines={
-                      2
-                    }
-                    adjustsFontSizeToFit
-                    minimumFontScale={
-                      0.7
-                    }
-                  >
-                    {t(
-                      "stamps"
-                    )}
+                  <Text style={styles.profileLabel}>
+                    {t("stampCount")}
                   </Text>
                 </View>
 
-                <View
-                  style={
-                    styles.profileStat
-                  }
-                >
-                  <Text
-                    style={
-                      styles.profileNumber
-                    }
-                  >
-                    {
-                      completedJourneys
-                    }
+                <View style={styles.profileStat}>
+                  <Text style={styles.profileNumber}>
+                    {completedJourneys}
                   </Text>
-
-                  <Text
-                    style={
-                      styles.profileLabel
-                    }
-                    numberOfLines={
-                      2
-                    }
-                    adjustsFontSizeToFit
-                    minimumFontScale={
-                      0.65
-                    }
-                  >
-                    {t(
-                      "completed"
-                    )}
+                  <Text style={styles.profileLabel}>
+                    {t("completed")}
                   </Text>
                 </View>
 
-                <View
-                  style={
-                    styles.profileStat
-                  }
-                >
-                  <Text
-                    style={
-                      styles.profileNumber
-                    }
-                  >
-                    {
-                      explorerLevel
-                    }
+                <View style={styles.profileStat}>
+                  <Text style={styles.profileNumber}>
+                    {explorerLevel}
                   </Text>
-
-                  <Text
-                    style={
-                      styles.profileLabel
-                    }
-                  >
-                    {t(
-                      "level"
-                    )}
+                  <Text style={styles.profileLabel}>
+                    {t("level")}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* ==================================================
-                LOADING / EMPTY
-            ================================================== */}
+            {/* LOADING */}
 
             {loading ? (
-              <View
-                style={
-                  styles.openPassportCard
-                }
-              >
-                <Text
-                  style={
-                    styles.sectionTitleSmall
-                  }
-                >
-                  {t(
-                    "loadingPassports"
-                  )}
+              <View style={styles.openPassportCard}>
+                <Text style={styles.sectionTitleSmall}>
+                  {t("loading")}
                 </Text>
               </View>
             ) : !selectedPassport ? (
-              <View
-                style={
-                  styles.openPassportCard
-                }
-              >
-                <Text
-                  style={
-                    styles.sectionTitleSmall
-                  }
-                >
-                  {t(
-                    "noJourneys"
-                  )}
-                </Text>
-
-                <Text
-                  style={
-                    styles.stampStatus
-                  }
-                >
-                  {t(
-                    "addJourneys"
-                  )}
+              <View style={styles.openPassportCard}>
+                <Text style={styles.sectionTitleSmall}>
+                  {t("empty")}
                 </Text>
               </View>
             ) : (
               <>
-                {/* ==============================================
+                {/* ============================================
                     FEATURED PASSPORT
-                ============================================== */}
+                ============================================ */}
 
-                <Text
-                  style={
-                    styles.sectionTitle
-                  }
-                >
-                  {t(
-                    "featuredPassport"
-                  )}
+                <Text style={styles.sectionTitle}>
+                  {t("featured")}
                 </Text>
 
-                <View
-                  style={
-                    styles.featuredPassportCard
-                  }
-                >
-                  {selectedPassport.cover ? (
-                    <Image
-                      source={
-                        selectedPassport.cover
-                      }
-                      style={
-                        styles.featuredPassportImage
-                      }
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.featuredPassportImage,
+                <View style={styles.featuredPassportCard}>
+                  <PassportArtwork
+                    passport={selectedPassport}
+                    style={styles.featuredPassportImage}
+                    resizeMode="contain"
+                  />
 
-                        styles.fallbackImage,
-                      ]}
-                    >
-                      <Text
-                        style={
-                          styles.featuredFallbackEmoji
-                        }
-                      >
-                        🛂
-                      </Text>
-                    </View>
-                  )}
-
-                  <View
-                    style={
-                      styles.featuredOverlay
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.featuredLabel
-                      }
-                    >
-                      {t(
-                        "selectedJourney"
-                      )}
+                  <View style={styles.featuredOverlay}>
+                    <Text style={styles.featuredLabel}>
+                      {t("selected")}
                     </Text>
 
                     <Text
-                      style={
-                        styles.featuredTitle
-                      }
-                      numberOfLines={
-                        3
-                      }
+                      style={styles.featuredTitle}
+                      numberOfLines={3}
                       adjustsFontSizeToFit
-                      minimumFontScale={
-                        0.68
-                      }
+                      minimumFontScale={0.65}
                     >
-                      {
-                        selectedPassport.title
-                      }
+                      {selectedPassport.title}
                     </Text>
 
                     <Text
-                      style={
-                        styles.featuredSub
-                      }
-                      numberOfLines={
-                        4
-                      }
+                      style={styles.featuredSub}
+                      numberOfLines={3}
                     >
-                      {
-                        selectedPassport.subtitle
-                      }
+                      {selectedPassport.subtitle}
                     </Text>
 
-                    {/* ==========================================
-                        PROGRESS BAR
-                    ========================================== */}
-
-                    <View
-                      style={
-                        styles.progressBar
-                      }
-                    >
+                    <View style={styles.progressBar}>
                       <View
                         style={[
                           styles.progressFill,
-
                           {
                             width:
-                              `${clampProgress(
-                                selectedPassport.progress
-                              )}%`,
+                              `${selectedPassport.progress}%`,
                           },
                         ]}
                       />
                     </View>
 
-                    <Text
-                      style={
-                        styles.featuredProgress
-                      }
-                    >
-                      {Math.round(
-                        selectedPassport.progress
-                      )}
-                      %{" "}
-                      {t(
-                        "complete"
-                      )}
+                    <Text style={styles.featuredProgress}>
+                      {selectedPassport.status === "locked"
+                        ? t("locked").toUpperCase()
+                        : selectedPassport.status === "completed"
+                        ? `100% ${t("completed")}`
+                        : `${Math.round(
+                            selectedPassport.progress
+                          )}% ${t("inProgress")}`}
                     </Text>
+
+                    {isPassportUnlocked(selectedPassport) &&
+                      !!selectedPassport.completedAt && (
+                        <Text style={styles.completedDate}>
+                          {formatDate(
+                            selectedPassport.completedAt,
+                            language
+                          )}
+                        </Text>
+                      )}
                   </View>
                 </View>
 
-                {/* ==============================================
-                    PASSPORT STAMPS
-                ============================================== */}
+                {/* ============================================
+                    FIVE PASSPORT STAMPS
+                ============================================ */}
 
-                <View
-                  style={
-                    styles.openPassportCard
-                  }
-                >
-                  <Text
-                    style={
-                      styles.sectionTitleSmall
-                    }
-                  >
-                    {t(
-                      "passportStamps"
-                    )}
+                <View style={styles.openPassportCard}>
+                  <Text style={styles.sectionTitleSmall}>
+                    {t("stamps")}
                   </Text>
 
-                  <View
-                    style={
-                      styles.stampList
-                    }
-                  >
+                  <View style={styles.stampList}>
                     {selectedPassport.stamps.map(
-                      (
-                        stamp,
-                        index
-                      ) => {
+                      (stamp, index) => {
                         const unlocked =
-                          index <
-                          selectedUnlockedStamps;
+                          selectedPassport.progress > 0 &&
+                          index < selectedStampCount;
 
                         return (
                           <View
@@ -1781,78 +1173,51 @@ export default function PassportScreen({
                             }
                             style={[
                               styles.stampRow,
-
                               unlocked
                                 ? styles.stampRowUnlocked
                                 : styles.stampRowLocked,
                             ]}
                           >
-                            {/* ==================================
-                                STAMP SEAL
-                            ================================== */}
-
                             <View
                               style={[
                                 styles.stampSeal,
-
                                 unlocked
                                   ? styles.stampSealUnlocked
                                   : styles.stampSealLocked,
                               ]}
                             >
                               <Text
-                                style={
-                                  styles.stampSealText
-                                }
+                                style={[
+                                  styles.stampSealText,
+                                  !unlocked && {
+                                    color: "#94A3B8",
+                                  },
+                                ]}
                               >
-                                {
-                                  index +
-                                  1
-                                }
+                                {index + 1}
                               </Text>
                             </View>
 
-                            {/* ==================================
-                                STAMP CONTENT
-                            ================================== */}
-
-                            <View
-                              style={
-                                styles.stampTextBox
-                              }
-                            >
+                            <View style={styles.stampTextBox}>
                               <Text
-                                style={
-                                  styles.stampTitle
-                                }
-                                numberOfLines={
-                                  3
-                                }
+                                style={styles.stampTitle}
+                                numberOfLines={3}
                                 adjustsFontSizeToFit
-                                minimumFontScale={
-                                  0.7
-                                }
+                                minimumFontScale={0.7}
                               >
-                                {
-                                  stamp
-                                }
+                                {stamp}
                               </Text>
 
                               <Text
                                 style={[
                                   styles.stampStatus,
-
                                   unlocked &&
                                     styles.stampStatusUnlocked,
                                 ]}
                               >
                                 {unlocked
-                                  ? t(
-                                      "stamped"
-                                    )
-                                  : t(
-                                      "locked"
-                                    )}
+                                  ? t("stamped")
+                                  : t("locked")}
                               </Text>
                             </View>
                           </View>
@@ -1862,116 +1227,121 @@ export default function PassportScreen({
                   </View>
                 </View>
 
-                {/* ==============================================
-                    PASSPORT SHELF
-                ============================================== */}
+                {/* ============================================
+                    PASSPORT COLLECTION HEADER
+                ============================================ */}
 
-                <Text
-                  style={
-                    styles.sectionTitle
-                  }
-                >
-                  {t(
-                    "passportShelf"
-                  )}
+                <View style={styles.collectionHeader}>
+                  <View style={styles.collectionHeaderText}>
+                    <Text style={styles.collectionKicker}>
+                      {t("world")}
+                    </Text>
+
+                    <Text style={styles.collectionTitle}>
+                      {t("shelf")}
+                    </Text>
+                  </View>
+
+                  <View style={styles.counterCircle}>
+                    <Text style={styles.counterText}>
+                      {completedJourneys}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.collectionSubtext}>
+                  {completedJourneys} / {passports.length}{" "}
+                  {t("collected")}
                 </Text>
 
-                <View
-                  style={
-                    styles.shelfGrid
-                  }
-                >
-                  {passports.map(
-                    passport => {
-                      const selected =
-                        passport.id ===
-                        selectedPassport.id;
+                {/* ============================================
+                    PASSPORT SHELF - TWO COLUMNS
+                ============================================ */}
 
-                      return (
-                        <TouchableOpacity
-                          key={
-                            passport.id
-                          }
-                          style={[
-                            styles.shelfCard,
+                <View style={styles.shelfGrid}>
+                  {passports.map(passport => {
+                    const selected =
+                      passport.id === selectedPassport.id;
 
-                            selected &&
-                              styles.shelfCardActive,
-                          ]}
-                          activeOpacity={
-                            0.88
-                          }
-                          onPress={() =>
-                            setSelectedPassportId(
-                              passport.id
-                            )
-                          }
-                        >
-                          {passport.cover ? (
-                            <Image
-                              source={
-                                passport.cover
-                              }
-                              style={
-                                styles.shelfImage
-                              }
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <View
-                              style={[
-                                styles.shelfImage,
+                    const completed =
+                      isPassportUnlocked(passport);
 
-                                styles.fallbackImage,
-                              ]}
-                            >
-                              <Text
-                                style={
-                                  styles.shelfFallbackEmoji
-                                }
-                              >
-                                🛂
-                              </Text>
-                            </View>
-                          )}
+                    const inProgress =
+                      passport.status === "inProgress";
 
-                          <View
-                            style={
-                              styles.shelfOverlay
-                            }
-                          >
+                    const completedDate = formatDate(
+                      passport.completedAt,
+                      language
+                    );
+
+                    return (
+                      <TouchableOpacity
+                        key={passport.id}
+                        style={[
+                          styles.shelfCard,
+                          selected && styles.shelfCardActive,
+                          completed && styles.shelfCardCompleted,
+                        ]}
+                        activeOpacity={0.88}
+                        onPress={() => {
+                          // Selection ONLY.
+                          // This does not award or unlock a passport.
+                          setSelectedPassportId(passport.id);
+                        }}
+                      >
+                        <View style={styles.shelfImageWrap}>
+                          <PassportArtwork
+                            passport={passport}
+                            style={styles.shelfImage}
+                            resizeMode="contain"
+                          />
+                        </View>
+
+                        <View style={styles.shelfInfo}>
+                          <View style={styles.shelfTitleBox}>
                             <Text
-                              style={
-                                styles.shelfTitle
-                              }
-                              numberOfLines={
-                                2
-                              }
+                              style={styles.shelfTitle}
+                              numberOfLines={2}
                               adjustsFontSizeToFit
-                              minimumFontScale={
-                                0.7
-                              }
+                              minimumFontScale={0.62}
                             >
-                              {
-                                passport.title
-                              }
-                            </Text>
-
-                            <Text
-                              style={
-                                styles.shelfProgress
-                              }
-                            >
-                              {Math.round(
-                                passport.progress
-                              )}
-                              %
+                              {passport.title}
                             </Text>
                           </View>
-                        </TouchableOpacity>
-                      );
-                    }
-                  )}
+
+                          <Text
+                            style={[
+                              styles.shelfStatus,
+                              completed &&
+                                styles.shelfStatusCompleted,
+                            ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.7}
+                          >
+                            {getStatusLabel(
+                              passport
+                            ).toUpperCase()}
+                          </Text>
+
+                          {inProgress && (
+                            <Text style={styles.shelfProgress}>
+                              {Math.round(passport.progress)}%
+                            </Text>
+                          )}
+
+                          {completed && !!completedDate && (
+                            <Text
+                              style={styles.shelfDate}
+                              numberOfLines={1}
+                            >
+                              {completedDate}
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             )}
@@ -2017,7 +1387,7 @@ const styles = StyleSheet.create({
   },
 
   backText: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 24,
     fontWeight: "900",
   },
@@ -2030,7 +1400,7 @@ const styles = StyleSheet.create({
   },
 
   refreshText: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 19,
     fontWeight: "900",
   },
@@ -2040,7 +1410,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   kicker: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 13,
     fontWeight: "900",
     letterSpacing: 3,
@@ -2048,7 +1418,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 42,
     fontWeight: "900",
     lineHeight: 46,
@@ -2061,7 +1431,7 @@ const styles = StyleSheet.create({
 
   explorerCard: {
     backgroundColor: "rgba(8,18,34,0.84)",
-    borderColor: "#D4AF37",
+    borderColor: GOLD,
     borderWidth: 2,
     borderRadius: 34,
     padding: 20,
@@ -2074,7 +1444,7 @@ const styles = StyleSheet.create({
     height: 118,
     borderRadius: 59,
     borderWidth: 4,
-    borderColor: "#D4AF37",
+    borderColor: GOLD,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(212,175,55,0.12)",
@@ -2086,14 +1456,14 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 36,
     fontWeight: "900",
     textAlign: "center",
   },
 
   rank: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 22,
     fontWeight: "900",
     marginTop: 4,
@@ -2121,13 +1491,13 @@ const styles = StyleSheet.create({
   },
 
   profileNumber: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 30,
     fontWeight: "900",
   },
 
   profileLabel: {
-    color: "#B9C3D6",
+    color: MUTED,
     fontSize: 15,
     fontWeight: "800",
     marginTop: 4,
@@ -2135,18 +1505,18 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // SECTION TITLES
+  // TITLES
   // ==========================================================
 
   sectionTitle: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 38,
     fontWeight: "900",
     marginBottom: 18,
   },
 
   sectionTitleSmall: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 30,
     fontWeight: "900",
     marginBottom: 18,
@@ -2161,24 +1531,14 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: "hidden",
     borderWidth: 2,
-    borderColor: "#D4AF37",
+    borderColor: GOLD,
     marginBottom: 30,
-    backgroundColor: "#081426",
+    backgroundColor: NAVY,
   },
 
   featuredPassportImage: {
     width: "100%",
     height: "100%",
-  },
-
-  fallbackImage: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#081426",
-  },
-
-  featuredFallbackEmoji: {
-    fontSize: 72,
   },
 
   featuredOverlay: {
@@ -2187,11 +1547,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     padding: 24,
-    backgroundColor: "rgba(2,6,23,0.76)",
+    backgroundColor: "rgba(2,6,23,0.78)",
   },
 
   featuredLabel: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 3,
@@ -2199,13 +1559,13 @@ const styles = StyleSheet.create({
   },
 
   featuredTitle: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 36,
     fontWeight: "900",
   },
 
   featuredSub: {
-    color: "#B9C3D6",
+    color: MUTED,
     fontSize: 20,
     lineHeight: 27,
     fontWeight: "800",
@@ -2223,18 +1583,39 @@ const styles = StyleSheet.create({
 
   progressFill: {
     height: "100%",
-    backgroundColor: "#D4AF37",
+    backgroundColor: GOLD,
     borderRadius: 20,
   },
 
   featuredProgress: {
-    color: "#D4AF37",
+    color: GOLD,
     fontSize: 24,
     fontWeight: "900",
   },
 
+  completedDate: {
+    color: WHITE,
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+
   // ==========================================================
-  // PASSPORT STAMPS
+  // FALLBACK
+  // ==========================================================
+
+  fallbackImage: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: NAVY,
+  },
+
+  fallbackEmoji: {
+    fontSize: 45,
+  },
+
+  // ==========================================================
+  // CHECKPOINT STAMPS
   // ==========================================================
 
   openPassportCard: {
@@ -2279,9 +1660,9 @@ const styles = StyleSheet.create({
   },
 
   stampSealUnlocked: {
-    backgroundColor: "#D4AF37",
+    backgroundColor: GOLD,
     borderWidth: 4,
-    borderColor: "#FFFFFF",
+    borderColor: WHITE,
   },
 
   stampSealLocked: {
@@ -2301,46 +1682,114 @@ const styles = StyleSheet.create({
   },
 
   stampTitle: {
-    color: "#FFFFFF",
+    color: WHITE,
     fontSize: 26,
     fontWeight: "900",
   },
 
   stampStatus: {
-    color: "#B9C3D6",
+    color: MUTED,
     fontSize: 18,
     fontWeight: "800",
     marginTop: 2,
   },
 
   stampStatusUnlocked: {
-    color: "#D4AF37",
+    color: GOLD,
   },
 
   // ==========================================================
-  // PASSPORT SHELF
+  // COLLECTION HEADER
+  // ==========================================================
+
+  collectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  collectionHeaderText: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  collectionKicker: {
+    color: GOLD,
+    fontSize: 13,
+    letterSpacing: 3,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+
+  collectionTitle: {
+    color: WHITE,
+    fontSize: 34,
+    fontWeight: "900",
+  },
+
+  counterCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: GOLD,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  counterText: {
+    color: "#020617",
+    fontSize: 27,
+    fontWeight: "900",
+  },
+
+  collectionSubtext: {
+    color: MUTED,
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 24,
+  },
+
+  // ==========================================================
+  // PASSPORT SHELF - FIXED TWO-COLUMN LAYOUT
   // ==========================================================
 
   shelfGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
+    alignItems: "flex-start",
   },
 
+  // Every card has exactly the same height.
   shelfCard: {
     width: "48%",
-    height: 230,
+    height: 300,
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#081426",
+    backgroundColor: CARD,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(105,140,190,0.45)",
     marginBottom: 18,
   },
 
   shelfCardActive: {
-    borderColor: "#D4AF37",
-    borderWidth: 3,
+    borderColor: GOLD,
+    borderWidth: 2,
+  },
+
+  shelfCardCompleted: {
+    borderColor: "rgba(212,175,55,0.85)",
+  },
+
+  // Every image has exactly the same size.
+  shelfImageWrap: {
+    height: 185,
+    marginHorizontal: 10,
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#020617",
   },
 
   shelfImage: {
@@ -2348,29 +1797,57 @@ const styles = StyleSheet.create({
     height: "100%",
   },
 
-  shelfFallbackEmoji: {
-    fontSize: 42,
+  // Fixed content area prevents titles from
+  // changing card heights or status positions.
+  shelfInfo: {
+    height: 100,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  shelfOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 14,
-    backgroundColor: "rgba(2,6,23,0.74)",
+  shelfTitleBox: {
+    height: 51,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   shelfTitle: {
-    color: "#FFFFFF",
-    fontSize: 21,
+    color: WHITE,
+    fontSize: 19,
     fontWeight: "900",
+    textAlign: "center",
+    width: "100%",
+  },
+
+  shelfStatus: {
+    color: "#9CA3AF",
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textAlign: "center",
+    marginTop: 4,
+  },
+
+  shelfStatusCompleted: {
+    color: GOLD,
   },
 
   shelfProgress: {
-    color: "#D4AF37",
-    fontSize: 22,
+    color: GOLD,
+    fontSize: 13,
     fontWeight: "900",
+    marginTop: 3,
+  },
+
+  shelfDate: {
+    color: MUTED,
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center",
     marginTop: 3,
   },
 });

@@ -1,6 +1,5 @@
-// screens/AIConversationScreen.js
-
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -33,7 +32,7 @@ import { translate } from "../i18n/i18n";
 
 // ============================================================
 // LEGATHON WALK — AI WELLNESS CONVERSATION
-// TEXT-ONLY AI COACH
+// MULTILINGUAL TEXT-ONLY AI COACH
 // ============================================================
 
 const CONVERSATION_STORAGE_KEY =
@@ -43,6 +42,69 @@ const COACH_MEMORY_KEY =
   "legathonAICoachMemory";
 
 // ============================================================
+// LANGUAGE HELPERS
+// ============================================================
+
+function normalizeLanguage(value) {
+  const code = String(value || "en")
+    .trim()
+    .toLowerCase()
+    .split("-")[0];
+
+  const supported = [
+    "en",
+    "es",
+    "fr",
+    "de",
+    "pt",
+    "it",
+    "ja",
+    "ko",
+    "zh",
+    "ar",
+  ];
+
+  return supported.includes(code)
+    ? code
+    : "en";
+}
+
+function getConversationStorageKey(language) {
+  return `${CONVERSATION_STORAGE_KEY}_${normalizeLanguage(
+    language
+  )}`;
+}
+
+const LOCALES = {
+  en: "en-US",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+  pt: "pt-BR",
+  it: "it-IT",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  zh: "zh-CN",
+  ar: "ar",
+};
+
+function formatNumber(value, language) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return "0";
+  }
+
+  try {
+    return amount.toLocaleString(
+      LOCALES[normalizeLanguage(language)]
+    );
+  } catch {
+    return amount.toLocaleString();
+  }
+}
+
+// ============================================================
 // TRANSLATIONS
 // ============================================================
 
@@ -50,6 +112,7 @@ const TEXT = {
   en: {
     wellness: "LEGATHON AI WELLNESS",
     yourCoach: "Your Coach",
+
     welcome:
       "Welcome. I’m your Legathon AI Wellness Coach. I can help with walking, recovery, hydration, meals, sleep, breathing, and your active Legathon Journey.",
 
@@ -108,11 +171,73 @@ const TEXT = {
 
     remoteError: "Unable to reach the AI Coach.",
     emptyResponse: "The AI Coach returned no response.",
+
+    // LOCAL COACH
+    preferredWalk:
+      "You prefer walking at {time}. That remains a good time if your schedule and conditions allow.",
+
+    journeyWalk:
+      "Continue your {journey} journey. You are {progress}% complete{checkpoint}. Begin at a comfortable pace and build momentum gradually.",
+
+    checkpointText:
+      " and currently at checkpoint {checkpoint}",
+
+    stepGoalComplete:
+      "You completed today’s step goal. A short recovery walk is optional if you still feel well.",
+
+    stepsRemaining:
+      "You are {steps} steps from today’s goal. Start with a comfortable 15-minute walk and reassess how you feel afterward.",
+
+    recoveryScore:
+      "Your current recovery score is {score}%. Prioritize hydration, protein, gentle movement, and quality sleep.",
+
+    recoveryMissing:
+      "Recovery has not been recorded yet. Check your energy, soreness, hydration, and sleep before choosing today’s walking intensity.",
+
+    savedMeal:
+      "Your saved meal preference is {preference}. Build today’s meals around lean protein, vegetables, a quality carbohydrate, and healthy fat.",
+
+    mealAdvice:
+      "Build your plate around lean protein, vegetables, a quality carbohydrate, and healthy fat. Open the Meal Planner for a complete daily plan.",
+
+    hydrationRemaining:
+      "You have {amount} ounces remaining toward today’s hydration goal. Drink gradually throughout the day.",
+
+    hydrationComplete:
+      "You reached today’s hydration goal. Continue drinking according to thirst, activity, and weather.",
+
+    sleepRecorded:
+      "You recorded {hours} hours of sleep. Keep your bedtime consistent and reduce bright screens before bed tonight.",
+
+    sleepMissing:
+      "Sleep has not been recorded yet. Aim for a consistent bedtime, a cool dark room, and a calm wind-down routine.",
+
+    favoriteBreathingReply:
+      "Your favorite exercise is {exercise}. Use it now for several slow rounds while keeping your shoulders relaxed.",
+
+    breathingAdvice:
+      "Try four rounds of breathing: inhale for four seconds, hold for four, exhale for six, then pause briefly before repeating.",
+
+    activeJourney:
+      "Your active journey is {journey}. You are {progress}% complete{checkpoint}.",
+
+    noJourney:
+      "You do not have an active journey yet. Open Journeys to choose one and begin GPS coaching.",
+
+    progressSummary:
+      "Today you have {steps} steps toward your {goal}-step goal. Hydration is {hydration} of {hydrationGoal} ounces{journey}.",
+
+    progressJourney:
+      ". Your {journey} journey is {progress}% complete.",
+
+    defaultCoach:
+      "I can help with walking, recovery, meals, hydration, sleep, breathing, journey coaching, and progress reviews. What would you like to improve today?",
   },
 
   es: {
     wellness: "BIENESTAR IA LEGATHON",
     yourCoach: "Tu Entrenador",
+
     welcome:
       "Bienvenido. Soy tu entrenador de bienestar con IA de Legathon. Puedo ayudarte con caminatas, recuperación, hidratación, comidas, sueño, respiración y tu recorrido activo de Legathon.",
 
@@ -169,13 +294,77 @@ const TEXT = {
     responseError:
       "No pude preparar esa respuesta. Inténtalo de nuevo.",
 
-    remoteError: "No se pudo contactar al entrenador IA.",
-    emptyResponse: "El entrenador IA no devolvió una respuesta.",
+    remoteError:
+      "No se pudo contactar al entrenador IA.",
+
+    emptyResponse:
+      "El entrenador IA no devolvió una respuesta.",
+
+    preferredWalk:
+      "Prefieres caminar a las {time}. Sigue siendo un buen momento si tu horario y las condiciones lo permiten.",
+
+    journeyWalk:
+      "Continúa tu recorrido {journey}. Has completado el {progress}%{checkpoint}. Comienza a un ritmo cómodo y aumenta gradualmente.",
+
+    checkpointText:
+      " y actualmente estás en el punto de control {checkpoint}",
+
+    stepGoalComplete:
+      "Has completado tu meta de pasos de hoy. Puedes hacer una caminata corta de recuperación si todavía te sientes bien.",
+
+    stepsRemaining:
+      "Te faltan {steps} pasos para alcanzar la meta de hoy. Comienza con una caminata cómoda de 15 minutos y después evalúa cómo te sientes.",
+
+    recoveryScore:
+      "Tu puntuación actual de recuperación es {score}%. Prioriza la hidratación, las proteínas, el movimiento suave y un sueño de calidad.",
+
+    recoveryMissing:
+      "Aún no se ha registrado tu recuperación. Revisa tu energía, molestias, hidratación y sueño antes de elegir la intensidad de la caminata.",
+
+    savedMeal:
+      "Tu preferencia de comida guardada es {preference}. Organiza tus comidas con proteína magra, verduras, carbohidratos de calidad y grasas saludables.",
+
+    mealAdvice:
+      "Organiza tu plato con proteína magra, verduras, carbohidratos de calidad y grasas saludables. Abre el Planificador de Comidas para obtener un plan diario completo.",
+
+    hydrationRemaining:
+      "Te quedan {amount} onzas para alcanzar la meta de hidratación de hoy. Bebe gradualmente durante el día.",
+
+    hydrationComplete:
+      "Has alcanzado la meta de hidratación de hoy. Continúa bebiendo según tu sed, actividad y clima.",
+
+    sleepRecorded:
+      "Registraste {hours} horas de sueño. Mantén un horario constante y reduce las pantallas brillantes antes de acostarte.",
+
+    sleepMissing:
+      "Aún no se ha registrado el sueño. Intenta mantener una hora constante para dormir, una habitación fresca y oscura y una rutina relajante.",
+
+    favoriteBreathingReply:
+      "Tu ejercicio favorito es {exercise}. Haz varias rondas lentas manteniendo los hombros relajados.",
+
+    breathingAdvice:
+      "Prueba cuatro rondas de respiración: inhala durante cuatro segundos, mantén cuatro, exhala durante seis y haz una breve pausa antes de repetir.",
+
+    activeJourney:
+      "Tu recorrido activo es {journey}. Has completado el {progress}%{checkpoint}.",
+
+    noJourney:
+      "Todavía no tienes un recorrido activo. Abre Recorridos para elegir uno y comenzar el entrenamiento GPS.",
+
+    progressSummary:
+      "Hoy llevas {steps} pasos de una meta de {goal}. Tu hidratación es {hydration} de {hydrationGoal} onzas{journey}.",
+
+    progressJourney:
+      ". Tu recorrido {journey} está completado al {progress}%.",
+
+    defaultCoach:
+      "Puedo ayudarte con caminatas, recuperación, comidas, hidratación, sueño, respiración, recorridos y progreso. ¿Qué te gustaría mejorar hoy?",
   },
 
   fr: {
     wellness: "BIEN-ÊTRE IA LEGATHON",
     yourCoach: "Votre Coach",
+
     welcome:
       "Bienvenue. Je suis votre coach bien-être IA Legathon. Je peux vous aider avec la marche, la récupération, l’hydratation, les repas, le sommeil, la respiration et votre parcours Legathon actif.",
 
@@ -232,13 +421,77 @@ const TEXT = {
     responseError:
       "Impossible de préparer cette réponse. Veuillez réessayer.",
 
-    remoteError: "Impossible de joindre le coach IA.",
-    emptyResponse: "Le coach IA n’a renvoyé aucune réponse.",
+    remoteError:
+      "Impossible de joindre le coach IA.",
+
+    emptyResponse:
+      "Le coach IA n’a renvoyé aucune réponse.",
+
+    preferredWalk:
+      "Vous préférez marcher à {time}. Cela reste un bon moment si votre emploi du temps et les conditions le permettent.",
+
+    journeyWalk:
+      "Continuez votre parcours {journey}. Vous avez terminé {progress}%{checkpoint}. Commencez à un rythme confortable et augmentez progressivement.",
+
+    checkpointText:
+      " et vous êtes actuellement au point de contrôle {checkpoint}",
+
+    stepGoalComplete:
+      "Vous avez atteint votre objectif de pas aujourd’hui. Une courte marche de récupération est facultative si vous vous sentez toujours bien.",
+
+    stepsRemaining:
+      "Il vous reste {steps} pas pour atteindre votre objectif du jour. Commencez par une marche confortable de 15 minutes, puis réévaluez votre état.",
+
+    recoveryScore:
+      "Votre score de récupération actuel est de {score}%. Privilégiez l’hydratation, les protéines, les mouvements doux et un sommeil de qualité.",
+
+    recoveryMissing:
+      "Votre récupération n’a pas encore été enregistrée. Vérifiez votre énergie, vos courbatures, votre hydratation et votre sommeil avant de choisir l’intensité de votre marche.",
+
+    savedMeal:
+      "Votre préférence alimentaire enregistrée est {preference}. Composez vos repas avec des protéines maigres, des légumes, des glucides de qualité et de bonnes graisses.",
+
+    mealAdvice:
+      "Composez votre assiette avec des protéines maigres, des légumes, des glucides de qualité et de bonnes graisses. Ouvrez le Planificateur de Repas pour un programme quotidien complet.",
+
+    hydrationRemaining:
+      "Il vous reste {amount} onces pour atteindre votre objectif d’hydratation aujourd’hui. Buvez progressivement au cours de la journée.",
+
+    hydrationComplete:
+      "Vous avez atteint votre objectif d’hydratation aujourd’hui. Continuez à boire selon votre soif, votre activité et la météo.",
+
+    sleepRecorded:
+      "Vous avez enregistré {hours} heures de sommeil. Gardez une heure de coucher régulière et réduisez les écrans lumineux avant de dormir.",
+
+    sleepMissing:
+      "Votre sommeil n’a pas encore été enregistré. Visez une heure de coucher régulière, une chambre fraîche et sombre et une routine calme.",
+
+    favoriteBreathingReply:
+      "Votre exercice préféré est {exercise}. Faites maintenant plusieurs cycles lents en gardant les épaules détendues.",
+
+    breathingAdvice:
+      "Essayez quatre cycles de respiration : inspirez pendant quatre secondes, retenez quatre secondes, expirez pendant six secondes, puis faites une courte pause avant de recommencer.",
+
+    activeJourney:
+      "Votre parcours actif est {journey}. Vous avez terminé {progress}%{checkpoint}.",
+
+    noJourney:
+      "Vous n’avez pas encore de parcours actif. Ouvrez Voyages pour en choisir un et commencer le coaching GPS.",
+
+    progressSummary:
+      "Aujourd’hui, vous avez effectué {steps} pas sur un objectif de {goal}. Votre hydratation est de {hydration} sur {hydrationGoal} onces{journey}.",
+
+    progressJourney:
+      ". Votre parcours {journey} est terminé à {progress}%.",
+
+    defaultCoach:
+      "Je peux vous aider avec la marche, la récupération, les repas, l’hydratation, le sommeil, la respiration, votre parcours et vos progrès. Que souhaitez-vous améliorer aujourd’hui ?",
   },
 
   de: {
     wellness: "LEGATHON KI WELLNESS",
     yourCoach: "Dein Coach",
+
     welcome:
       "Willkommen. Ich bin dein Legathon KI-Wellness-Coach. Ich helfe dir bei Gehen, Erholung, Flüssigkeitszufuhr, Mahlzeiten, Schlaf, Atmung und deiner aktiven Legathon-Reise.",
 
@@ -295,13 +548,77 @@ const TEXT = {
     responseError:
       "Die Antwort konnte nicht erstellt werden. Bitte versuche es erneut.",
 
-    remoteError: "Der KI-Coach ist nicht erreichbar.",
-    emptyResponse: "Der KI-Coach hat keine Antwort geliefert.",
+    remoteError:
+      "Der KI-Coach ist nicht erreichbar.",
+
+    emptyResponse:
+      "Der KI-Coach hat keine Antwort geliefert.",
+
+    preferredWalk:
+      "Du gehst bevorzugt um {time} spazieren. Das bleibt eine gute Zeit, wenn dein Zeitplan und die Bedingungen es zulassen.",
+
+    journeyWalk:
+      "Setze deine {journey}-Reise fort. Du hast {progress}% abgeschlossen{checkpoint}. Beginne in einem angenehmen Tempo und steigere dich langsam.",
+
+    checkpointText:
+      " und bist derzeit an Kontrollpunkt {checkpoint}",
+
+    stepGoalComplete:
+      "Du hast dein heutiges Schrittziel erreicht. Ein kurzer Erholungsspaziergang ist optional, wenn du dich weiterhin gut fühlst.",
+
+    stepsRemaining:
+      "Dir fehlen noch {steps} Schritte bis zu deinem heutigen Ziel. Beginne mit einem angenehmen 15-minütigen Spaziergang und prüfe danach, wie du dich fühlst.",
+
+    recoveryScore:
+      "Dein aktueller Erholungswert beträgt {score}%. Achte auf Flüssigkeit, Protein, sanfte Bewegung und guten Schlaf.",
+
+    recoveryMissing:
+      "Deine Erholung wurde noch nicht erfasst. Prüfe Energie, Muskelkater, Flüssigkeitszufuhr und Schlaf, bevor du die heutige Gehintensität wählst.",
+
+    savedMeal:
+      "Deine gespeicherte Essenspräferenz ist {preference}. Plane deine Mahlzeiten mit magerem Protein, Gemüse, hochwertigen Kohlenhydraten und gesunden Fetten.",
+
+    mealAdvice:
+      "Stelle deinen Teller aus magerem Protein, Gemüse, hochwertigen Kohlenhydraten und gesunden Fetten zusammen. Öffne den Mahlzeitenplaner für einen vollständigen Tagesplan.",
+
+    hydrationRemaining:
+      "Dir fehlen noch {amount} Unzen bis zu deinem heutigen Flüssigkeitsziel. Trinke über den Tag verteilt.",
+
+    hydrationComplete:
+      "Du hast dein heutiges Flüssigkeitsziel erreicht. Trinke weiterhin entsprechend Durst, Aktivität und Wetter.",
+
+    sleepRecorded:
+      "Du hast {hours} Stunden Schlaf erfasst. Halte eine regelmäßige Schlafenszeit ein und reduziere helle Bildschirme vor dem Schlafengehen.",
+
+    sleepMissing:
+      "Schlaf wurde noch nicht erfasst. Versuche eine regelmäßige Schlafenszeit, ein kühles dunkles Zimmer und eine ruhige Abendroutine.",
+
+    favoriteBreathingReply:
+      "Deine bevorzugte Übung ist {exercise}. Nutze sie jetzt für mehrere langsame Runden und halte deine Schultern entspannt.",
+
+    breathingAdvice:
+      "Versuche vier Atemrunden: vier Sekunden einatmen, vier Sekunden halten, sechs Sekunden ausatmen und kurz pausieren.",
+
+    activeJourney:
+      "Deine aktive Reise ist {journey}. Du hast {progress}% abgeschlossen{checkpoint}.",
+
+    noJourney:
+      "Du hast noch keine aktive Reise. Öffne Reisen, wähle eine aus und starte das GPS-Coaching.",
+
+    progressSummary:
+      "Heute hast du {steps} Schritte von deinem Ziel von {goal} erreicht. Deine Flüssigkeitszufuhr beträgt {hydration} von {hydrationGoal} Unzen{journey}.",
+
+    progressJourney:
+      ". Deine {journey}-Reise ist zu {progress}% abgeschlossen.",
+
+    defaultCoach:
+      "Ich kann dir bei Gehen, Erholung, Mahlzeiten, Flüssigkeitszufuhr, Schlaf, Atmung, Reise-Coaching und Fortschritt helfen. Was möchtest du heute verbessern?",
   },
 
   pt: {
     wellness: "BEM-ESTAR IA LEGATHON",
     yourCoach: "Seu Coach",
+
     welcome:
       "Bem-vindo. Sou seu Coach de Bem-Estar com IA Legathon. Posso ajudar com caminhada, recuperação, hidratação, refeições, sono, respiração e sua Jornada Legathon ativa.",
 
@@ -358,13 +675,77 @@ const TEXT = {
     responseError:
       "Não consegui preparar essa resposta. Tente novamente.",
 
-    remoteError: "Não foi possível acessar o Coach IA.",
-    emptyResponse: "O Coach IA não retornou uma resposta.",
+    remoteError:
+      "Não foi possível acessar o Coach IA.",
+
+    emptyResponse:
+      "O Coach IA não retornou uma resposta.",
+
+    preferredWalk:
+      "Você prefere caminhar às {time}. Esse continua sendo um bom horário se sua agenda e as condições permitirem.",
+
+    journeyWalk:
+      "Continue sua jornada {journey}. Você concluiu {progress}%{checkpoint}. Comece em um ritmo confortável e aumente gradualmente.",
+
+    checkpointText:
+      " e está atualmente no ponto de controle {checkpoint}",
+
+    stepGoalComplete:
+      "Você concluiu sua meta de passos de hoje. Uma caminhada curta de recuperação é opcional se você ainda estiver se sentindo bem.",
+
+    stepsRemaining:
+      "Faltam {steps} passos para sua meta de hoje. Comece com uma caminhada confortável de 15 minutos e depois avalie como se sente.",
+
+    recoveryScore:
+      "Sua pontuação atual de recuperação é {score}%. Priorize hidratação, proteína, movimento leve e sono de qualidade.",
+
+    recoveryMissing:
+      "Sua recuperação ainda não foi registrada. Verifique energia, dores, hidratação e sono antes de escolher a intensidade da caminhada.",
+
+    savedMeal:
+      "Sua preferência alimentar salva é {preference}. Monte suas refeições com proteína magra, vegetais, carboidratos de qualidade e gorduras saudáveis.",
+
+    mealAdvice:
+      "Monte seu prato com proteína magra, vegetais, carboidratos de qualidade e gorduras saudáveis. Abra o Planejador de Refeições para um plano diário completo.",
+
+    hydrationRemaining:
+      "Faltam {amount} onças para sua meta de hidratação de hoje. Beba gradualmente ao longo do dia.",
+
+    hydrationComplete:
+      "Você atingiu sua meta de hidratação de hoje. Continue bebendo de acordo com sua sede, atividade e clima.",
+
+    sleepRecorded:
+      "Você registrou {hours} horas de sono. Mantenha um horário consistente para dormir e reduza telas brilhantes antes de deitar.",
+
+    sleepMissing:
+      "O sono ainda não foi registrado. Tente manter um horário regular, um quarto fresco e escuro e uma rotina relaxante.",
+
+    favoriteBreathingReply:
+      "Seu exercício favorito é {exercise}. Faça agora várias rodadas lentas mantendo os ombros relaxados.",
+
+    breathingAdvice:
+      "Faça quatro rodadas de respiração: inspire por quatro segundos, segure por quatro, expire por seis e faça uma breve pausa antes de repetir.",
+
+    activeJourney:
+      "Sua jornada ativa é {journey}. Você concluiu {progress}%{checkpoint}.",
+
+    noJourney:
+      "Você ainda não tem uma jornada ativa. Abra Jornadas para escolher uma e iniciar o coaching por GPS.",
+
+    progressSummary:
+      "Hoje você tem {steps} passos de uma meta de {goal}. Sua hidratação está em {hydration} de {hydrationGoal} onças{journey}.",
+
+    progressJourney:
+      ". Sua jornada {journey} está {progress}% concluída.",
+
+    defaultCoach:
+      "Posso ajudar com caminhada, recuperação, refeições, hidratação, sono, respiração, coaching de jornada e progresso. O que você gostaria de melhorar hoje?",
   },
 
   it: {
     wellness: "BENESSERE IA LEGATHON",
     yourCoach: "Il Tuo Coach",
+
     welcome:
       "Benvenuto. Sono il tuo Coach Benessere IA Legathon. Posso aiutarti con camminata, recupero, idratazione, pasti, sonno, respirazione e il tuo Percorso Legathon attivo.",
 
@@ -421,13 +802,77 @@ const TEXT = {
     responseError:
       "Non è stato possibile preparare la risposta. Riprova.",
 
-    remoteError: "Impossibile raggiungere il Coach IA.",
-    emptyResponse: "Il Coach IA non ha restituito una risposta.",
+    remoteError:
+      "Impossibile raggiungere il Coach IA.",
+
+    emptyResponse:
+      "Il Coach IA non ha restituito una risposta.",
+
+    preferredWalk:
+      "Preferisci camminare alle {time}. Rimane un buon momento se i tuoi impegni e le condizioni lo consentono.",
+
+    journeyWalk:
+      "Continua il tuo percorso {journey}. Hai completato il {progress}%{checkpoint}. Inizia a un ritmo confortevole e aumenta gradualmente.",
+
+    checkpointText:
+      " e sei attualmente al checkpoint {checkpoint}",
+
+    stepGoalComplete:
+      "Hai completato l’obiettivo di passi di oggi. Una breve camminata di recupero è facoltativa se ti senti ancora bene.",
+
+    stepsRemaining:
+      "Ti mancano {steps} passi per raggiungere l’obiettivo di oggi. Inizia con una camminata confortevole di 15 minuti e poi valuta come ti senti.",
+
+    recoveryScore:
+      "Il tuo punteggio di recupero attuale è {score}%. Dai priorità a idratazione, proteine, movimento leggero e sonno di qualità.",
+
+    recoveryMissing:
+      "Il recupero non è ancora stato registrato. Controlla energia, indolenzimento, idratazione e sonno prima di scegliere l’intensità della camminata.",
+
+    savedMeal:
+      "La tua preferenza alimentare salvata è {preference}. Organizza i pasti con proteine magre, verdure, carboidrati di qualità e grassi sani.",
+
+    mealAdvice:
+      "Componi il piatto con proteine magre, verdure, carboidrati di qualità e grassi sani. Apri il Pianificatore Pasti per un piano giornaliero completo.",
+
+    hydrationRemaining:
+      "Ti mancano {amount} once per raggiungere l’obiettivo di idratazione di oggi. Bevi gradualmente durante la giornata.",
+
+    hydrationComplete:
+      "Hai raggiunto l’obiettivo di idratazione di oggi. Continua a bere in base a sete, attività e condizioni climatiche.",
+
+    sleepRecorded:
+      "Hai registrato {hours} ore di sonno. Mantieni un orario regolare e riduci gli schermi luminosi prima di dormire.",
+
+    sleepMissing:
+      "Il sonno non è ancora stato registrato. Cerca di mantenere un orario regolare, una stanza fresca e buia e una routine rilassante.",
+
+    favoriteBreathingReply:
+      "Il tuo esercizio preferito è {exercise}. Esegui ora diversi cicli lenti mantenendo le spalle rilassate.",
+
+    breathingAdvice:
+      "Prova quattro cicli di respirazione: inspira per quattro secondi, trattieni per quattro, espira per sei e fai una breve pausa prima di ripetere.",
+
+    activeJourney:
+      "Il tuo percorso attivo è {journey}. Hai completato il {progress}%{checkpoint}.",
+
+    noJourney:
+      "Non hai ancora un percorso attivo. Apri Percorsi per sceglierne uno e iniziare il coaching GPS.",
+
+    progressSummary:
+      "Oggi hai {steps} passi su un obiettivo di {goal}. L’idratazione è {hydration} su {hydrationGoal} once{journey}.",
+
+    progressJourney:
+      ". Il tuo percorso {journey} è completato al {progress}%.",
+
+    defaultCoach:
+      "Posso aiutarti con camminata, recupero, pasti, idratazione, sonno, respirazione, coaching del percorso e progressi. Cosa vuoi migliorare oggi?",
   },
 
   ja: {
     wellness: "LEGATHON AI ウェルネス",
     yourCoach: "あなたのコーチ",
+
     welcome:
       "ようこそ。Legathon AIウェルネスコーチです。ウォーキング、回復、水分補給、食事、睡眠、呼吸、Legathonジャーニーをサポートします。",
 
@@ -484,13 +929,77 @@ const TEXT = {
     responseError:
       "回答を準備できませんでした。もう一度お試しください。",
 
-    remoteError: "AIコーチに接続できません。",
-    emptyResponse: "AIコーチから応答がありません。",
+    remoteError:
+      "AIコーチに接続できません。",
+
+    emptyResponse:
+      "AIコーチから応答がありません。",
+
+    preferredWalk:
+      "{time}に歩くのがお好みです。予定や状況に問題がなければ、その時間で続けてください。",
+
+    journeyWalk:
+      "{journey}ジャーニーを続けましょう。現在{progress}%完了しています{checkpoint}。無理のないペースから始め、徐々にペースを上げましょう。",
+
+    checkpointText:
+      "。現在チェックポイント{checkpoint}です",
+
+    stepGoalComplete:
+      "今日の歩数目標を達成しました。体調が良ければ、短いリカバリーウォークを追加してもかまいません。",
+
+    stepsRemaining:
+      "今日の目標まであと{steps}歩です。まず15分間、無理のないペースで歩き、その後の体調を確認しましょう。",
+
+    recoveryScore:
+      "現在の回復スコアは{score}%です。水分補給、たんぱく質、軽い運動、質の良い睡眠を優先しましょう。",
+
+    recoveryMissing:
+      "回復状態はまだ記録されていません。今日のウォーキング強度を決める前に、エネルギー、筋肉痛、水分補給、睡眠を確認しましょう。",
+
+    savedMeal:
+      "保存されている食事の好みは{preference}です。たんぱく質、野菜、良質な炭水化物、健康的な脂質を中心に食事を組み立てましょう。",
+
+    mealAdvice:
+      "たんぱく質、野菜、良質な炭水化物、健康的な脂質を中心に食事を組み立てましょう。詳しい一日のプランは食事プランナーを開いてください。",
+
+    hydrationRemaining:
+      "今日の水分目標まであと{amount}オンスです。一日を通して少しずつ飲みましょう。",
+
+    hydrationComplete:
+      "今日の水分補給目標を達成しました。喉の渇き、活動量、天候に合わせて引き続き水分を取りましょう。",
+
+    sleepRecorded:
+      "{hours}時間の睡眠を記録しました。就寝時間を一定にし、寝る前の明るい画面を控えましょう。",
+
+    sleepMissing:
+      "睡眠はまだ記録されていません。一定の就寝時間、涼しく暗い部屋、落ち着いた就寝前ルーティンを意識しましょう。",
+
+    favoriteBreathingReply:
+      "お気に入りの呼吸法は{exercise}です。肩の力を抜き、ゆっくり数回行いましょう。",
+
+    breathingAdvice:
+      "4秒吸い、4秒止め、6秒吐き、少し休む呼吸を4回繰り返してみましょう。",
+
+    activeJourney:
+      "現在のジャーニーは{journey}です。{progress}%完了しています{checkpoint}。",
+
+    noJourney:
+      "現在アクティブなジャーニーはありません。ジャーニーを開いて選択し、GPSコーチングを開始してください。",
+
+    progressSummary:
+      "今日は{goal}歩の目標に対して{steps}歩です。水分補給は{hydration}/{hydrationGoal}オンスです{journey}",
+
+    progressJourney:
+      "。{journey}ジャーニーは{progress}%完了しています。",
+
+    defaultCoach:
+      "ウォーキング、回復、食事、水分補給、睡眠、呼吸、ジャーニー、進捗をサポートできます。今日は何を改善したいですか？",
   },
 
   ko: {
     wellness: "LEGATHON AI 웰니스",
     yourCoach: "나의 코치",
+
     welcome:
       "환영합니다. Legathon AI 웰니스 코치입니다. 걷기, 회복, 수분 섭취, 식사, 수면, 호흡 및 Legathon 여정을 도와드릴 수 있습니다.",
 
@@ -547,13 +1056,77 @@ const TEXT = {
     responseError:
       "응답을 준비하지 못했습니다. 다시 시도해 주세요.",
 
-    remoteError: "AI 코치에 연결할 수 없습니다.",
-    emptyResponse: "AI 코치의 응답이 없습니다.",
+    remoteError:
+      "AI 코치에 연결할 수 없습니다.",
+
+    emptyResponse:
+      "AI 코치의 응답이 없습니다.",
+
+    preferredWalk:
+      "{time}에 걷는 것을 선호합니다. 일정과 상황이 허락한다면 좋은 시간입니다.",
+
+    journeyWalk:
+      "{journey} 여정을 계속하세요. 현재 {progress}% 완료했습니다{checkpoint}. 편안한 속도로 시작해 점차 페이스를 높이세요.",
+
+    checkpointText:
+      " 그리고 현재 체크포인트 {checkpoint}에 있습니다",
+
+    stepGoalComplete:
+      "오늘의 걸음 수 목표를 완료했습니다. 몸 상태가 좋다면 짧은 회복 걷기를 추가할 수 있습니다.",
+
+    stepsRemaining:
+      "오늘 목표까지 {steps}걸음 남았습니다. 편안한 15분 걷기로 시작한 뒤 몸 상태를 확인하세요.",
+
+    recoveryScore:
+      "현재 회복 점수는 {score}%입니다. 수분, 단백질, 가벼운 움직임과 충분한 수면을 우선하세요.",
+
+    recoveryMissing:
+      "아직 회복 상태가 기록되지 않았습니다. 오늘 걷기 강도를 결정하기 전에 에너지, 근육통, 수분 섭취와 수면을 확인하세요.",
+
+    savedMeal:
+      "저장된 식사 선호도는 {preference}입니다. 저지방 단백질, 채소, 좋은 탄수화물과 건강한 지방을 중심으로 식사하세요.",
+
+    mealAdvice:
+      "저지방 단백질, 채소, 좋은 탄수화물과 건강한 지방을 중심으로 식사하세요. 전체 일일 계획은 식사 플래너를 열어 확인하세요.",
+
+    hydrationRemaining:
+      "오늘 수분 목표까지 {amount}온스 남았습니다. 하루 동안 조금씩 나누어 마시세요.",
+
+    hydrationComplete:
+      "오늘의 수분 섭취 목표를 달성했습니다. 갈증, 활동량과 날씨에 맞춰 계속 수분을 섭취하세요.",
+
+    sleepRecorded:
+      "{hours}시간의 수면을 기록했습니다. 일정한 취침 시간을 유지하고 잠들기 전 밝은 화면을 줄이세요.",
+
+    sleepMissing:
+      "아직 수면이 기록되지 않았습니다. 일정한 취침 시간, 시원하고 어두운 방, 편안한 취침 루틴을 유지하세요.",
+
+    favoriteBreathingReply:
+      "선호하는 호흡 운동은 {exercise}입니다. 어깨에 힘을 빼고 천천히 여러 번 반복하세요.",
+
+    breathingAdvice:
+      "4초 들이마시고, 4초 멈추고, 6초 내쉰 뒤 잠시 쉬는 호흡을 네 번 반복해 보세요.",
+
+    activeJourney:
+      "현재 활성 여정은 {journey}입니다. {progress}% 완료했습니다{checkpoint}.",
+
+    noJourney:
+      "아직 활성 여정이 없습니다. 여정을 열어 하나를 선택하고 GPS 코칭을 시작하세요.",
+
+    progressSummary:
+      "오늘 {goal}걸음 목표 중 {steps}걸음을 걸었습니다. 수분 섭취는 {hydration}/{hydrationGoal}온스입니다{journey}.",
+
+    progressJourney:
+      ". {journey} 여정은 {progress}% 완료했습니다.",
+
+    defaultCoach:
+      "걷기, 회복, 식사, 수분, 수면, 호흡, 여정 코칭과 진행 상황을 도와드릴 수 있습니다. 오늘 무엇을 개선하고 싶으신가요?",
   },
 
   zh: {
     wellness: "LEGATHON AI 健康",
     yourCoach: "您的教练",
+
     welcome:
       "欢迎。我是您的 Legathon AI 健康教练。我可以帮助您进行步行、恢复、补水、饮食、睡眠、呼吸训练以及当前的 Legathon 旅程。",
 
@@ -610,13 +1183,77 @@ const TEXT = {
     responseError:
       "无法准备回复，请重试。",
 
-    remoteError: "无法连接 AI 教练。",
-    emptyResponse: "AI 教练没有返回回复。",
+    remoteError:
+      "无法连接 AI 教练。",
+
+    emptyResponse:
+      "AI 教练没有返回回复。",
+
+    preferredWalk:
+      "您喜欢在 {time} 步行。如果您的时间安排和环境允许，这仍然是一个合适的时间。",
+
+    journeyWalk:
+      "继续您的 {journey} 旅程。您已完成 {progress}%{checkpoint}。请从舒适的速度开始，然后逐渐增加强度。",
+
+    checkpointText:
+      "，目前位于检查点 {checkpoint}",
+
+    stepGoalComplete:
+      "您已经完成今天的步数目标。如果感觉良好，可以进行一次短时间的恢复步行。",
+
+    stepsRemaining:
+      "距离今天的目标还剩 {steps} 步。先进行舒适的15分钟步行，然后再评估身体感觉。",
+
+    recoveryScore:
+      "您当前的恢复评分为 {score}%。请优先补水、摄入蛋白质、进行轻度活动并保证高质量睡眠。",
+
+    recoveryMissing:
+      "尚未记录恢复情况。在选择今天的步行强度前，请检查精力、酸痛程度、补水和睡眠情况。",
+
+    savedMeal:
+      "您保存的饮食偏好是 {preference}。建议以瘦蛋白、蔬菜、优质碳水化合物和健康脂肪搭配今天的饮食。",
+
+    mealAdvice:
+      "建议以瘦蛋白、蔬菜、优质碳水化合物和健康脂肪搭配餐食。打开饮食计划器查看完整的每日计划。",
+
+    hydrationRemaining:
+      "距离今天的补水目标还剩 {amount} 盎司。请在一天中逐渐补充水分。",
+
+    hydrationComplete:
+      "您已经达到今天的补水目标。请根据口渴程度、活动量和天气继续补充水分。",
+
+    sleepRecorded:
+      "您记录了 {hours} 小时睡眠。保持规律的睡眠时间，并在睡前减少使用明亮屏幕。",
+
+    sleepMissing:
+      "尚未记录睡眠。建议保持固定的睡眠时间、凉爽黑暗的房间和放松的睡前习惯。",
+
+    favoriteBreathingReply:
+      "您最喜欢的呼吸练习是 {exercise}。现在可以慢慢做几轮，并保持肩膀放松。",
+
+    breathingAdvice:
+      "尝试四轮呼吸：吸气4秒，屏息4秒，呼气6秒，然后短暂停顿再重复。",
+
+    activeJourney:
+      "您当前的旅程是 {journey}。已经完成 {progress}%{checkpoint}。",
+
+    noJourney:
+      "您目前没有正在进行的旅程。打开旅程选择一个，然后开始 GPS 指导。",
+
+    progressSummary:
+      "今天您已完成 {steps} 步，目标为 {goal} 步。补水进度为 {hydration}/{hydrationGoal} 盎司{journey}。",
+
+    progressJourney:
+      "。您的 {journey} 旅程已完成 {progress}%。",
+
+    defaultCoach:
+      "我可以帮助您进行步行、恢复、饮食、补水、睡眠、呼吸、旅程指导和进度分析。今天您想改善什么？",
   },
 
   ar: {
     wellness: "LEGATHON AI للعافية",
     yourCoach: "مدربك",
+
     welcome:
       "مرحبًا. أنا مدرب Legathon للذكاء الاصطناعي والعافية. يمكنني مساعدتك في المشي والتعافي والترطيب والوجبات والنوم والتنفس ورحلتك الحالية في Legathon.",
 
@@ -673,10 +1310,100 @@ const TEXT = {
     responseError:
       "تعذر إعداد الرد. حاول مرة أخرى.",
 
-    remoteError: "تعذر الوصول إلى مدرب الذكاء الاصطناعي.",
-    emptyResponse: "لم يُرجع مدرب الذكاء الاصطناعي أي رد.",
+    remoteError:
+      "تعذر الوصول إلى مدرب الذكاء الاصطناعي.",
+
+    emptyResponse:
+      "لم يُرجع مدرب الذكاء الاصطناعي أي رد.",
+
+    preferredWalk:
+      "تفضل المشي في {time}. يظل هذا وقتًا مناسبًا إذا كان جدولك والظروف يسمحان بذلك.",
+
+    journeyWalk:
+      "واصل رحلة {journey}. لقد أكملت {progress}%{checkpoint}. ابدأ بوتيرة مريحة وزد سرعتك تدريجيًا.",
+
+    checkpointText:
+      " وأنت حاليًا عند نقطة التفتيش {checkpoint}",
+
+    stepGoalComplete:
+      "لقد أكملت هدف خطوات اليوم. يمكنك القيام بمشي قصير للتعافي إذا كنت لا تزال تشعر بأنك بخير.",
+
+    stepsRemaining:
+      "يتبقى لك {steps} خطوة للوصول إلى هدف اليوم. ابدأ بمشي مريح لمدة 15 دقيقة ثم قيّم شعورك بعد ذلك.",
+
+    recoveryScore:
+      "درجة التعافي الحالية لديك هي {score}%. أعطِ الأولوية للترطيب والبروتين والحركة الخفيفة والنوم الجيد.",
+
+    recoveryMissing:
+      "لم يتم تسجيل التعافي بعد. تحقق من طاقتك والألم والترطيب والنوم قبل اختيار شدة المشي اليوم.",
+
+    savedMeal:
+      "تفضيلك الغذائي المحفوظ هو {preference}. اجعل وجباتك تعتمد على البروتين قليل الدهون والخضروات والكربوهيدرات الجيدة والدهون الصحية.",
+
+    mealAdvice:
+      "اجعل طبقك يحتوي على بروتين قليل الدهون وخضروات وكربوهيدرات جيدة ودهون صحية. افتح مخطط الوجبات للحصول على خطة يومية كاملة.",
+
+    hydrationRemaining:
+      "يتبقى لك {amount} أونصة للوصول إلى هدف الترطيب اليوم. اشرب تدريجيًا خلال اليوم.",
+
+    hydrationComplete:
+      "لقد وصلت إلى هدف الترطيب اليوم. استمر في الشرب وفقًا للعطش والنشاط والطقس.",
+
+    sleepRecorded:
+      "لقد سجلت {hours} ساعة من النوم. حافظ على وقت نوم منتظم وقلل من الشاشات الساطعة قبل النوم.",
+
+    sleepMissing:
+      "لم يتم تسجيل النوم بعد. حاول الالتزام بوقت نوم منتظم وغرفة باردة ومظلمة وروتين هادئ قبل النوم.",
+
+    favoriteBreathingReply:
+      "تمرين التنفس المفضل لديك هو {exercise}. قم الآن بعدة جولات ببطء مع إبقاء كتفيك مسترخيين.",
+
+    breathingAdvice:
+      "جرب أربع جولات من التنفس: استنشق لمدة أربع ثوانٍ، احبس النفس أربع ثوانٍ، ازفر لمدة ست ثوانٍ، ثم توقف قليلًا قبل التكرار.",
+
+    activeJourney:
+      "رحلتك الحالية هي {journey}. لقد أكملت {progress}%{checkpoint}.",
+
+    noJourney:
+      "ليس لديك رحلة نشطة حتى الآن. افتح الرحلات واختر واحدة لبدء التدريب باستخدام GPS.",
+
+    progressSummary:
+      "لديك اليوم {steps} خطوة من هدف يبلغ {goal} خطوة. الترطيب هو {hydration} من {hydrationGoal} أونصة{journey}.",
+
+    progressJourney:
+      ". رحلة {journey} مكتملة بنسبة {progress}%.",
+
+    defaultCoach:
+      "يمكنني مساعدتك في المشي والتعافي والوجبات والترطيب والنوم والتنفس وتدريب الرحلات ومراجعة التقدم. ما الذي ترغب في تحسينه اليوم؟",
   },
 };
+
+// ============================================================
+// TEMPLATE HELPER
+// ============================================================
+
+function fillTemplate(template, values = {}) {
+  let result = String(template || "");
+
+  Object.entries(values).forEach(
+    ([key, value]) => {
+      result = result.replace(
+        new RegExp(
+          `\\{${key}\\}`,
+          "g"
+        ),
+        String(
+          value === null ||
+            value === undefined
+            ? ""
+            : value
+        )
+      );
+    }
+  );
+
+  return result;
+}
 
 // ============================================================
 // HELPERS
@@ -698,19 +1425,18 @@ function safelyParseJSON(value, fallback) {
   try {
     return JSON.parse(value);
   } catch (error) {
-    console.log("JSON parse error:", error);
+    console.log(
+      "JSON parse error:",
+      error
+    );
+
     return fallback;
   }
 }
 
-function getLanguage(language) {
-  return TEXT[language]
-    ? language
-    : "en";
-}
-
 function getText(language, key) {
-  const code = getLanguage(language);
+  const code =
+    normalizeLanguage(language);
 
   return (
     TEXT?.[code]?.[key] ??
@@ -720,17 +1446,27 @@ function getText(language, key) {
 }
 
 function getDayGreeting(language) {
-  const hour = new Date().getHours();
+  const hour =
+    new Date().getHours();
 
   if (hour < 12) {
-    return getText(language, "morning");
+    return getText(
+      language,
+      "morning"
+    );
   }
 
   if (hour < 18) {
-    return getText(language, "afternoon");
+    return getText(
+      language,
+      "afternoon"
+    );
   }
 
-  return getText(language, "evening");
+  return getText(
+    language,
+    "evening"
+  );
 }
 
 // ============================================================
@@ -740,9 +1476,17 @@ function getDayGreeting(language) {
 function getStarterMessages(language) {
   return [
     {
-      id: "welcome",
+      id: `welcome-${normalizeLanguage(
+        language
+      )}`,
+
       sender: "coach",
-      text: getText(language, "welcome"),
+
+      text: getText(
+        language,
+        "welcome"
+      ),
+
       actionIntent: null,
     },
   ];
@@ -766,50 +1510,89 @@ function getQuickPrompts(language) {
   return [
     {
       id: "walk",
-      label: getText(language, "walkPrompt"),
-      coachMessage: "Plan today's walk",
+      label: getText(
+        language,
+        "walkPrompt"
+      ),
+      coachMessage:
+        "Plan today's walk",
       icon: "walk",
     },
+
     {
       id: "recovery",
-      label: getText(language, "recoveryPrompt"),
-      coachMessage: "Help me recover",
+      label: getText(
+        language,
+        "recoveryPrompt"
+      ),
+      coachMessage:
+        "Help me recover",
       icon: "heart",
     },
+
     {
       id: "meal",
-      label: getText(language, "mealPrompt"),
-      coachMessage: "Build a meal plan",
+      label: getText(
+        language,
+        "mealPrompt"
+      ),
+      coachMessage:
+        "Build a meal plan",
       icon: "restaurant",
     },
+
     {
       id: "hydration",
-      label: getText(language, "hydrationPrompt"),
-      coachMessage: "Check hydration",
+      label: getText(
+        language,
+        "hydrationPrompt"
+      ),
+      coachMessage:
+        "Check hydration",
       icon: "water",
     },
+
     {
       id: "sleep",
-      label: getText(language, "sleepPrompt"),
-      coachMessage: "Improve sleep",
+      label: getText(
+        language,
+        "sleepPrompt"
+      ),
+      coachMessage:
+        "Improve sleep",
       icon: "moon",
     },
+
     {
       id: "stress",
-      label: getText(language, "stressPrompt"),
-      coachMessage: "Reduce stress",
+      label: getText(
+        language,
+        "stressPrompt"
+      ),
+      coachMessage:
+        "Reduce stress",
       icon: "leaf",
     },
+
     {
       id: "journey",
-      label: getText(language, "journeyPrompt"),
-      coachMessage: "Coach my journey",
+      label: getText(
+        language,
+        "journeyPrompt"
+      ),
+      coachMessage:
+        "Coach my journey",
       icon: "map",
     },
+
     {
       id: "progress",
-      label: getText(language, "progressPrompt"),
-      coachMessage: "Review progress",
+      label: getText(
+        language,
+        "progressPrompt"
+      ),
+      coachMessage:
+        "Review progress",
       icon: "stats-chart",
     },
   ];
@@ -817,13 +1600,22 @@ function getQuickPrompts(language) {
 
 // ============================================================
 // NAVIGATION INTENT
+// IMPORTANT:
+// We detect against canonical English prompt intent.
 // ============================================================
 
-function detectNavigationIntent(text, wellness) {
-  const value = String(text || "").toLowerCase();
+function detectNavigationIntent(
+  text,
+  wellness
+) {
+  const value = String(
+    text || ""
+  ).toLowerCase();
 
   if (
-    value.includes("meal planner") ||
+    value.includes(
+      "meal planner"
+    ) ||
     value.includes("meal plan") ||
     value.includes("build a meal")
   ) {
@@ -861,7 +1653,9 @@ function detectNavigationIntent(text, wellness) {
 
   if (
     value.includes("start walk") ||
-    value.includes("continue journey") ||
+    value.includes(
+      "continue journey"
+    ) ||
     value.includes("gps")
   ) {
     return wellness?.journey
@@ -874,17 +1668,29 @@ function detectNavigationIntent(text, wellness) {
 
 // ============================================================
 // MEMORY DETECTION
+// Canonical English natural-language memory commands.
+// Manual memory panel works in every language.
 // ============================================================
 
 function detectMemoryUpdate(text) {
-  const original = String(text || "").trim();
-  const lower = original.toLowerCase();
+  const original = String(
+    text || ""
+  ).trim();
 
-  if (lower.includes("i like to walk at")) {
+  const lower =
+    original.toLowerCase();
+
+  if (
+    lower.includes(
+      "i like to walk at"
+    )
+  ) {
     return {
       preferredWalkTime:
         original
-          .split(/i like to walk at/i)[1]
+          .split(
+            /i like to walk at/i
+          )[1]
           ?.trim() || "",
     };
   }
@@ -923,18 +1729,29 @@ function detectMemoryUpdate(text) {
 }
 
 // ============================================================
-// LOCAL FALLBACK COACH
+// MULTILINGUAL LOCAL FALLBACK COACH
 // ============================================================
 
 function createLocalCoachReply(
   message,
-  context = {}
+  context = {},
+  language = "en"
 ) {
-  const value =
-    String(message || "").toLowerCase();
+  const code =
+    normalizeLanguage(language);
+
+  const t = (key) =>
+    getText(code, key);
+
+  const value = String(
+    message || ""
+  ).toLowerCase();
 
   const steps =
-    safeNumber(context.steps, 0);
+    safeNumber(
+      context.steps,
+      0
+    );
 
   const stepGoal =
     Math.max(
@@ -963,13 +1780,17 @@ function createLocalCoachReply(
   const recovery =
     context.recovery !== null &&
     context.recovery !== undefined
-      ? safeNumber(context.recovery)
+      ? safeNumber(
+          context.recovery
+        )
       : null;
 
   const sleepHours =
     context.sleepHours !== null &&
     context.sleepHours !== undefined
-      ? safeNumber(context.sleepHours)
+      ? safeNumber(
+          context.sleepHours
+        )
       : null;
 
   const journey =
@@ -993,62 +1814,107 @@ function createLocalCoachReply(
       0
     );
 
+  const checkpointText =
+    checkpoint
+      ? fillTemplate(
+          t("checkpointText"),
+          {
+            checkpoint,
+          }
+        )
+      : "";
+
+  // ----------------------------------------------------------
+  // PREFERRED WALK TIME
+  // ----------------------------------------------------------
+
   if (
-    value.includes("when should i walk") &&
+    value.includes(
+      "when should i walk"
+    ) &&
     coachMemory.preferredWalkTime
   ) {
-    return (
-      `You prefer walking at ${coachMemory.preferredWalkTime}. ` +
-      "That remains a good time if your schedule and conditions allow."
+    return fillTemplate(
+      t("preferredWalk"),
+      {
+        time:
+          coachMemory
+            .preferredWalkTime,
+      }
     );
   }
+
+  // ----------------------------------------------------------
+  // WALK
+  // ----------------------------------------------------------
 
   if (
     value.includes("walk") ||
     value.includes("steps")
   ) {
     if (journey) {
-      return (
-        `Continue your ${journey} journey. ` +
-        `You are ${Math.round(journeyProgress)}% complete` +
-        `${
-          checkpoint
-            ? ` and currently at checkpoint ${checkpoint}`
-            : ""
-        }. Begin at a comfortable pace and build momentum gradually.`
+      return fillTemplate(
+        t("journeyWalk"),
+        {
+          journey,
+          progress:
+            Math.round(
+              journeyProgress
+            ),
+          checkpoint:
+            checkpointText,
+        }
       );
     }
 
-    if (stepsRemaining === 0) {
-      return (
-        "You completed today’s step goal. " +
-        "A short recovery walk is optional if you still feel well."
+    if (
+      stepsRemaining === 0
+    ) {
+      return t(
+        "stepGoalComplete"
       );
     }
 
-    return (
-      `You are ${stepsRemaining.toLocaleString()} steps ` +
-      "from today’s goal. Start with a comfortable " +
-      "15-minute walk and reassess how you feel afterward."
+    return fillTemplate(
+      t("stepsRemaining"),
+      {
+        steps:
+          formatNumber(
+            stepsRemaining,
+            code
+          ),
+      }
     );
   }
+
+  // ----------------------------------------------------------
+  // RECOVERY
+  // ----------------------------------------------------------
 
   if (
     value.includes("recover") ||
     value.includes("recovery")
   ) {
     if (recovery !== null) {
-      return (
-        `Your current recovery score is ${Math.round(recovery)}%. ` +
-        "Prioritize hydration, protein, gentle movement, and quality sleep."
+      return fillTemplate(
+        t("recoveryScore"),
+        {
+          score:
+            Math.round(
+              recovery
+            ),
+        }
       );
     }
 
-    return (
-      "Recovery has not been recorded yet. " +
-      "Check your energy, soreness, hydration, and sleep before choosing today’s walking intensity."
+    return t(
+      "recoveryMissing"
     );
   }
+
+  // ----------------------------------------------------------
+  // MEALS
+  // ----------------------------------------------------------
 
   if (
     value.includes("meal") ||
@@ -1056,21 +1922,24 @@ function createLocalCoachReply(
     value.includes("eat")
   ) {
     const preference =
-      coachMemory.mealPreference;
+      coachMemory
+        .mealPreference;
 
     if (preference) {
-      return (
-        `Your saved meal preference is ${preference}. ` +
-        "Build today’s meals around lean protein, vegetables, a quality carbohydrate, and healthy fat."
+      return fillTemplate(
+        t("savedMeal"),
+        {
+          preference,
+        }
       );
     }
 
-    return (
-      "Build your plate around lean protein, vegetables, " +
-      "a quality carbohydrate, and healthy fat. " +
-      "Open the Meal Planner for a complete daily plan."
-    );
+    return t("mealAdvice");
   }
+
+  // ----------------------------------------------------------
+  // HYDRATION
+  // ----------------------------------------------------------
 
   if (
     value.includes("water") ||
@@ -1078,39 +1947,61 @@ function createLocalCoachReply(
   ) {
     const remaining =
       Math.max(
-        hydrationGoal - hydration,
+        hydrationGoal -
+          hydration,
         0
       );
 
     if (remaining > 0) {
-      return (
-        `You have ${Math.round(remaining)} ounces remaining toward today’s hydration goal. ` +
-        "Drink gradually throughout the day."
+      return fillTemplate(
+        t(
+          "hydrationRemaining"
+        ),
+        {
+          amount:
+            formatNumber(
+              Math.round(
+                remaining
+              ),
+              code
+            ),
+        }
       );
     }
 
-    return (
-      "You reached today’s hydration goal. " +
-      "Continue drinking according to thirst, activity, and weather."
+    return t(
+      "hydrationComplete"
     );
   }
+
+  // ----------------------------------------------------------
+  // SLEEP
+  // ----------------------------------------------------------
 
   if (
     value.includes("sleep") ||
     value.includes("tired")
   ) {
-    if (sleepHours !== null) {
-      return (
-        `You recorded ${sleepHours.toFixed(1)} hours of sleep. ` +
-        "Keep your bedtime consistent and reduce bright screens before bed tonight."
+    if (
+      sleepHours !== null
+    ) {
+      return fillTemplate(
+        t("sleepRecorded"),
+        {
+          hours:
+            sleepHours.toFixed(
+              1
+            ),
+        }
       );
     }
 
-    return (
-      "Sleep has not been recorded yet. " +
-      "Aim for a consistent bedtime, a cool dark room, and a calm wind-down routine."
-    );
+    return t("sleepMissing");
   }
+
+  // ----------------------------------------------------------
+  // STRESS / BREATHING
+  // ----------------------------------------------------------
 
   if (
     value.includes("stress") ||
@@ -1118,67 +2009,116 @@ function createLocalCoachReply(
     value.includes("breath")
   ) {
     if (
-      coachMemory.favoriteBreathing
+      coachMemory
+        .favoriteBreathing
     ) {
-      return (
-        `Your favorite exercise is ${coachMemory.favoriteBreathing}. ` +
-        "Use it now for several slow rounds while keeping your shoulders relaxed."
+      return fillTemplate(
+        t(
+          "favoriteBreathingReply"
+        ),
+        {
+          exercise:
+            coachMemory
+              .favoriteBreathing,
+        }
       );
     }
 
-    return (
-      "Try four rounds of breathing: inhale for four seconds, " +
-      "hold for four, exhale for six, then pause briefly before repeating."
+    return t(
+      "breathingAdvice"
     );
   }
+
+  // ----------------------------------------------------------
+  // JOURNEY
+  // ----------------------------------------------------------
 
   if (
     value.includes("journey") ||
-    value.includes("checkpoint")
+    value.includes(
+      "checkpoint"
+    )
   ) {
     if (journey) {
-      return (
-        `Your active journey is ${journey}. ` +
-        `You are ${Math.round(journeyProgress)}% complete` +
-        `${
-          checkpoint
-            ? ` at checkpoint ${checkpoint}`
-            : ""
-        }.`
+      return fillTemplate(
+        t("activeJourney"),
+        {
+          journey,
+          progress:
+            Math.round(
+              journeyProgress
+            ),
+          checkpoint:
+            checkpointText,
+        }
       );
     }
 
-    return (
-      "You do not have an active journey yet. " +
-      "Open Journeys to choose one and begin GPS coaching."
-    );
+    return t("noJourney");
   }
+
+  // ----------------------------------------------------------
+  // PROGRESS
+  // ----------------------------------------------------------
 
   if (
     value.includes("progress") ||
     value.includes("summary")
   ) {
-    return (
-      `Today you have ${steps.toLocaleString()} steps toward your ` +
-      `${stepGoal.toLocaleString()}-step goal. ` +
-      `Hydration is ${Math.round(hydration)} of ${Math.round(
-        hydrationGoal
-      )} ounces` +
-      `${
-        journey
-          ? `. Your ${journey} journey is ${Math.round(
-              journeyProgress
-            )}% complete.`
-          : "."
-      }`
+    const journeySummary =
+      journey
+        ? fillTemplate(
+            t(
+              "progressJourney"
+            ),
+            {
+              journey,
+              progress:
+                Math.round(
+                  journeyProgress
+                ),
+            }
+          )
+        : "";
+
+    return fillTemplate(
+      t("progressSummary"),
+      {
+        steps:
+          formatNumber(
+            steps,
+            code
+          ),
+
+        goal:
+          formatNumber(
+            stepGoal,
+            code
+          ),
+
+        hydration:
+          formatNumber(
+            Math.round(
+              hydration
+            ),
+            code
+          ),
+
+        hydrationGoal:
+          formatNumber(
+            Math.round(
+              hydrationGoal
+            ),
+            code
+          ),
+
+        journey:
+          journeySummary,
+      }
     );
   }
 
-  return (
-    "I can help with walking, recovery, meals, hydration, " +
-    "sleep, breathing, journey coaching, and progress reviews. " +
-    "What would you like to improve today?"
-  );
+  return t("defaultCoach");
 }
 
 // ============================================================
@@ -1191,10 +2131,23 @@ function MemoryInput({
   value,
   placeholder,
   onChangeText,
+  isRTL = false,
 }) {
   return (
-    <View style={styles.memoryInputRow}>
-      <View style={styles.memoryIcon}>
+    <View
+      style={[
+        styles.memoryInputRow,
+        isRTL &&
+          styles.rowReverse,
+      ]}
+    >
+      <View
+        style={[
+          styles.memoryIcon,
+          isRTL &&
+            styles.memoryIconRTL,
+        ]}
+      >
         <Ionicons
           name={icon}
           size={20}
@@ -1202,17 +2155,35 @@ function MemoryInput({
         />
       </View>
 
-      <View style={styles.memoryInputWrap}>
-        <Text style={styles.memoryLabel}>
+      <View
+        style={
+          styles.memoryInputWrap
+        }
+      >
+        <Text
+          style={[
+            styles.memoryLabel,
+            isRTL &&
+              styles.rtlText,
+          ]}
+        >
           {label}
         </Text>
 
         <TextInput
           value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
+          onChangeText={
+            onChangeText
+          }
+          placeholder={
+            placeholder
+          }
           placeholderTextColor="#687D96"
-          style={styles.memoryInput}
+          style={[
+            styles.memoryInput,
+            isRTL &&
+              styles.rtlText,
+          ]}
         />
       </View>
     </View>
@@ -1238,34 +2209,75 @@ export default function AIConversationScreen({
   goToSleep,
   goToBreathing,
 }) {
-  const t = (key) => {
-    const localValue =
-      getText(language, key);
+  const languageCode =
+    normalizeLanguage(language);
 
-    if (localValue !== key) {
-      return localValue;
-    }
+  const isRTL =
+    languageCode === "ar";
 
-    return translate(language, key);
-  };
+  const conversationKey =
+    useMemo(
+      () =>
+        getConversationStorageKey(
+          languageCode
+        ),
+      [languageCode]
+    );
+
+  const t = useCallback(
+    (key) => {
+      const localValue =
+        getText(
+          languageCode,
+          key
+        );
+
+      if (
+        localValue !== key
+      ) {
+        return localValue;
+      }
+
+      return translate(
+        languageCode,
+        key
+      );
+    },
+    [languageCode]
+  );
 
   const quickPrompts =
     useMemo(
       () =>
-        getQuickPrompts(language),
-      [language]
+        getQuickPrompts(
+          languageCode
+        ),
+      [languageCode]
     );
 
-  const [messages, setMessages] =
-    useState(() =>
-      getStarterMessages(language)
-    );
+  const [
+    messages,
+    setMessages,
+  ] = useState(() =>
+    getStarterMessages(
+      languageCode
+    )
+  );
 
-  const [draft, setDraft] =
-    useState("");
+  const [
+    conversationLoaded,
+    setConversationLoaded,
+  ] = useState(false);
 
-  const [isTyping, setIsTyping] =
-    useState(false);
+  const [
+    draft,
+    setDraft,
+  ] = useState("");
+
+  const [
+    isTyping,
+    setIsTyping,
+  ] = useState(false);
 
   const [
     pendingAction,
@@ -1280,20 +2292,28 @@ export default function AIConversationScreen({
   const [
     coachMemory,
     setCoachMemory,
-  ] = useState(INITIAL_MEMORY);
+  ] = useState(
+    INITIAL_MEMORY
+  );
 
   const [
     memoryDraft,
     setMemoryDraft,
-  ] = useState(INITIAL_MEMORY);
+  ] = useState(
+    INITIAL_MEMORY
+  );
 
   const scrollRef =
     useRef(null);
 
+  const mountedRef =
+    useRef(true);
+
   const canSend =
     useMemo(() => {
       return (
-        draft.trim().length > 0 &&
+        draft.trim().length >
+          0 &&
         !isTyping
       );
     }, [draft, isTyping]);
@@ -1326,7 +2346,8 @@ export default function AIConversationScreen({
           Math.max(
             1,
             safeNumber(
-              wellness?.hydrationGoal,
+              wellness
+                ?.hydrationGoal,
               100
             )
           ),
@@ -1345,12 +2366,14 @@ export default function AIConversationScreen({
 
         journeyProgress:
           safeNumber(
-            wellness?.journeyProgress,
+            wellness
+              ?.journeyProgress,
             0
           ),
 
         checkpoint:
-          wellness?.checkpoint ||
+          wellness
+            ?.checkpoint ||
           "",
 
         coachMemory,
@@ -1360,14 +2383,31 @@ export default function AIConversationScreen({
       coachMemory,
     ]);
 
-  const scrollToBottom = () => {
-    requestAnimationFrame(() => {
-      scrollRef.current
-        ?.scrollToEnd?.({
-          animated: true,
-        });
-    });
-  };
+  const scrollToBottom =
+    useCallback(() => {
+      requestAnimationFrame(
+        () => {
+          scrollRef.current
+            ?.scrollToEnd?.({
+              animated: true,
+            });
+        }
+      );
+    }, []);
+
+  // ==========================================================
+  // MOUNT
+  // ==========================================================
+
+  useEffect(() => {
+    mountedRef.current =
+      true;
+
+    return () => {
+      mountedRef.current =
+        false;
+    };
+  }, []);
 
   // ==========================================================
   // REMOTE AI
@@ -1376,7 +2416,8 @@ export default function AIConversationScreen({
   const requestCoachReply =
     async (
       message,
-      memoryContext
+      memoryContext,
+      history
     ) => {
       const {
         data,
@@ -1388,7 +2429,19 @@ export default function AIConversationScreen({
             body: {
               message,
 
-              language,
+              language:
+                languageCode,
+
+              locale:
+                LOCALES[
+                  languageCode
+                ],
+
+              instruction:
+                languageCode ===
+                "en"
+                  ? "Respond in English."
+                  : `Respond only in the user's selected app language: ${languageCode}. Do not switch to English unless the user explicitly asks for English.`,
 
               wellness: {
                 ...mergedWellness,
@@ -1401,15 +2454,17 @@ export default function AIConversationScreen({
                 memoryContext,
 
               history:
-                messages
+                history
                   .slice(-12)
-                  .map((item) => ({
-                    sender:
-                      item.sender,
+                  .map(
+                    (item) => ({
+                      sender:
+                        item.sender,
 
-                    text:
-                      item.text,
-                  })),
+                      text:
+                        item.text,
+                    })
+                  ),
             },
           }
         );
@@ -1424,24 +2479,38 @@ export default function AIConversationScreen({
       if (!data?.reply) {
         throw new Error(
           data?.error ||
-            t("emptyResponse")
+            t(
+              "emptyResponse"
+            )
         );
       }
 
-      return String(data.reply);
+      return String(
+        data.reply
+      );
     };
 
   // ==========================================================
-  // LOAD CONVERSATION
+  // LOAD CONVERSATION WHEN LANGUAGE CHANGES
   // ==========================================================
 
   useEffect(() => {
+    let active = true;
+
     const loadConversation =
       async () => {
+        setConversationLoaded(
+          false
+        );
+
+        setIsTyping(false);
+        setPendingAction(null);
+        setDraft("");
+
         try {
           const savedMessages =
             await AsyncStorage.getItem(
-              CONVERSATION_STORAGE_KEY
+              conversationKey
             );
 
           const parsed =
@@ -1450,22 +2519,57 @@ export default function AIConversationScreen({
               null
             );
 
+          if (!active) {
+            return;
+          }
+
           if (
-            Array.isArray(parsed) &&
+            Array.isArray(
+              parsed
+            ) &&
             parsed.length > 0
           ) {
-            setMessages(parsed);
+            setMessages(
+              parsed
+            );
+          } else {
+            setMessages(
+              getStarterMessages(
+                languageCode
+              )
+            );
           }
         } catch (error) {
           console.log(
             "Coach conversation load error:",
             error
           );
+
+          if (active) {
+            setMessages(
+              getStarterMessages(
+                languageCode
+              )
+            );
+          }
+        } finally {
+          if (active) {
+            setConversationLoaded(
+              true
+            );
+          }
         }
       };
 
     loadConversation();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [
+    conversationKey,
+    languageCode,
+  ]);
 
   // ==========================================================
   // LOAD MEMORY
@@ -1488,12 +2592,14 @@ export default function AIConversationScreen({
 
           if (
             parsed &&
-            typeof parsed === "object"
+            typeof parsed ===
+              "object"
           ) {
-            const nextMemory = {
-              ...INITIAL_MEMORY,
-              ...parsed,
-            };
+            const nextMemory =
+              {
+                ...INITIAL_MEMORY,
+                ...parsed,
+              };
 
             setCoachMemory(
               nextMemory
@@ -1515,16 +2621,24 @@ export default function AIConversationScreen({
   }, []);
 
   // ==========================================================
-  // SAVE CONVERSATION
+  // SAVE CURRENT LANGUAGE CONVERSATION
   // ==========================================================
 
   useEffect(() => {
+    if (
+      !conversationLoaded
+    ) {
+      return;
+    }
+
     const saveConversation =
       async () => {
         try {
           await AsyncStorage.setItem(
-            CONVERSATION_STORAGE_KEY,
-            JSON.stringify(messages)
+            conversationKey,
+            JSON.stringify(
+              messages
+            )
           );
         } catch (error) {
           console.log(
@@ -1535,7 +2649,11 @@ export default function AIConversationScreen({
       };
 
     saveConversation();
-  }, [messages]);
+  }, [
+    messages,
+    conversationKey,
+    conversationLoaded,
+  ]);
 
   // ==========================================================
   // AUTO SCROLL
@@ -1546,6 +2664,7 @@ export default function AIConversationScreen({
   }, [
     messages,
     isTyping,
+    scrollToBottom,
   ]);
 
   // ==========================================================
@@ -1604,96 +2723,124 @@ export default function AIConversationScreen({
             .trim(),
       });
 
-      setShowMemoryPanel(false);
+      setShowMemoryPanel(
+        false
+      );
     };
 
   // ==========================================================
   // CLEAR MEMORY
   // ==========================================================
 
-  const clearCoachMemory = () => {
-    Alert.alert(
-      t("clearMemoryTitle"),
-      t("clearMemoryMessage"),
-      [
-        {
-          text: t("cancel"),
-          style: "cancel",
-        },
-        {
-          text: t("clear"),
-          style: "destructive",
+  const clearCoachMemory =
+    () => {
+      Alert.alert(
+        t(
+          "clearMemoryTitle"
+        ),
 
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem(
-                COACH_MEMORY_KEY
-              );
+        t(
+          "clearMemoryMessage"
+        ),
 
-              setCoachMemory({
-                ...INITIAL_MEMORY,
-              });
-
-              setMemoryDraft({
-                ...INITIAL_MEMORY,
-              });
-
-              setShowMemoryPanel(false);
-            } catch (error) {
-              console.log(
-                "Clear coach memory error:",
-                error
-              );
-            }
+        [
+          {
+            text: t("cancel"),
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
+
+          {
+            text: t("clear"),
+            style:
+              "destructive",
+
+            onPress:
+              async () => {
+                try {
+                  await AsyncStorage.removeItem(
+                    COACH_MEMORY_KEY
+                  );
+
+                  setCoachMemory({
+                    ...INITIAL_MEMORY,
+                  });
+
+                  setMemoryDraft({
+                    ...INITIAL_MEMORY,
+                  });
+
+                  setShowMemoryPanel(
+                    false
+                  );
+                } catch (error) {
+                  console.log(
+                    "Clear coach memory error:",
+                    error
+                  );
+                }
+              },
+          },
+        ]
+      );
+    };
 
   // ==========================================================
-  // CLEAR CONVERSATION
+  // CLEAR CURRENT LANGUAGE CONVERSATION
   // ==========================================================
 
-  const clearConversation = () => {
-    Alert.alert(
-      t("newConversationTitle"),
-      t("newConversationMessage"),
-      [
-        {
-          text: t("cancel"),
-          style: "cancel",
-        },
-        {
-          text: t("clear"),
-          style: "destructive",
+  const clearConversation =
+    () => {
+      Alert.alert(
+        t(
+          "newConversationTitle"
+        ),
 
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem(
-                CONVERSATION_STORAGE_KEY
-              );
+        t(
+          "newConversationMessage"
+        ),
 
-              setMessages(
-                getStarterMessages(
-                  language
-                )
-              );
-
-              setDraft("");
-              setIsTyping(false);
-              setPendingAction(null);
-            } catch (error) {
-              console.log(
-                "Clear conversation error:",
-                error
-              );
-            }
+        [
+          {
+            text: t("cancel"),
+            style: "cancel",
           },
-        },
-      ]
-    );
-  };
+
+          {
+            text: t("clear"),
+            style:
+              "destructive",
+
+            onPress:
+              async () => {
+                try {
+                  await AsyncStorage.removeItem(
+                    conversationKey
+                  );
+
+                  setMessages(
+                    getStarterMessages(
+                      languageCode
+                    )
+                  );
+
+                  setDraft("");
+                  setIsTyping(
+                    false
+                  );
+                  setPendingAction(
+                    null
+                  );
+                } catch (error) {
+                  console.log(
+                    "Clear conversation error:",
+                    error
+                  );
+                }
+              },
+          },
+        ]
+      );
+    };
 
   // ==========================================================
   // NAVIGATION
@@ -1777,11 +2924,13 @@ export default function AIConversationScreen({
           );
       }
 
-      const contextForMessage = {
-        ...mergedWellness,
-        coachMemory:
-          activeMemory,
-      };
+      const contextForMessage =
+        {
+          ...mergedWellness,
+
+          coachMemory:
+            activeMemory,
+        };
 
       const navigationIntent =
         detectNavigationIntent(
@@ -1793,15 +2942,20 @@ export default function AIConversationScreen({
         id:
           `user-${Date.now()}`,
 
-        sender:
-          "user",
+        sender: "user",
 
-        text:
-          cleaned,
+        text: cleaned,
 
-        actionIntent:
-          null,
+        actionIntent: null,
       };
+
+      // Snapshot before state changes so remote history
+      // does not depend on a stale closure later.
+      const historyForRequest =
+        [
+          ...messages,
+          userMessage,
+        ];
 
       setMessages(
         (current) => [
@@ -1820,34 +2974,45 @@ export default function AIConversationScreen({
           replyText =
             await requestCoachReply(
               cleaned,
-              activeMemory
+              activeMemory,
+              historyForRequest
             );
-        } catch (remoteError) {
+        } catch (
+          remoteError
+        ) {
           console.log(
-            "Remote AI unavailable. Using local coach:",
+            "Remote AI unavailable. Using local multilingual coach:",
             remoteError
           );
 
           replyText =
             createLocalCoachReply(
               intentText,
-              contextForMessage
+              contextForMessage,
+              languageCode
             );
         }
 
-        const coachMessage = {
-          id:
-            `coach-${Date.now()}`,
+        if (
+          !mountedRef.current
+        ) {
+          return;
+        }
 
-          sender:
-            "coach",
+        const coachMessage =
+          {
+            id:
+              `coach-${Date.now()}`,
 
-          text:
-            replyText,
+            sender:
+              "coach",
 
-          actionIntent:
-            navigationIntent,
-        };
+            text:
+              replyText,
+
+            actionIntent:
+              navigationIntent,
+          };
 
         setMessages(
           (current) => [
@@ -1856,7 +3021,9 @@ export default function AIConversationScreen({
           ]
         );
 
-        if (navigationIntent) {
+        if (
+          navigationIntent
+        ) {
           setPendingAction(
             navigationIntent
           );
@@ -1867,26 +3034,37 @@ export default function AIConversationScreen({
           error
         );
 
-        setMessages(
-          (current) => [
-            ...current,
-            {
-              id:
-                `coach-error-${Date.now()}`,
+        if (
+          mountedRef.current
+        ) {
+          setMessages(
+            (current) => [
+              ...current,
 
-              sender:
-                "coach",
+              {
+                id:
+                  `coach-error-${Date.now()}`,
 
-              text:
-                t("responseError"),
+                sender:
+                  "coach",
 
-              actionIntent:
-                null,
-            },
-          ]
-        );
+                text:
+                  t(
+                    "responseError"
+                  ),
+
+                actionIntent:
+                  null,
+              },
+            ]
+          );
+        }
       } finally {
-        setIsTyping(false);
+        if (
+          mountedRef.current
+        ) {
+          setIsTyping(false);
+        }
       }
     };
 
@@ -1900,6 +3078,9 @@ export default function AIConversationScreen({
         return;
       }
 
+      // The user sees their selected language.
+      // The canonical English message is only used for
+      // local intent detection.
       sendMessage(
         prompt.label,
         prompt.coachMessage
@@ -1910,33 +3091,38 @@ export default function AIConversationScreen({
   // MEMORY PANEL
   // ==========================================================
 
-  const openMemoryPanel = () => {
-    setMemoryDraft({
-      preferredWalkTime:
-        coachMemory
-          .preferredWalkTime ||
-        "",
+  const openMemoryPanel =
+    () => {
+      setMemoryDraft({
+        preferredWalkTime:
+          coachMemory
+            .preferredWalkTime ||
+          "",
 
-      mealPreference:
-        coachMemory
-          .mealPreference ||
-        "",
+        mealPreference:
+          coachMemory
+            .mealPreference ||
+          "",
 
-      favoriteBreathing:
-        coachMemory
-          .favoriteBreathing ||
-        "",
-    });
+        favoriteBreathing:
+          coachMemory
+            .favoriteBreathing ||
+          "",
+      });
 
-    setShowMemoryPanel(true);
-  };
+      setShowMemoryPanel(
+        true
+      );
+    };
 
   // ==========================================================
   // UI
   // ==========================================================
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView
+      style={styles.safe}
+    >
       <LinearGradient
         colors={[
           "#020611",
@@ -1946,7 +3132,9 @@ export default function AIConversationScreen({
         style={styles.container}
       >
         <KeyboardAvoidingView
-          style={styles.container}
+          style={
+            styles.container
+          }
           behavior={
             Platform.OS === "ios"
               ? "padding"
@@ -1960,7 +3148,13 @@ export default function AIConversationScreen({
         >
           {/* HEADER */}
 
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              isRTL &&
+                styles.rowReverse,
+            ]}
+          >
             <TouchableOpacity
               style={
                 styles.headerButton
@@ -1971,7 +3165,11 @@ export default function AIConversationScreen({
               activeOpacity={0.8}
             >
               <Ionicons
-                name="chevron-back"
+                name={
+                  isRTL
+                    ? "chevron-forward"
+                    : "chevron-back"
+                }
                 size={27}
                 color="#FFFFFF"
               />
@@ -1983,7 +3181,11 @@ export default function AIConversationScreen({
               }
             >
               <Text
-                style={styles.eyebrow}
+                style={[
+                  styles.eyebrow,
+                  isRTL &&
+                    styles.rtlText,
+                ]}
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
@@ -1991,7 +3193,11 @@ export default function AIConversationScreen({
               </Text>
 
               <Text
-                style={styles.title}
+                style={[
+                  styles.title,
+                  isRTL &&
+                    styles.rtlText,
+                ]}
                 adjustsFontSizeToFit
                 numberOfLines={1}
               >
@@ -2043,27 +3249,39 @@ export default function AIConversationScreen({
                 }
               >
                 <View
-                  style={
-                    styles.memoryHeader
-                  }
+                  style={[
+                    styles.memoryHeader,
+                    isRTL &&
+                      styles.rowReverse,
+                  ]}
                 >
                   <View
-                    style={{ flex: 1 }}
+                    style={{
+                      flex: 1,
+                    }}
                   >
                     <Text
-                      style={
-                        styles.memoryEyebrow
-                      }
+                      style={[
+                        styles.memoryEyebrow,
+                        isRTL &&
+                          styles.rtlText,
+                      ]}
                     >
-                      {t("aiMemory")}
+                      {t(
+                        "aiMemory"
+                      )}
                     </Text>
 
                     <Text
-                      style={
-                        styles.memoryTitle
-                      }
+                      style={[
+                        styles.memoryTitle,
+                        isRTL &&
+                          styles.rtlText,
+                      ]}
                     >
-                      {t("remembers")}
+                      {t(
+                        "remembers"
+                      )}
                     </Text>
                   </View>
 
@@ -2097,12 +3315,16 @@ export default function AIConversationScreen({
                   placeholder={t(
                     "walkExample"
                   )}
+                  isRTL={isRTL}
                   onChangeText={(
                     value
                   ) =>
                     setMemoryDraft(
-                      (current) => ({
+                      (
+                        current
+                      ) => ({
                         ...current,
+
                         preferredWalkTime:
                           value,
                       })
@@ -2122,12 +3344,16 @@ export default function AIConversationScreen({
                   placeholder={t(
                     "mealExample"
                   )}
+                  isRTL={isRTL}
                   onChangeText={(
                     value
                   ) =>
                     setMemoryDraft(
-                      (current) => ({
+                      (
+                        current
+                      ) => ({
                         ...current,
+
                         mealPreference:
                           value,
                       })
@@ -2147,12 +3373,16 @@ export default function AIConversationScreen({
                   placeholder={t(
                     "breathingExample"
                   )}
+                  isRTL={isRTL}
                   onChangeText={(
                     value
                   ) =>
                     setMemoryDraft(
-                      (current) => ({
+                      (
+                        current
+                      ) => ({
                         ...current,
+
                         favoriteBreathing:
                           value,
                       })
@@ -2161,9 +3391,11 @@ export default function AIConversationScreen({
                 />
 
                 <TouchableOpacity
-                  style={
-                    styles.saveMemoryButton
-                  }
+                  style={[
+                    styles.saveMemoryButton,
+                    isRTL &&
+                      styles.rowReverse,
+                  ]}
                   onPress={
                     saveMemoryPanel
                   }
@@ -2175,18 +3407,24 @@ export default function AIConversationScreen({
                   />
 
                   <Text
-                    style={
-                      styles.saveMemoryText
-                    }
+                    style={[
+                      styles.saveMemoryText,
+                      isRTL &&
+                        styles.buttonTextRTL,
+                    ]}
                   >
-                    {t("saveMemory")}
+                    {t(
+                      "saveMemory"
+                    )}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={
-                    styles.clearMemoryButton
-                  }
+                  style={[
+                    styles.clearMemoryButton,
+                    isRTL &&
+                      styles.rowReverse,
+                  ]}
                   onPress={
                     clearCoachMemory
                   }
@@ -2198,11 +3436,15 @@ export default function AIConversationScreen({
                   />
 
                   <Text
-                    style={
-                      styles.clearMemoryText
-                    }
+                    style={[
+                      styles.clearMemoryText,
+                      isRTL &&
+                        styles.buttonTextRTL,
+                    ]}
                   >
-                    {t("clearMemory")}
+                    {t(
+                      "clearMemory"
+                    )}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -2211,9 +3453,11 @@ export default function AIConversationScreen({
             {/* COACH STATUS */}
 
             <View
-              style={
-                styles.coachStatus
-              }
+              style={[
+                styles.coachStatus,
+                isRTL &&
+                  styles.rowReverse,
+              ]}
             >
               <View
                 style={
@@ -2228,27 +3472,37 @@ export default function AIConversationScreen({
               </View>
 
               <View
-                style={
-                  styles.coachStatusText
-                }
+                style={[
+                  styles.coachStatusText,
+                  isRTL &&
+                    styles.coachStatusTextRTL,
+                ]}
               >
                 <Text
-                  style={
-                    styles.coachName
-                  }
+                  style={[
+                    styles.coachName,
+                    isRTL &&
+                      styles.rtlText,
+                  ]}
                 >
-                  {t("coachName")}
+                  {t(
+                    "coachName"
+                  )}
                 </Text>
 
                 <Text
-                  style={
-                    styles.coachReady
-                  }
+                  style={[
+                    styles.coachReady,
+                    isRTL &&
+                      styles.rtlText,
+                  ]}
                 >
                   {isTyping
-                    ? t("preparing")
+                    ? t(
+                        "preparing"
+                      )
                     : `${getDayGreeting(
-                        language
+                        languageCode
                       )} • ${t(
                         "ready"
                       )}`}
@@ -2274,7 +3528,9 @@ export default function AIConversationScreen({
             {/* MESSAGES */}
 
             <View
-              style={styles.messages}
+              style={
+                styles.messages
+              }
             >
               {messages.map(
                 (message) => {
@@ -2284,20 +3540,32 @@ export default function AIConversationScreen({
 
                   return (
                     <View
-                      key={message.id}
+                      key={
+                        message.id
+                      }
                       style={[
                         styles.messageRow,
 
                         isUser
                           ? styles.userMessageRow
                           : styles.coachMessageRow,
+
+                        isRTL &&
+                          !isUser &&
+                          styles.coachMessageRowRTL,
+
+                        isRTL &&
+                          isUser &&
+                          styles.userMessageRowRTL,
                       ]}
                     >
                       {!isUser && (
                         <View
-                          style={
-                            styles.messageAvatar
-                          }
+                          style={[
+                            styles.messageAvatar,
+                            isRTL &&
+                              styles.messageAvatarRTL,
+                          ]}
                         >
                           <MaterialCommunityIcons
                             name="brain"
@@ -2314,6 +3582,14 @@ export default function AIConversationScreen({
                           isUser
                             ? styles.userBubble
                             : styles.coachBubble,
+
+                          isRTL &&
+                            !isUser &&
+                            styles.coachBubbleRTL,
+
+                          isRTL &&
+                            isUser &&
+                            styles.userBubbleRTL,
                         ]}
                       >
                         <Text
@@ -2322,17 +3598,24 @@ export default function AIConversationScreen({
 
                             isUser &&
                               styles.userMessageText,
+
+                            isRTL &&
+                              styles.rtlText,
                           ]}
                         >
-                          {message.text}
+                          {
+                            message.text
+                          }
                         </Text>
 
                         {!isUser &&
                           message.actionIntent && (
                             <TouchableOpacity
-                              style={
-                                styles.actionButton
-                              }
+                              style={[
+                                styles.actionButton,
+                                isRTL &&
+                                  styles.rowReverse,
+                              ]}
                               onPress={() =>
                                 openDetectedScreen(
                                   message.actionIntent
@@ -2340,9 +3623,11 @@ export default function AIConversationScreen({
                               }
                             >
                               <Text
-                                style={
-                                  styles.actionButtonText
-                                }
+                                style={[
+                                  styles.actionButtonText,
+                                  isRTL &&
+                                    styles.actionButtonTextRTL,
+                                ]}
                               >
                                 {t(
                                   "openFeature"
@@ -2350,8 +3635,14 @@ export default function AIConversationScreen({
                               </Text>
 
                               <Ionicons
-                                name="arrow-forward"
-                                size={18}
+                                name={
+                                  isRTL
+                                    ? "arrow-back"
+                                    : "arrow-forward"
+                                }
+                                size={
+                                  18
+                                }
                                 color="#02111F"
                               />
                             </TouchableOpacity>
@@ -2367,12 +3658,17 @@ export default function AIConversationScreen({
                   style={[
                     styles.messageRow,
                     styles.coachMessageRow,
+
+                    isRTL &&
+                      styles.coachMessageRowRTL,
                   ]}
                 >
                   <View
-                    style={
-                      styles.messageAvatar
-                    }
+                    style={[
+                      styles.messageAvatar,
+                      isRTL &&
+                        styles.messageAvatarRTL,
+                    ]}
                   >
                     <MaterialCommunityIcons
                       name="brain"
@@ -2385,14 +3681,21 @@ export default function AIConversationScreen({
                     style={[
                       styles.messageBubble,
                       styles.coachBubble,
+
+                      isRTL &&
+                        styles.coachBubbleRTL,
                     ]}
                   >
                     <Text
-                      style={
-                        styles.typingText
-                      }
+                      style={[
+                        styles.typingText,
+                        isRTL &&
+                          styles.rtlText,
+                      ]}
                     >
-                      {t("thinking")}
+                      {t(
+                        "thinking"
+                      )}
                     </Text>
                   </View>
                 </View>
@@ -2403,9 +3706,11 @@ export default function AIConversationScreen({
 
             {pendingAction && (
               <TouchableOpacity
-                style={
-                  styles.pendingActionButton
-                }
+                style={[
+                  styles.pendingActionButton,
+                  isRTL &&
+                    styles.rowReverse,
+                ]}
                 onPress={() =>
                   openDetectedScreen(
                     pendingAction
@@ -2413,9 +3718,11 @@ export default function AIConversationScreen({
                 }
               >
                 <Text
-                  style={
-                    styles.pendingActionText
-                  }
+                  style={[
+                    styles.pendingActionText,
+                    isRTL &&
+                      styles.pendingActionTextRTL,
+                  ]}
                 >
                   {t(
                     "openRecommended"
@@ -2423,7 +3730,11 @@ export default function AIConversationScreen({
                 </Text>
 
                 <Ionicons
-                  name="arrow-forward"
+                  name={
+                    isRTL
+                      ? "arrow-back"
+                      : "arrow-forward"
+                  }
                   size={20}
                   color="#02111F"
                 />
@@ -2433,9 +3744,15 @@ export default function AIConversationScreen({
             {/* QUICK COACHING */}
 
             <Text
-              style={styles.quickTitle}
+              style={[
+                styles.quickTitle,
+                isRTL &&
+                  styles.rtlText,
+              ]}
             >
-              {t("quickCoaching")}
+              {t(
+                "quickCoaching"
+              )}
             </Text>
 
             <ScrollView
@@ -2450,30 +3767,44 @@ export default function AIConversationScreen({
               {quickPrompts.map(
                 (prompt) => (
                   <TouchableOpacity
-                    key={prompt.id}
-                    style={
-                      styles.quickPrompt
+                    key={
+                      prompt.id
                     }
+                    style={[
+                      styles.quickPrompt,
+                      isRTL &&
+                        styles.rowReverse,
+                    ]}
                     onPress={() =>
                       handleQuickPrompt(
                         prompt
                       )
                     }
-                    disabled={isTyping}
-                    activeOpacity={0.8}
+                    disabled={
+                      isTyping
+                    }
+                    activeOpacity={
+                      0.8
+                    }
                   >
                     <Ionicons
-                      name={prompt.icon}
+                      name={
+                        prompt.icon
+                      }
                       size={19}
                       color="#42F58D"
                     />
 
                     <Text
-                      style={
-                        styles.quickPromptText
-                      }
+                      style={[
+                        styles.quickPromptText,
+                        isRTL &&
+                          styles.quickPromptTextRTL,
+                      ]}
                     >
-                      {prompt.label}
+                      {
+                        prompt.label
+                      }
                     </Text>
                   </TouchableOpacity>
                 )
@@ -2481,7 +3812,9 @@ export default function AIConversationScreen({
             </ScrollView>
 
             <View
-              style={{ height: 24 }}
+              style={{
+                height: 24,
+              }}
             />
           </ScrollView>
 
@@ -2493,26 +3826,42 @@ export default function AIConversationScreen({
             }
           >
             <View
-              style={styles.composer}
+              style={[
+                styles.composer,
+                isRTL &&
+                  styles.rowReverse,
+              ]}
             >
               <Ionicons
                 name="chatbubble-ellipses-outline"
                 size={23}
                 color="#42F58D"
-                style={styles.chatIcon}
+                style={[
+                  styles.chatIcon,
+                  isRTL &&
+                    styles.chatIconRTL,
+                ]}
               />
 
               <TextInput
                 value={draft}
-                onChangeText={setDraft}
+                onChangeText={
+                  setDraft
+                }
                 placeholder={t(
                   "placeholder"
                 )}
                 placeholderTextColor="#71859D"
-                style={styles.input}
+                style={[
+                  styles.input,
+                  isRTL &&
+                    styles.rtlText,
+                ]}
                 multiline
                 maxLength={2000}
-                editable={!isTyping}
+                editable={
+                  !isTyping
+                }
                 returnKeyType="send"
                 blurOnSubmit
                 onSubmitEditing={() => {
@@ -2543,9 +3892,11 @@ export default function AIConversationScreen({
             </View>
 
             <Text
-              style={
-                styles.disclaimer
-              }
+              style={[
+                styles.disclaimer,
+                isRTL &&
+                  styles.rtlText,
+              ]}
             >
               {t("disclaimer")}
             </Text>
@@ -2610,6 +3961,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "900",
     marginTop: 3,
+    textAlign: "center",
   },
 
   screenScroll: {
@@ -2647,6 +3999,11 @@ const styles = StyleSheet.create({
   coachStatusText: {
     flex: 1,
     marginLeft: 13,
+  },
+
+  coachStatusTextRTL: {
+    marginLeft: 0,
+    marginRight: 13,
   },
 
   coachName: {
@@ -2730,6 +4087,11 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
+  memoryIconRTL: {
+    marginRight: 0,
+    marginLeft: 12,
+  },
+
   memoryInputWrap: {
     flex: 1,
   },
@@ -2784,6 +4146,11 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  buttonTextRTL: {
+    marginLeft: 0,
+    marginRight: 8,
+  },
+
   messages: {
     width: "100%",
   },
@@ -2803,6 +4170,16 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
 
+  coachMessageRowRTL: {
+    flexDirection: "row-reverse",
+    justifyContent: "flex-start",
+  },
+
+  userMessageRowRTL: {
+    flexDirection: "row-reverse",
+    justifyContent: "flex-end",
+  },
+
   messageAvatar: {
     width: 42,
     height: 42,
@@ -2812,6 +4189,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#073044",
     marginRight: 10,
     marginBottom: 4,
+  },
+
+  messageAvatarRTL: {
+    marginRight: 0,
+    marginLeft: 10,
   },
 
   messageBubble: {
@@ -2828,9 +4210,19 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 7,
   },
 
+  coachBubbleRTL: {
+    borderBottomLeftRadius: 23,
+    borderBottomRightRadius: 7,
+  },
+
   userBubble: {
     backgroundColor: "#FFC746",
     borderBottomRightRadius: 7,
+  },
+
+  userBubbleRTL: {
+    borderBottomRightRadius: 23,
+    borderBottomLeftRadius: 7,
   },
 
   messageText: {
@@ -2870,6 +4262,11 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 
+  actionButtonTextRTL: {
+    marginRight: 0,
+    marginLeft: 8,
+  },
+
   pendingActionButton: {
     minHeight: 56,
     borderRadius: 20,
@@ -2889,6 +4286,12 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginRight: 9,
     textAlign: "center",
+  },
+
+  pendingActionTextRTL: {
+    marginRight: 0,
+    marginLeft: 9,
+    writingDirection: "rtl",
   },
 
   quickTitle: {
@@ -2923,6 +4326,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  quickPromptTextRTL: {
+    marginLeft: 0,
+    marginRight: 8,
+    writingDirection: "rtl",
+  },
+
   composerArea: {
     paddingHorizontal: 16,
     paddingTop: 10,
@@ -2949,6 +4358,11 @@ const styles = StyleSheet.create({
 
   chatIcon: {
     marginLeft: 8,
+  },
+
+  chatIconRTL: {
+    marginLeft: 0,
+    marginRight: 8,
   },
 
   input: {
@@ -2982,5 +4396,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
     marginTop: 8,
+  },
+
+  rowReverse: {
+    flexDirection: "row-reverse",
+  },
+
+  rtlText: {
+    writingDirection: "rtl",
+    textAlign: "right",
   },
 });

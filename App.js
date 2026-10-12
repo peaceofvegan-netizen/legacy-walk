@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -12,6 +13,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  Alert,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -30,143 +32,68 @@ import {
   translate,
 } from "./i18n/i18n";
 
-import {
-  useStepCounter,
-} from "./hooks/useStepCounter";
+import { useStepCounter } from "./hooks/useStepCounter";
 
-import {
-  getWCoins,
-} from "./utils/wcoinStorage";
+import { getWCoins } from "./utils/wcoinStorage";
 
 // ============================================================
-// SCREENS
+// ALL EXISTING SCREENS
 // ============================================================
 
-import PassportDetailScreen
-  from "./screens/PassportDetailScreen";
+import PassportDetailScreen from "./screens/PassportDetailScreen";
+import WalkingDashboardScreen from "./screens/WalkingDashboardScreen";
+import JourneysScreen from "./screens/JourneysScreen";
+import JourneyDetailScreen from "./screens/JourneyDetailScreen";
+import GPSJourneyMapScreen from "./screens/GPSJourneyMapScreen";
+import WalkingFunctionScreen from "./screens/WalkingFunctionScreen";
+import RewardsScreen from "./screens/RewardsScreen";
+import MoreScreen from "./screens/MoreScreen";
 
-import WalkingDashboardScreen
-  from "./screens/WalkingDashboardScreen";
+import RecoveryCoachScreen from "./screens/RecoveryCoachScreen";
+import HydrationCoachScreen from "./screens/HydrationCoachScreen";
+import SleepCoachScreen from "./screens/SleepCoachScreen";
+import BreathingScreen from "./screens/BreathingScreen";
+import BreathingAnalyticsScreen from "./screens/BreathingAnalyticsScreen";
+import WalkingAnalyticsScreen from "./screens/WalkingAnalyticsScreen";
+import AIConversationScreen from "./screens/AIConversationScreen";
+import AIWellnessMasterScreen from "./screens/AIWellnessMasterScreen";
 
-import JourneysScreen
-  from "./screens/JourneysScreen";
+import AvatarCenterScreen from "./screens/AvatarCenterScreen";
+import AvatarProfileScreen from "./screens/AvatarProfileScreen";
 
-import JourneyDetailScreen
-  from "./screens/JourneyDetailScreen";
+import PassportScreen from "./screens/PassportScreen";
 
-import GPSJourneyMapScreen
-  from "./screens/GPSJourneyMapScreen";
+// NEW - OFFICIAL LEGATHON MEDAL COLLECTION
+import MedalCollectionScreen from "./screens/MedalCollectionScreen";
 
-import WalkingFunctionScreen
-  from "./screens/WalkingFunctionScreen";
+import MarathonScreen from "./screens/MarathonScreen";
+import WorldMarathonDetailScreen from "./screens/WorldMarathonDetailScreen";
 
-import RewardsScreen
-  from "./screens/RewardsScreen";
+import JourneyPreferencesScreen from "./screens/JourneyPreferencesScreen";
+import PersonalizationSummaryScreen from "./screens/PersonalizationSummaryScreen";
 
-import MoreScreen
-  from "./screens/MoreScreen";
+import SubscriptionCheckoutScreen from "./screens/SubscriptionCheckoutScreen";
+import SubscriptionScreen from "./screens/SubscriptionScreen";
+import MealPlannerScreen from "./screens/MealPlannerScreen";
+import HallOfLegendsScreen from "./screens/HallOfLegendsScreen";
 
-import RecoveryCoachScreen
-  from "./screens/RecoveryCoachScreen";
+// Legacy compatibility only
+import CertificateScreen from "./screens/CertificateScreen";
 
-import HydrationCoachScreen
-  from "./screens/HydrationCoachScreen";
-
-import SleepCoachScreen
-  from "./screens/SleepCoachScreen";
-
-import BreathingScreen
-  from "./screens/BreathingScreen";
-
-import BreathingAnalyticsScreen
-  from "./screens/BreathingAnalyticsScreen";
-
-import WalkingAnalyticsScreen
-  from "./screens/WalkingAnalyticsScreen";
-
-import AIConversationScreen
-  from "./screens/AIConversationScreen";
-
-import AIWellnessMasterScreen
-  from "./screens/AIWellnessMasterScreen";
-
-import AvatarCenterScreen
-  from "./screens/AvatarCenterScreen";
-
-import AvatarProfileScreen
-  from "./screens/AvatarProfileScreen";
-
-import PassportScreen
-  from "./screens/PassportScreen";
-
-import MarathonScreen
-  from "./screens/MarathonScreen";
-
-import WorldMarathonDetailScreen
-  from "./screens/WorldMarathonDetailScreen";
-
-import JourneyPreferencesScreen
-  from "./screens/JourneyPreferencesScreen";
-
-import PersonalizationSummaryScreen
-  from "./screens/PersonalizationSummaryScreen";
-
-import SubscriptionCheckoutScreen
-  from "./screens/SubscriptionCheckoutScreen";
-
-import SubscriptionScreen
-  from "./screens/SubscriptionScreen";
-
-import MealPlannerScreen
-  from "./screens/MealPlannerScreen";
-
-import HallOfLegendsScreen
-  from "./screens/HallOfLegendsScreen";
-
-import CertificateScreen
-  from "./screens/CertificateScreen";
-
-import ProfileScreen
-  from "./screens/ProfileScreen";
-
-import AboutScreen
-  from "./screens/AboutScreen";
-
-import PhysicalMerchStoreScreen
-  from "./screens/PhysicalMerchStoreScreen";
-
-import StoreItemDetailScreen
-  from "./screens/StoreItemDetailScreen";
-
-import PurchaseConfirmationScreen
-  from "./screens/PurchaseConfirmationScreen";
-
-import CommunityScreen
-  from "./screens/CommunityScreen";
-
-import CommunityCommentsScreen
-  from "./screens/CommunityCommentsScreen";
-
-import LeaderboardScreen
-  from "./screens/LeaderboardScreen";
-
-import DailyChallengeScreen
-  from "./screens/DailyChallengeScreen";
-
-import SettingsScreen
-  from "./screens/SettingScreen";
-
-import PrivacyPolicyScreen
-  from "./screens/PrivacyScreen";
-
-import LanguageSelectionScreen
-  from "./screens/LanguageSelectionScreen";
-
-import WCoinWalletScreen
-  from "./screens/WCoinWalletScreen";
-
-import JourneyStoryScreen
-  from "./screens/JourneyStoryScreen";
+import ProfileScreen from "./screens/ProfileScreen";
+import AboutScreen from "./screens/AboutScreen";
+import PhysicalMerchStoreScreen from "./screens/PhysicalMerchStoreScreen";
+import StoreItemDetailScreen from "./screens/StoreItemDetailScreen";
+import PurchaseConfirmationScreen from "./screens/PurchaseConfirmationScreen";
+import CommunityScreen from "./screens/CommunityScreen";
+import CommunityCommentsScreen from "./screens/CommunityCommentsScreen";
+import LeaderboardScreen from "./screens/LeaderboardScreen";
+import DailyChallengeScreen from "./screens/DailyChallengeScreen";
+import SettingsScreen from "./screens/SettingScreen";
+import PrivacyPolicyScreen from "./screens/PrivacyScreen";
+import LanguageSelectionScreen from "./screens/LanguageSelectionScreen";
+import WCoinWalletScreen from "./screens/WCoinWalletScreen";
+import JourneyStoryScreen from "./screens/JourneyStoryScreen";
 
 // ============================================================
 // REVENUECAT
@@ -182,16 +109,13 @@ import {
 // CONSTANTS
 // ============================================================
 
-const WCOIN_KEY =
-  "wCoinBalance";
-
 const STRIPE_PUBLISHABLE_KEY =
-  process.env
-    .EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
-  "";
+  process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
+const WCOIN_KEY = "wCoinBalance";
 
 // ============================================================
-// NAV BUTTON
+// BOTTOM NAVIGATION BUTTON
 // ============================================================
 
 function NavButton({
@@ -210,19 +134,16 @@ function NavButton({
         source={icon}
         style={[
           styles.navIconImage,
-
-          active &&
-            styles.activeNavIcon,
+          active && styles.activeNavIcon,
         ]}
       />
 
       <Text
         style={[
           styles.navText,
-
-          active &&
-            styles.activeNavText,
+          active && styles.activeNavText,
         ]}
+        numberOfLines={1}
       >
         {label}
       </Text>
@@ -231,7 +152,7 @@ function NavButton({
 }
 
 // ============================================================
-// APP
+// MAIN APP
 // ============================================================
 
 export default function App() {
@@ -239,88 +160,43 @@ export default function App() {
   // NAVIGATION
   // ==========================================================
 
-  const [
-    activeTab,
-    setActiveTab,
-  ] =
-    useState(
-      "home"
-    );
+  const [activeTab, setActiveTab] = useState("home");
 
   // ==========================================================
-  // WALKING
+  // WALKING DATA
   // ==========================================================
 
-  const [
-    lifetimeSteps,
-    setLifetimeSteps,
-  ] =
-    useState(
-      0
-    );
+  const [lifetimeSteps, setLifetimeSteps] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
 
-  const walkingData =
-    useStepCounter();
-
-  const [
-    totalSteps,
-    setTotalSteps,
-  ] =
-    useState(
-      0
-    );
+  const walkingData = useStepCounter();
 
   // ==========================================================
   // LANGUAGE
   // ==========================================================
 
-  const [
-    language,
-    setLanguage,
-  ] =
-    useState(
-      "en"
-    );
+  const [language, setLanguage] = useState("en");
 
   // ==========================================================
   // JOURNEYS
   // ==========================================================
 
-  const [
-    lastJourney,
-    setLastJourney,
-  ] =
-    useState(
-      null
-    );
+  const [lastJourney, setLastJourney] = useState(null);
 
-  const [
-    selectedJourney,
-    setSelectedJourney,
-  ] =
-    useState(
-      null
-    );
+  const [selectedJourney, setSelectedJourney] =
+    useState(null);
 
   const [
     selectedStoryCheckpoint,
     setSelectedStoryCheckpoint,
-  ] =
-    useState(
-      1
-    );
+  ] = useState(1);
 
   // ==========================================================
   // STORE
   // ==========================================================
 
-  const [
-    selectedStoreItem,
-    setSelectedStoreItem,
-  ] =
-    useState(
-      null
-    );
+  const [selectedStoreItem, setSelectedStoreItem] =
+    useState(null);
 
   // ==========================================================
   // COMMUNITY
@@ -329,280 +205,179 @@ export default function App() {
   const [
     selectedCommunityPost,
     setSelectedCommunityPost,
-  ] =
-    useState(
-      null
-    );
+  ] = useState(null);
 
   // ==========================================================
   // PASSPORT
   // ==========================================================
 
-  const [
-    selectedPassport,
-    setSelectedPassport,
-  ] =
-    useState(
-      null
-    );
+  const [selectedPassport, setSelectedPassport] =
+    useState(null);
 
   // ==========================================================
   // AVATAR
   // ==========================================================
 
-  const [
-    equippedAvatar,
-    setEquippedAvatar,
-  ] =
-    useState(
-      null
-    );
+  const [equippedAvatar, setEquippedAvatar] =
+    useState(null);
 
   // ==========================================================
-  // SUBSCRIPTION
+  // SUBSCRIPTIONS
   // ==========================================================
 
-  const [
-    subscriptionPlan,
-    setSubscriptionPlan,
-  ] =
-    useState(
-      "free"
-    );
+  const [subscriptionPlan, setSubscriptionPlan] =
+    useState("free");
 
-  const [
-    isPremium,
-    setIsPremium,
-  ] =
-    useState(
-      false
-    );
+  const [isPremium, setIsPremium] = useState(false);
 
-  const [
-    selectedPlan,
-    setSelectedPlan,
-  ] =
-    useState(
-      null
-    );
+  const [selectedPlan, setSelectedPlan] =
+    useState(null);
 
   // ==========================================================
   // WCOINS
   // ==========================================================
 
-  const [
-    wCoinBalance,
-    setWCoinBalance,
-  ] =
-    useState(
-      0
-    );
+  const [wCoinBalance, setWCoinBalance] = useState(0);
 
   // ==========================================================
-  // MARATHON
+  // LEGATHONS
   // ==========================================================
 
-  const [
-    selectedMarathonId,
-    setSelectedMarathonId,
-  ] =
-    useState(
-      "nyc"
-    );
+  const [selectedMarathonId, setSelectedMarathonId] =
+    useState("nyc");
+
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const appStateRef = useRef(AppState.currentState);
+
+  const stepSyncRunningRef = useRef(false);
+
+  const stepSyncTimerRef = useRef(null);
+
+  // ==========================================================
+  // NAVIGATION HELPERS
+  // ==========================================================
+
+  const goHome = () => setActiveTab("home");
+
+  const goMore = () => setActiveTab("more");
+
+  const goMedals = () => setActiveTab("medalCollection");
 
   // ==========================================================
   // VERIFIED MEMBERSHIP
   // ==========================================================
 
-  const applyMembershipPlan =
-    useCallback(
-      (
-        incomingPlan
-      ) => {
-        const value =
-          String(
-            incomingPlan ||
-            "free"
-          )
-            .toLowerCase();
+  const applyMembershipPlan = useCallback(incoming => {
+    const value = String(incoming || "free").toLowerCase();
 
-        const plan =
-          value === "elite"
-            ? "elite"
-            : value === "premium"
-              ? "premium"
-              : "free";
+    const plan =
+      value === "elite"
+        ? "elite"
+        : value === "premium"
+        ? "premium"
+        : "free";
 
-        setSubscriptionPlan(
-          plan
-        );
+    setSubscriptionPlan(plan);
+    setIsPremium(plan !== "free");
 
-        setIsPremium(
-          plan === "premium" ||
-          plan === "elite"
-        );
-
-        return plan;
-      },
-      []
-    );
+    return plan;
+  }, []);
 
   // ==========================================================
-  // REFRESH VERIFIED MEMBERSHIP
+  // REFRESH REVENUECAT MEMBERSHIP
   // ==========================================================
 
-  const refreshVerifiedMembership =
-    useCallback(
-      async () => {
-        try {
-          await configureRevenueCat();
+  const refreshVerifiedMembership = useCallback(async () => {
+    try {
+      await configureRevenueCat();
 
-          const result =
-            await refreshRevenueCatMembership();
+      const result = await refreshRevenueCatMembership();
 
-          console.log(
-            "Membership refresh result:",
-            result
-          );
+      if (result?.serverSync?.synced === true) {
+        return applyMembershipPlan(
+          result.serverSync.plan
+        );
+      }
 
-          if (
-            result
-              ?.serverSync
-              ?.synced ===
-            true
-          ) {
-            return applyMembershipPlan(
-              result
-                .serverSync
-                .plan
-            );
-          }
+      return applyMembershipPlan(
+        result?.plan || "free"
+      );
+    } catch (error) {
+      console.log(
+        "Membership refresh error:",
+        error
+      );
 
-          if (
-            result?.plan
-          ) {
-            return applyMembershipPlan(
-              result.plan
-            );
-          }
-
-          return applyMembershipPlan(
-            "free"
-          );
-        } catch (
-          error
-        ) {
-          console.log(
-            "Membership refresh error:",
-            error
-          );
-
-          return applyMembershipPlan(
-            "free"
-          );
-        }
-      },
-      [
-        applyMembershipPlan,
-      ]
-    );
+      return applyMembershipPlan("free");
+    }
+  }, [applyMembershipPlan]);
 
   // ==========================================================
   // SECURE WCOIN BALANCE
   // ==========================================================
 
   const refreshSecureWCoinBalance =
-    useCallback(
-      async () => {
-        try {
-          const balance =
-            await getWCoins();
+    useCallback(async () => {
+      try {
+        const value = await getWCoins();
 
-          const normalized =
-            Math.max(
-              0,
-              Math.floor(
-                Number(
-                  balance
-                ) || 0
-              )
-            );
-
-          setWCoinBalance(
-            normalized
-          );
-
-          return normalized;
-        } catch (
-          error
-        ) {
-          console.log(
-            "Secure WCoin refresh error:",
-            error
-          );
-
-          return 0;
-        }
-      },
-      []
-    );
-
-  // ==========================================================
-  // LEGACY LOCAL WCOIN AWARD
-  // ==========================================================
-
-  async function addWCoins(
-    amount
-  ) {
-    const saved =
-      await AsyncStorage
-        .getItem(
-          WCOIN_KEY
+        const balance = Math.max(
+          0,
+          Math.floor(Number(value) || 0)
         );
 
-    const current =
-      Number(
-        saved || 0
-      );
+        setWCoinBalance(balance);
+
+        return balance;
+      } catch (error) {
+        console.log(
+          "Secure WCoin refresh error:",
+          error
+        );
+
+        return 0;
+      }
+    }, []);
+
+  // ==========================================================
+  // LEGACY WCOIN CALLBACK
+  //
+  // Preserved for existing screen compatibility.
+  // ==========================================================
+
+  async function addWCoins(amount) {
+    const saved = await AsyncStorage.getItem(
+      WCOIN_KEY
+    );
 
     const updated =
-      current +
-      Number(
-        amount || 0
-      );
+      (Number(saved) || 0) +
+      (Number(amount) || 0);
 
-    await AsyncStorage
-      .setItem(
-        WCOIN_KEY,
-        String(
-          updated
-        )
-      );
-
-    setWCoinBalance(
-      updated
+    await AsyncStorage.setItem(
+      WCOIN_KEY,
+      String(updated)
     );
 
-    console.log(
-      "Saved WCoins:",
-      updated
-    );
+    setWCoinBalance(updated);
 
-    alert(
+    Alert.alert(
+      "WCoins",
       `W Coins now: ${updated}`
     );
   }
 
   // ==========================================================
   // JOURNEY REWARD FALLBACK
+  //
+  // Preserves existing app callback.
   // ==========================================================
 
-  async function awardJourneyRewards(
-    journey
-  ) {
-    if (
-      !journey?.id
-    ) {
+  async function awardJourneyRewards(journey) {
+    if (!journey?.id) {
       return false;
     }
 
@@ -610,16 +385,11 @@ export default function App() {
       `journeyRewarded_${journey.id}`;
 
     const alreadyRewarded =
-      await AsyncStorage
-        .getItem(
-          rewardKey
-        );
+      await AsyncStorage.getItem(rewardKey);
 
-    if (
-      alreadyRewarded ===
-      "true"
-    ) {
-      alert(
+    if (alreadyRewarded === "true") {
+      Alert.alert(
+        "Journey",
         "Journey reward already claimed."
       );
 
@@ -627,588 +397,261 @@ export default function App() {
     }
 
     const points =
-      Number(
-        journey
-          .rewardPoints ||
-        0
-      );
+      Number(journey.rewardPoints) || 0;
 
     const coins =
-      Number(
-        journey
-          .rewardCoins ||
-        0
-      );
+      Number(journey.rewardCoins) || 0;
 
     const savedPoints =
-      await AsyncStorage
-        .getItem(
-          "rewardPoints"
-        );
+      await AsyncStorage.getItem("rewardPoints");
 
     const updatedPoints =
-      Number(
-        savedPoints ||
-        0
-      ) +
-      points;
+      (Number(savedPoints) || 0) + points;
 
-    await AsyncStorage
-      .setItem(
-        "rewardPoints",
-        String(
-          updatedPoints
-        )
-      );
+    await AsyncStorage.setItem(
+      "rewardPoints",
+      String(updatedPoints)
+    );
 
-    await AsyncStorage
-      .setItem(
-        rewardKey,
-        "true"
-      );
+    await AsyncStorage.setItem(
+      rewardKey,
+      "true"
+    );
 
-    if (
-      coins >
-      0
-    ) {
-      await addWCoins(
-        coins
-      );
+    if (coins > 0) {
+      await addWCoins(coins);
     }
 
-    alert(
-      `Journey Complete!\n+${points} Legathon Points\n+${coins} W Coins\nPassport Stamp Unlocked`
+    Alert.alert(
+      "Journey Complete",
+      `+${points} Legathon Points\n+${coins} WCoins\nPassport Stamp Unlocked`
     );
 
-    setSelectedPassport(
-      journey
-    );
+    setSelectedPassport(journey);
 
-    setActiveTab(
-      "worldPassport"
-    );
+    setActiveTab("worldPassport");
 
     return true;
   }
 
   // ==========================================================
-  // GLOBAL STEP ROUTER
+  // GLOBAL STEP SYNCHRONIZATION
   // ==========================================================
 
-  const appStateRef =
-    useRef(
-      AppState
-        .currentState
-    );
+  const runGlobalStepSync = useCallback(async () => {
+    if (stepSyncRunningRef.current) {
+      return;
+    }
 
-  const stepSyncRunningRef =
-    useRef(
-      false
-    );
+    stepSyncRunningRef.current = true;
 
-  const stepSyncTimerRef =
-    useRef(
-      null
-    );
+    try {
+      const available =
+        await isStepTrackingAvailable();
 
-  const runGlobalStepSync =
-    useCallback(
-      async () => {
-        if (
-          stepSyncRunningRef
-            .current
-        ) {
-          return;
-        }
+      if (!available) {
+        return;
+      }
 
-        stepSyncRunningRef
-          .current =
-          true;
+      const result = await syncTodaySteps();
 
-        try {
-          const available =
-            await isStepTrackingAvailable();
-
-          if (
-            !available
-          ) {
-            return;
+      if (__DEV__) {
+        console.log(
+          "[GLOBAL STEP ROUTER]",
+          {
+            delta: result?.delta ?? 0,
+            destination: result?.destination ?? null,
+            marathonId: result?.marathonId ?? null,
+            synced: result?.synced === true,
           }
-
-          const result =
-            await syncTodaySteps();
-
-          if (
-            __DEV__
-          ) {
-            console.log(
-              "[GLOBAL STEP ROUTER]",
-              {
-                delta:
-                  result
-                    ?.delta ??
-                  0,
-
-                destination:
-                  result
-                    ?.destination ??
-                  null,
-
-                marathonId:
-                  result
-                    ?.marathonId ??
-                  null,
-
-                synced:
-                  result
-                    ?.synced ===
-                  true,
-              }
-            );
-          }
-        } catch (
-          error
-        ) {
-          console.log(
-            "Global step router error:",
-            error
-          );
-        } finally {
-          stepSyncRunningRef
-            .current =
-            false;
-        }
-      },
-      []
-    );
+        );
+      }
+    } catch (error) {
+      console.log(
+        "Global step router error:",
+        error
+      );
+    } finally {
+      stepSyncRunningRef.current = false;
+    }
+  }, []);
 
   // ==========================================================
   // INITIAL STEP SYNC
   // ==========================================================
 
-  useEffect(
-    () => {
-      runGlobalStepSync();
-    },
-    [
-      runGlobalStepSync,
-    ]
-  );
+  useEffect(() => {
+    runGlobalStepSync();
+  }, [runGlobalStepSync]);
 
   // ==========================================================
   // APP-WIDE STEP SYNC
   // ==========================================================
 
-  useEffect(
-    () => {
-      const startStepSync =
-        () => {
-          if (
-            stepSyncTimerRef
-              .current
-          ) {
-            return;
-          }
-
-          stepSyncTimerRef
-            .current =
-            setInterval(
-              () => {
-                runGlobalStepSync();
-              },
-              5000
-            );
-        };
-
-      const stopStepSync =
-        () => {
-          if (
-            !stepSyncTimerRef
-              .current
-          ) {
-            return;
-          }
-
-          clearInterval(
-            stepSyncTimerRef
-              .current
-          );
-
-          stepSyncTimerRef
-            .current =
-            null;
-        };
-
-      if (
-        AppState
-          .currentState ===
-        "active"
-      ) {
-        startStepSync();
-      }
-
-      const subscription =
-        AppState
-          .addEventListener(
-            "change",
-
-            (
-              nextState
-            ) => {
-              const previousState =
-                appStateRef
-                  .current;
-
-              appStateRef
-                .current =
-                nextState;
-
-              if (
-                nextState ===
-                "active"
-              ) {
-                runGlobalStepSync();
-
-                startStepSync();
-
-                return;
-              }
-
-              if (
-                previousState ===
-                  "active" &&
-
-                (
-                  nextState ===
-                    "inactive" ||
-
-                  nextState ===
-                    "background"
-                )
-              ) {
-                runGlobalStepSync();
-
-                stopStepSync();
-              }
-            }
-          );
-
-      return () => {
-        stopStepSync();
-
-        subscription
-          .remove();
-      };
-    },
-    [
-      runGlobalStepSync,
-    ]
-  );
-
-  // ==========================================================
-  // LOAD LANGUAGE
-  // ==========================================================
-
-  useEffect(
-    () => {
-      async function initLanguage() {
-        try {
-          const savedLanguage =
-            await loadLanguage();
-
-          if (
-            savedLanguage
-          ) {
-            setLanguage(
-              savedLanguage
-            );
-          }
-        } catch (
-          error
-        ) {
-          console.log(
-            "Language load error:",
-            error
-          );
-        }
-      }
-
-      initLanguage();
-    },
-    []
-  );
-
-  // ==========================================================
-  // LOAD VERIFIED MEMBERSHIP WHEN APP OPENS
-  // ==========================================================
-
-  useEffect(
-    () => {
-      let mounted =
-        true;
-
-      async function loadMembership() {
-        if (
-          !mounted
-        ) {
-          return;
-        }
-
-        await refreshVerifiedMembership();
-      }
-
-      loadMembership();
-
-      return () => {
-        mounted =
-          false;
-      };
-    },
-    [
-      refreshVerifiedMembership,
-    ]
-  );
-
-  // ==========================================================
-  // REFRESH MEMBERSHIP WHEN APP RETURNS
-  // ==========================================================
-
-  useEffect(
-    () => {
-      const subscription =
-        AppState
-          .addEventListener(
-            "change",
-
-            (
-              nextState
-            ) => {
-              if (
-                nextState ===
-                "active"
-              ) {
-                refreshVerifiedMembership();
-              }
-            }
-          );
-
-      return () => {
-        subscription
-          .remove();
-      };
-    },
-    [
-      refreshVerifiedMembership,
-    ]
-  );
-
-  // ==========================================================
-  // LOAD WCOINS
-  // ==========================================================
-
-  useEffect(
-    () => {
-      refreshSecureWCoinBalance();
-    },
-    [
-      refreshSecureWCoinBalance,
-    ]
-  );
-
-  // ==========================================================
-  // REFRESH WCOINS WHEN APP RETURNS
-  // ==========================================================
-
-  useEffect(
-    () => {
-      const subscription =
-        AppState
-          .addEventListener(
-            "change",
-
-            (
-              nextState
-            ) => {
-              if (
-                nextState ===
-                "active"
-              ) {
-                refreshSecureWCoinBalance();
-              }
-            }
-          );
-
-      return () => {
-        subscription
-          .remove();
-      };
-    },
-    [
-      refreshSecureWCoinBalance,
-    ]
-  );
-
-  // ==========================================================
-  // LOAD LAST JOURNEY
-  // ==========================================================
-
-  useEffect(
-    () => {
-      async function loadLastJourney() {
-        try {
-          const saved =
-            await AsyncStorage
-              .getItem(
-                "lastJourney"
-              );
-
-          if (
-            saved
-          ) {
-            const journey =
-              JSON.parse(
-                saved
-              );
-
-            setLastJourney(
-              journey
-            );
-
-            setSelectedJourney(
-              journey
-            );
-          }
-        } catch (
-          error
-        ) {
-          console.log(
-            "Last journey load error:",
-            error
-          );
-        }
-      }
-
-      loadLastJourney();
-    },
-    []
-  );
-
-  // ==========================================================
-  // NAVIGATION HELPERS
-  // ==========================================================
-
-  const goHome =
-    () => {
-      setActiveTab(
-        "home"
-      );
-    };
-
-  const goMore =
-    () => {
-      setActiveTab(
-        "more"
-      );
-    };
-
-  const openJourneyDetail =
-    async (
-      journey
-    ) => {
-      setSelectedJourney(
-        journey
-      );
-
-      setLastJourney(
-        journey
-      );
-
-      await AsyncStorage
-        .setItem(
-          "lastJourney",
-
-          JSON.stringify(
-            journey
-          )
+  useEffect(() => {
+    const startStepSync = () => {
+      if (!stepSyncTimerRef.current) {
+        stepSyncTimerRef.current = setInterval(
+          runGlobalStepSync,
+          5000
         );
-
-      setActiveTab(
-        "journeyDetail"
-      );
+      }
     };
 
-  const openGPSJourneyMap =
-    async (
-      journey
-    ) => {
-      setSelectedJourney(
-        journey
-      );
+    const stopStepSync = () => {
+      if (stepSyncTimerRef.current) {
+        clearInterval(stepSyncTimerRef.current);
+      }
 
-      setLastJourney(
-        journey
-      );
-
-      await AsyncStorage
-        .setItem(
-          "lastJourney",
-
-          JSON.stringify(
-            journey
-          )
-        );
-
-      setActiveTab(
-        "journeyMap"
-      );
+      stepSyncTimerRef.current = null;
     };
 
-  const openStoreItemDetail =
-    (
-      item
-    ) => {
-      setSelectedStoreItem(
-        item
-      );
+    if (AppState.currentState === "active") {
+      startStepSync();
+    }
 
-      setActiveTab(
-        "storeItemDetail"
-      );
+    const subscription =
+      AppState.addEventListener("change", next => {
+        const previous = appStateRef.current;
+
+        appStateRef.current = next;
+
+        if (next === "active") {
+          runGlobalStepSync();
+          startStepSync();
+        } else if (
+          previous === "active" &&
+          (next === "inactive" ||
+            next === "background")
+        ) {
+          runGlobalStepSync();
+          stopStepSync();
+        }
+      });
+
+    return () => {
+      stopStepSync();
+      subscription.remove();
     };
-
-  const goToPurchaseConfirmation =
-    (
-      item
-    ) => {
-      setSelectedStoreItem(
-        item
-      );
-
-      setActiveTab(
-        "purchaseConfirmation"
-      );
-    };
+  }, [runGlobalStepSync]);
 
   // ==========================================================
-  // RESTORE REVENUECAT PURCHASES
+  // LOAD LANGUAGE AND LAST JOURNEY
+  // ==========================================================
+
+  useEffect(() => {
+    loadLanguage()
+      .then(saved => {
+        if (saved) {
+          setLanguage(saved);
+        }
+      })
+      .catch(error => {
+        console.log(
+          "Language load error:",
+          error
+        );
+      });
+
+    AsyncStorage.getItem("lastJourney")
+      .then(raw => {
+        if (!raw) return;
+
+        const journey = JSON.parse(raw);
+
+        setLastJourney(journey);
+        setSelectedJourney(journey);
+      })
+      .catch(error => {
+        console.log(
+          "Last journey load error:",
+          error
+        );
+      });
+  }, []);
+
+  // ==========================================================
+  // MEMBERSHIP AND WCOINS
+  // ==========================================================
+
+  useEffect(() => {
+    refreshVerifiedMembership();
+    refreshSecureWCoinBalance();
+
+    const subscription =
+      AppState.addEventListener("change", state => {
+        if (state === "active") {
+          refreshVerifiedMembership();
+          refreshSecureWCoinBalance();
+        }
+      });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [
+    refreshVerifiedMembership,
+    refreshSecureWCoinBalance,
+  ]);
+
+  // ==========================================================
+  // JOURNEY NAVIGATION
+  // ==========================================================
+
+  const openJourneyDetail = async journey => {
+    setSelectedJourney(journey);
+    setLastJourney(journey);
+
+    await AsyncStorage.setItem(
+      "lastJourney",
+      JSON.stringify(journey)
+    );
+
+    setActiveTab("journeyDetail");
+  };
+
+  const openGPSJourneyMap = async journey => {
+    setSelectedJourney(journey);
+    setLastJourney(journey);
+
+    await AsyncStorage.setItem(
+      "lastJourney",
+      JSON.stringify(journey)
+    );
+
+    setActiveTab("journeyMap");
+  };
+
+  // ==========================================================
+  // STORE NAVIGATION
+  // ==========================================================
+
+  const openStoreItemDetail = item => {
+    setSelectedStoreItem(item);
+    setActiveTab("storeItemDetail");
+  };
+
+  const goToPurchaseConfirmation = item => {
+    setSelectedStoreItem(item);
+    setActiveTab("purchaseConfirmation");
+  };
+
+  // ==========================================================
+  // RESTORE PURCHASES
   // ==========================================================
 
   async function handleRestorePurchases() {
     try {
-      const restoredPlan =
+      const restored =
         await restoreRevenueCatPurchases();
 
       const plan =
-        applyMembershipPlan(
-          restoredPlan
-        );
+        applyMembershipPlan(restored);
 
       await refreshVerifiedMembership();
 
       return plan;
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.log(
         "Restore purchases error:",
         error
@@ -1219,85 +662,58 @@ export default function App() {
   }
 
   // ==========================================================
+  // DASHBOARD PROPS
+  // ==========================================================
+
+  const dashboardProps = {
+    language,
+
+    currentAvatar: equippedAvatar,
+
+    activeJourney: selectedJourney,
+
+    goToJourneys: () =>
+      setActiveTab("journeys"),
+
+    goToGPSJourneyMap: () => {
+      const journey = lastJourney || selectedJourney;
+
+      if (journey) {
+        openGPSJourneyMap(journey);
+      } else {
+        setActiveTab("journeys");
+      }
+    },
+
+    goToPassport: () =>
+      setActiveTab("passport"),
+
+    goToAvatarProfile: () =>
+      setActiveTab("avatarProfile"),
+
+    goToRewards: () =>
+      setActiveTab("rewards"),
+
+    goToWalkingAnalytics: () =>
+      setActiveTab("walkingAnalytics"),
+
+    goToLegathons: () =>
+      setActiveTab("legathons"),
+  };
+
+  // ==========================================================
   // SCREEN ROUTER
   // ==========================================================
 
-  let screen;
+  let screen = null;
 
   // ==========================================================
   // HOME
   // ==========================================================
 
-  if (
-    activeTab ===
-    "home"
-  ) {
+  if (activeTab === "home") {
     screen = (
-      <WalkingDashboardScreen
-        language={language}
-
-        currentAvatar={
-          equippedAvatar
-        }
-
-        activeJourney={
-          selectedJourney
-        }
-
-        goToJourneys={() =>
-          setActiveTab(
-            "journeys"
-          )
-        }
-
-        goToGPSJourneyMap={() => {
-          const journeyToOpen =
-            lastJourney ||
-            selectedJourney;
-
-          if (
-            journeyToOpen
-          ) {
-            openGPSJourneyMap(
-              journeyToOpen
-            );
-          } else {
-            setActiveTab(
-              "journeys"
-            );
-          }
-        }}
-
-        goToPassport={() =>
-          setActiveTab(
-            "passport"
-          )
-        }
-
-        goToAvatarProfile={() =>
-          setActiveTab(
-            "avatarProfile"
-          )
-        }
-
-        goToRewards={() =>
-          setActiveTab(
-            "rewards"
-          )
-        }
-
-        goToWalkingAnalytics={() =>
-          setActiveTab(
-            "walkingAnalytics"
-          )
-        }
-
-        goToLegathons={() =>
-          setActiveTab(
-            "legathons"
-          )
-        }
-      />
+      <WalkingDashboardScreen {...dashboardProps} />
     );
   }
 
@@ -1305,43 +721,19 @@ export default function App() {
   // JOURNEYS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "journeys"
-  ) {
+  else if (activeTab === "journeys") {
     screen = (
       <JourneysScreen
         language={language}
-
-        activeJourney={
-          selectedJourney
-        }
-
-        setSelectedJourney={
-          setSelectedJourney
-        }
-
-        goToJourneyDetail={
-          openJourneyDetail
-        }
-
-        goToGPSJourneyMap={
-          openGPSJourneyMap
-        }
-
+        activeJourney={selectedJourney}
+        setSelectedJourney={setSelectedJourney}
+        goToJourneyDetail={openJourneyDetail}
+        goToGPSJourneyMap={openGPSJourneyMap}
         goToSubscription={() =>
-          setActiveTab(
-            "subscription"
-          )
+          setActiveTab("subscription")
         }
-
-        goBack={
-          goHome
-        }
-
-        subscriptionPlan={
-          subscriptionPlan
-        }
+        goBack={goHome}
+        subscriptionPlan={subscriptionPlan}
       />
     );
   }
@@ -1350,174 +742,46 @@ export default function App() {
   // JOURNEY DETAIL
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "journeyDetail"
-  ) {
+  else if (activeTab === "journeyDetail") {
     screen = (
       <JourneyDetailScreen
         language={language}
-
-        journey={
-          selectedJourney
-        }
-
+        journey={selectedJourney}
         goBack={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
-
-        startJourney={(
-          journey
-        ) => {
-          const requiredPlan =
+        startJourney={journey => {
+          const required =
             journey?.accessLevel ||
+            (journey?.premium ? "premium" : "free");
 
-            (
-              journey?.premium
-                ? "premium"
-                : "free"
-            );
+          const current = String(
+            subscriptionPlan || "free"
+          ).toLowerCase();
 
-          const currentPlan =
-            String(
-              subscriptionPlan ||
-              "free"
-            )
-              .toLowerCase();
+          const allowed =
+            required === "free" ||
+            (required === "premium" &&
+              (current === "premium" ||
+                current === "elite")) ||
+            (required === "elite" &&
+              current === "elite");
 
-          const canStart =
-            requiredPlan ===
-              "free" ||
+          setSelectedJourney(journey);
 
-            (
-              requiredPlan ===
-                "premium" &&
-
-              (
-                currentPlan ===
-                  "premium" ||
-
-                currentPlan ===
-                  "elite"
-              )
-            ) ||
-
-            (
-              requiredPlan ===
-                "elite" &&
-
-              currentPlan ===
-                "elite"
-            );
-
-          if (
-            !canStart
-          ) {
-            setSelectedJourney(
-              journey
-            );
-
-            setActiveTab(
-              "subscription"
-            );
-
+          if (!allowed) {
+            setActiveTab("subscription");
             return;
           }
 
-          setSelectedJourney(
-            journey
-          );
-
-          setLastJourney(
-            journey
-          );
-
-          setActiveTab(
-            "journeyMap"
-          );
+          setLastJourney(journey);
+          setActiveTab("journeyMap");
         }}
-
         goToSubscription={() =>
-          setActiveTab(
-            "subscription"
-          )
+          setActiveTab("subscription")
         }
-
-        subscriptionPlan={
-          subscriptionPlan
-        }
-
-        lifetimeSteps={
-          lifetimeSteps
-        }
-      />
-    );
-  }
-
-  // ==========================================================
-  // SUBSCRIPTION CHECKOUT
-  // ==========================================================
-
-  else if (
-    activeTab ===
-    "subscriptionCheckout"
-  ) {
-    screen = (
-      <SubscriptionCheckoutScreen
-        language={language}
-
-        selectedPlan={
-          selectedPlan
-        }
-
-        subscriptionPlan={
-          subscriptionPlan
-        }
-
-        goBack={() =>
-          setActiveTab(
-            "subscription"
-          )
-        }
-
-        onConfirm={
-          async (
-            plan
-          ) => {
-            applyMembershipPlan(
-              plan
-            );
-
-            await refreshVerifiedMembership();
-
-            setActiveTab(
-              "home"
-            );
-          }
-        }
-      />
-    );
-  }
-
-  // ==========================================================
-  // MEAL PLANNER
-  // ==========================================================
-
-  else if (
-    activeTab ===
-    "mealPlanner"
-  ) {
-    screen = (
-      <MealPlannerScreen
-        language={language}
-
-        goBack={() =>
-          setActiveTab(
-            "aiCoach"
-          )
-        }
+        subscriptionPlan={subscriptionPlan}
+        lifetimeSteps={lifetimeSteps}
       />
     );
   }
@@ -1526,81 +790,82 @@ export default function App() {
   // GPS JOURNEY MAP
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "journeyMap"
-  ) {
-    const journeyObject =
-      typeof selectedJourney ===
-        "object" &&
-      selectedJourney
-
+  else if (activeTab === "journeyMap") {
+    const journey =
+      selectedJourney &&
+      typeof selectedJourney === "object"
         ? selectedJourney
-
-        : typeof lastJourney ===
-            "object" &&
-          lastJourney
-
-          ? lastJourney
-
-          : {
-              id:
-                selectedJourney ||
-                lastJourney ||
-                "",
-
-              title:
-                selectedJourney ||
-                lastJourney ||
-                "Legathon Journey",
-            };
+        : lastJourney &&
+          typeof lastJourney === "object"
+        ? lastJourney
+        : {
+            id:
+              selectedJourney ||
+              lastJourney ||
+              "",
+            title:
+              selectedJourney ||
+              lastJourney ||
+              "Legathon Journey",
+          };
 
     screen = (
       <GPSJourneyMapScreen
         language={language}
-
-        selectedJourney={
-          journeyObject
-        }
-
-        activeJourney={
-          journeyObject
-        }
-
-        journey={
-          journeyObject
-        }
-
+        selectedJourney={journey}
+        activeJourney={journey}
+        journey={journey}
         goBack={() =>
-          setActiveTab(
-            "journeyDetail"
-          )
+          setActiveTab("journeyDetail")
         }
-
         goToDetail={() =>
-          setActiveTab(
-            "journeyDetail"
-          )
+          setActiveTab("journeyDetail")
         }
-
-        awardJourneyRewards={
-          awardJourneyRewards
-        }
-
-        goToStory={(
-          checkpointNumber
-        ) => {
+        awardJourneyRewards={awardJourneyRewards}
+        goToStory={checkpoint => {
           setSelectedStoryCheckpoint(
-            Number(
-              checkpointNumber ||
-              1
-            )
+            Number(checkpoint || 1)
           );
 
-          setActiveTab(
-            "journeyStory"
-          );
+          setActiveTab("journeyStory");
         }}
+      />
+    );
+  }
+
+  // ==========================================================
+  // SUBSCRIPTION CHECKOUT
+  // ==========================================================
+
+  else if (activeTab === "subscriptionCheckout") {
+    screen = (
+      <SubscriptionCheckoutScreen
+        language={language}
+        selectedPlan={selectedPlan}
+        subscriptionPlan={subscriptionPlan}
+        goBack={() =>
+          setActiveTab("subscription")
+        }
+        onConfirm={async plan => {
+          applyMembershipPlan(plan);
+          await refreshVerifiedMembership();
+          goHome();
+        }}
+      />
+    );
+  }
+
+  // ==========================================================
+  // MEAL PLANNER
+  // ==========================================================
+
+  else if (activeTab === "mealPlanner") {
+    screen = (
+      <MealPlannerScreen
+        language={language}
+        goBack={() =>
+          setActiveTab("aiCoach")
+        }
       />
     );
   }
@@ -1609,25 +874,14 @@ export default function App() {
   // JOURNEY PREFERENCES
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "journeyPreferences"
-  ) {
+  else if (activeTab === "journeyPreferences") {
     screen = (
       <JourneyPreferencesScreen
         language={language}
-
         goToSummary={() =>
-          setActiveTab(
-            "personalizationSummary"
-          )
+          setActiveTab("personalizationSummary")
         }
-
-        goBack={() =>
-          setActiveTab(
-            "home"
-          )
-        }
+        goBack={goHome}
       />
     );
   }
@@ -1637,23 +891,16 @@ export default function App() {
   // ==========================================================
 
   else if (
-    activeTab ===
-    "personalizationSummary"
+    activeTab === "personalizationSummary"
   ) {
     screen = (
       <PersonalizationSummaryScreen
         language={language}
-
         startLegacy={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
-
         editPreferences={() =>
-          setActiveTab(
-            "journeyPreferences"
-          )
+          setActiveTab("journeyPreferences")
         }
       />
     );
@@ -1663,21 +910,12 @@ export default function App() {
   // REWARDS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "rewards"
-  ) {
+  else if (activeTab === "rewards") {
     screen = (
       <RewardsScreen
         language={language}
-
-        wCoinBalance={
-          wCoinBalance
-        }
-
-        addWCoins={
-          addWCoins
-        }
+        wCoinBalance={wCoinBalance}
+        addWCoins={addWCoins}
       />
     );
   }
@@ -1686,218 +924,133 @@ export default function App() {
   // AVATAR CENTER
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "avatarCenter"
-  ) {
+  else if (activeTab === "avatarCenter") {
     screen = (
       <AvatarCenterScreen
         language={language}
-
-        goBack={
-          goHome
-        }
+        goBack={goHome}
       />
     );
   }
 
   // ==========================================================
-  // MORE
+  // MORE MENU
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "more"
-  ) {
+  else if (activeTab === "more") {
     screen = (
       <MoreScreen
         language={language}
-
         goToProfile={() =>
-          setActiveTab(
-            "profile"
-          )
+          setActiveTab("profile")
         }
-
         goToSubscription={() =>
-          setActiveTab(
-            "subscription"
-          )
+          setActiveTab("subscription")
         }
-
         goToPassport={() =>
-          setActiveTab(
-            "passport"
-          )
+          setActiveTab("passport")
         }
-
+        goToMedalCollection={goMedals}
         goToCertificate={() =>
-          setActiveTab(
-            "certificate"
-          )
+          setActiveTab("certificate")
         }
-
         goToWalkingAnalytics={() =>
-          setActiveTab(
-            "walkingAnalytics"
-          )
+          setActiveTab("walkingAnalytics")
         }
-
         goToAICoach={() =>
-          setActiveTab(
-            "aiCoach"
-          )
+          setActiveTab("aiCoach")
         }
-
         goToGPSJourneyMap={() =>
-          setActiveTab(
-            "journeyMap"
-          )
+          setActiveTab("journeyMap")
         }
-
         goToJourneyStory={() =>
-          setActiveTab(
-            "journeyStory"
-          )
+          setActiveTab("journeyStory")
         }
-
         goToLegathons={() =>
-          setActiveTab(
-            "legathons"
-          )
+          setActiveTab("legathons")
         }
-
         goToCommunity={() =>
-          setActiveTab(
-            "community"
-          )
+          setActiveTab("community")
         }
-
         goToLeaderboard={() =>
-          setActiveTab(
-            "leaderboard"
-          )
+          setActiveTab("leaderboard")
         }
-
         goToHallOfLegends={() =>
-          setActiveTab(
-            "hallOfLegends"
-          )
+          setActiveTab("hallOfLegends")
         }
-
         goToDailyChallenge={() =>
-          setActiveTab(
-            "dailyChallenge"
-          )
+          setActiveTab("dailyChallenge")
         }
-
         goToPhysicalStore={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
-
         goToMarketplace={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
-
         goToInventory={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
-
         goToWCoinWallet={() =>
-          setActiveTab(
-            "wCoinWallet"
-          )
+          setActiveTab("wCoinWallet")
         }
-
         goToAvatarProfile={() =>
-          setActiveTab(
-            "avatarCenter"
-          )
+          setActiveTab("avatarCenter")
         }
-
         goToBreathing={() =>
-          setActiveTab(
-            "breathing"
-          )
+          setActiveTab("breathing")
         }
-
         goToBreathingAnalytics={() =>
-          setActiveTab(
-            "breathingAnalytics"
-          )
+          setActiveTab("breathingAnalytics")
         }
-
         selectedJourney={
-          selectedJourney ||
-          "selma"
+          selectedJourney || "selma"
         }
-
         goToLanguage={() =>
-          setActiveTab(
-            "language"
-          )
+          setActiveTab("language")
         }
-
         goToSettings={() =>
-          setActiveTab(
-            "settings"
-          )
+          setActiveTab("settings")
         }
-
         goToPrivacyPolicy={() =>
-          setActiveTab(
-            "privacyPolicy"
-          )
+          setActiveTab("privacyPolicy")
         }
-
         goToAbout={() =>
-          setActiveTab(
-            "about"
-          )
+          setActiveTab("about")
         }
-
         goToWalkingFunction={() =>
-          setActiveTab(
-            "walkingFunction"
-          )
+          setActiveTab("walkingFunction")
         }
-
         goToJourneyPreferences={() =>
-          setActiveTab(
-            "journeyPreferences"
-          )
+          setActiveTab("journeyPreferences")
         }
       />
     );
   }
 
   // ==========================================================
-  // PASSPORT
+  // NEW - LEGATHON MEDAL COLLECTION
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "passport"
-  ) {
+  else if (activeTab === "medalCollection") {
+    screen = (
+      <MedalCollectionScreen
+        language={language}
+        goBack={() =>
+          setActiveTab("legathons")
+        }
+      />
+    );
+  }
+
+  // ==========================================================
+  // JOURNEY PASSPORT COLLECTION
+  // ==========================================================
+
+  else if (activeTab === "passport") {
     screen = (
       <PassportScreen
         language={language}
-
-        goBack={
-          goMore
-        }
-
-        goToCertificate={() =>
-          setActiveTab(
-            "certificate"
-          )
-        }
+        goBack={goMore}
       />
     );
   }
@@ -1906,48 +1059,27 @@ export default function App() {
   // PASSPORT DETAIL
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "passportDetail"
-  ) {
+  else if (activeTab === "passportDetail") {
     screen = (
       <PassportDetailScreen
         language={language}
-
-        passportId={
-          selectedPassport
-        }
-
+        passportId={selectedPassport}
         goBack={() =>
-          setActiveTab(
-            "profile"
-          )
-        }
-
-        goCertificate={() =>
-          setActiveTab(
-            "certificate"
-          )
+          setActiveTab("passport")
         }
       />
     );
   }
 
   // ==========================================================
-  // CERTIFICATE
+  // LEGACY CERTIFICATE ROUTE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "certificate"
-  ) {
+  else if (activeTab === "certificate") {
     screen = (
       <CertificateScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -1956,28 +1088,17 @@ export default function App() {
   // PROFILE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "profile"
-  ) {
+  else if (activeTab === "profile") {
     screen = (
       <ProfileScreen
         language={language}
-
-        goBack={
-          goMore
+        goBack={goMore}
+        goToAvatarCenter={() =>
+          setActiveTab("avatarCenter")
         }
-
-        openPassport={(
-          passportId
-        ) => {
-          setSelectedPassport(
-            passportId
-          );
-
-          setActiveTab(
-            "passportDetail"
-          );
+        openPassport={passportId => {
+          setSelectedPassport(passportId);
+          setActiveTab("passportDetail");
         }}
       />
     );
@@ -1987,21 +1108,12 @@ export default function App() {
   // WCOIN WALLET
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "wCoinWallet"
-  ) {
+  else if (activeTab === "wCoinWallet") {
     screen = (
       <WCoinWalletScreen
         language={language}
-
-        wCoinBalance={
-          wCoinBalance
-        }
-
-        goBack={
-          goMore
-        }
+        wCoinBalance={wCoinBalance}
+        goBack={goMore}
       />
     );
   }
@@ -2010,46 +1122,22 @@ export default function App() {
   // SUBSCRIPTIONS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "subscription"
-  ) {
+  else if (activeTab === "subscription") {
     screen = (
       <SubscriptionScreen
         language={language}
-
-        subscriptionPlan={
-          subscriptionPlan
-        }
-
-        setSubscriptionPlan={
-          setSubscriptionPlan
-        }
-
-        goBack={
-          goMore
-        }
-
-        goToPaywall={(
-          plan
-        ) => {
-          setSelectedPlan(
-            plan
-          );
-
-          setActiveTab(
-            "subscriptionCheckout"
-          );
+        subscriptionPlan={subscriptionPlan}
+        setSubscriptionPlan={setSubscriptionPlan}
+        goBack={goMore}
+        goToPaywall={plan => {
+          setSelectedPlan(plan);
+          setActiveTab("subscriptionCheckout");
         }}
-
         onRestorePurchases={
           handleRestorePurchases
         }
-
         goToPrivacyPolicy={() =>
-          setActiveTab(
-            "privacyPolicy"
-          )
+          setActiveTab("privacyPolicy")
         }
       />
     );
@@ -2059,17 +1147,11 @@ export default function App() {
   // HALL OF LEGENDS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "hallOfLegends"
-  ) {
+  else if (activeTab === "hallOfLegends") {
     screen = (
       <HallOfLegendsScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -2078,17 +1160,11 @@ export default function App() {
   // WALKING ANALYTICS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "walkingAnalytics"
-  ) {
+  else if (activeTab === "walkingAnalytics") {
     screen = (
       <WalkingAnalyticsScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -2097,83 +1173,36 @@ export default function App() {
   // WALKING FUNCTION
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "walkingFunction"
-  ) {
+  else if (activeTab === "walkingFunction") {
     screen = (
       <WalkingFunctionScreen
         language={language}
-
-        todaySteps={
-          walkingData.steps
-        }
-
-        liveSteps={
-          walkingData.steps
-        }
-
-        liveMiles={
-          walkingData.miles
-        }
-
+        todaySteps={walkingData.steps}
+        liveSteps={walkingData.steps}
+        liveMiles={walkingData.miles}
         walkingSeconds={
-          walkingData
-            .walkingSeconds
+          walkingData.walkingSeconds
         }
-
         walkingMinutes={
-          walkingData
-            .walkingMinutes
+          walkingData.walkingMinutes
         }
-
         paceMinutesPerMile={
-          walkingData
-            .paceMinutesPerMile
+          walkingData.paceMinutesPerMile
         }
-
-        speedMph={
-          walkingData
-            .speedMph
-        }
-
-        cadence={
-          walkingData
-            .cadence
-        }
-
+        speedMph={walkingData.speedMph}
+        cadence={walkingData.cadence}
         pedometerAvailable={
-          walkingData
-            .isAvailable
+          walkingData.isAvailable
         }
-
-        goBack={
-          goMore
-        }
-
-        goHome={() =>
-          setActiveTab(
-            "home"
-          )
-        }
-
+        goBack={goMore}
+        goHome={goHome}
         goJourneys={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
-
         goRewards={() =>
-          setActiveTab(
-            "rewards"
-          )
+          setActiveTab("rewards")
         }
-
-        goMore={() =>
-          setActiveTab(
-            "more"
-          )
-        }
+        goMore={goMore}
       />
     );
   }
@@ -2182,81 +1211,43 @@ export default function App() {
   // AI WELLNESS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "aiCoach"
-  ) {
+  else if (activeTab === "aiCoach") {
     screen = (
       <AIWellnessMasterScreen
         language={language}
-
-        goToGPSJourneyMap={(
-          params
-        ) => {
+        goToGPSJourneyMap={params => {
           const journey =
-            params?.journey ||
-            params ||
-            null;
+            params?.journey || params || null;
 
-          if (
-            journey
-          ) {
-            setSelectedJourney(
-              journey
-            );
+          if (journey) {
+            setSelectedJourney(journey);
           }
 
-          setActiveTab(
-            "journeyMap"
-          );
+          setActiveTab("journeyMap");
         }}
-
         goToJourneys={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
-
         goToBreathing={() =>
-          setActiveTab(
-            "breathing"
-          )
+          setActiveTab("breathing")
         }
-
         goToHydration={() =>
-          setActiveTab(
-            "hydration"
-          )
+          setActiveTab("hydration")
         }
-
         goToRecovery={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToSleep={() =>
-          setActiveTab(
-            "sleep"
-          )
+          setActiveTab("sleep")
         }
-
         goToWalkingAnalytics={() =>
-          setActiveTab(
-            "walkingAnalytics"
-          )
+          setActiveTab("walkingAnalytics")
         }
-
         goToMealPlanner={() =>
-          setActiveTab(
-            "mealPlanner"
-          )
+          setActiveTab("mealPlanner")
         }
-
         goToAIConversation={() =>
-          setActiveTab(
-            "aiConversation"
-          )
+          setActiveTab("aiConversation")
         }
       />
     );
@@ -2266,34 +1257,17 @@ export default function App() {
   // COMMUNITY
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "community"
-  ) {
+  else if (activeTab === "community") {
     screen = (
       <CommunityScreen
         language={language}
-
-        goBack={
-          goMore
-        }
-
+        goBack={goMore}
         goToAICoach={() =>
-          setActiveTab(
-            "aiConversation"
-          )
+          setActiveTab("aiConversation")
         }
-
-        goToComments={(
-          post
-        ) => {
-          setSelectedCommunityPost(
-            post
-          );
-
-          setActiveTab(
-            "communityComments"
-          );
+        goToComments={post => {
+          setSelectedCommunityPost(post);
+          setActiveTab("communityComments");
         }}
       />
     );
@@ -2303,22 +1277,13 @@ export default function App() {
   // COMMUNITY COMMENTS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "communityComments"
-  ) {
+  else if (activeTab === "communityComments") {
     screen = (
       <CommunityCommentsScreen
         language={language}
-
-        post={
-          selectedCommunityPost
-        }
-
+        post={selectedCommunityPost}
         goBack={() =>
-          setActiveTab(
-            "community"
-          )
+          setActiveTab("community")
         }
       />
     );
@@ -2328,17 +1293,11 @@ export default function App() {
   // LEADERBOARD
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "leaderboard"
-  ) {
+  else if (activeTab === "leaderboard") {
     screen = (
       <LeaderboardScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -2347,17 +1306,11 @@ export default function App() {
   // DAILY CHALLENGE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "dailyChallenge"
-  ) {
+  else if (activeTab === "dailyChallenge") {
     screen = (
       <DailyChallengeScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -2366,18 +1319,12 @@ export default function App() {
   // BREATHING
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "breathing"
-  ) {
+  else if (activeTab === "breathing") {
     screen = (
       <BreathingScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
       />
     );
@@ -2387,17 +1334,11 @@ export default function App() {
   // BREATHING ANALYTICS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "breathingAnalytics"
-  ) {
+  else if (activeTab === "breathingAnalytics") {
     screen = (
       <BreathingAnalyticsScreen
         language={language}
-
-        goBack={
-          goMore
-        }
+        goBack={goMore}
       />
     );
   }
@@ -2406,30 +1347,18 @@ export default function App() {
   // HYDRATION
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "hydration"
-  ) {
+  else if (activeTab === "hydration") {
     screen = (
       <HydrationCoachScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToRecovery={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToAIWellness={() =>
-          setActiveTab(
-            "aiCoach"
-          )
+          setActiveTab("aiCoach")
         }
       />
     );
@@ -2439,36 +1368,21 @@ export default function App() {
   // SLEEP
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "sleep"
-  ) {
+  else if (activeTab === "sleep") {
     screen = (
       <SleepCoachScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToRecovery={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToBreathing={() =>
-          setActiveTab(
-            "breathing"
-          )
+          setActiveTab("breathing")
         }
-
         goToAIWellness={() =>
-          setActiveTab(
-            "aiCoach"
-          )
+          setActiveTab("aiCoach")
         }
       />
     );
@@ -2478,186 +1392,97 @@ export default function App() {
   // RECOVERY
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "recovery"
-  ) {
+  else if (activeTab === "recovery") {
     screen = (
       <RecoveryCoachScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "aiConversation"
-          )
+          setActiveTab("aiConversation")
         }
-
         goToBreathing={() =>
-          setActiveTab(
-            "breathing"
-          )
+          setActiveTab("breathing")
         }
-
         goToHydration={() =>
-          setActiveTab(
-            "hydration"
-          )
+          setActiveTab("hydration")
         }
-
         goToSleep={() =>
-          setActiveTab(
-            "sleep"
-          )
+          setActiveTab("sleep")
         }
-
         goToWalkingAnalytics={() =>
-          setActiveTab(
-            "walkingAnalytics"
-          )
+          setActiveTab("walkingAnalytics")
         }
       />
     );
   }
 
   // ==========================================================
-  // AI CONVERSATION
+  // AI CONVERSATION - TEXT BASED
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "aiConversation"
-  ) {
+  else if (activeTab === "aiConversation") {
     screen = (
       <AIConversationScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "aiCoach"
-          )
+          setActiveTab("aiCoach")
         }
-
         goToGPSJourneyMap={() =>
-          setActiveTab(
-            "journeyMap"
-          )
+          setActiveTab("journeyMap")
         }
-
         goToJourneys={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
-
         goToMealPlanner={() =>
-          setActiveTab(
-            "mealPlanner"
-          )
+          setActiveTab("mealPlanner")
         }
-
         goToHydration={() =>
-          setActiveTab(
-            "hydration"
-          )
+          setActiveTab("hydration")
         }
-
         goToRecovery={() =>
-          setActiveTab(
-            "recovery"
-          )
+          setActiveTab("recovery")
         }
-
         goToSleep={() =>
-          setActiveTab(
-            "sleep"
-          )
+          setActiveTab("sleep")
         }
-
         goToBreathing={() =>
-          setActiveTab(
-            "breathing"
-          )
+          setActiveTab("breathing")
         }
-
         wellness={{
-          steps:
-            Number(
-              walkingData
-                ?.steps ||
-              0
-            ),
-
-          stepGoal:
-            7000,
-
-          hydration:
-            0,
-
-          hydrationGoal:
-            100,
-
-          recovery:
-            null,
-
-          sleepHours:
-            null,
-
-          journey:
-            selectedJourney
-              ?.title ||
-            "",
-
+          steps: Number(walkingData?.steps || 0),
+          stepGoal: 7000,
+          hydration: 0,
+          hydrationGoal: 100,
+          recovery: null,
+          sleepHours: null,
+          journey: selectedJourney?.title || "",
           journeyProgress:
-            selectedJourney
-              ?.progress ||
-
-            selectedJourney
-              ?.journeyProgress ||
-
+            selectedJourney?.progress ||
+            selectedJourney?.journeyProgress ||
             0,
-
           checkpoint:
-            selectedJourney
-              ?.currentCheckpoint ||
-            "",
+            selectedJourney?.currentCheckpoint || "",
         }}
       />
     );
   }
 
   // ==========================================================
-  // PHYSICAL MERCH STORE
+  // PHYSICAL MERCHANDISE STORE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "physicalMerch"
-  ) {
+  else if (activeTab === "physicalMerch") {
     screen = (
       <PhysicalMerchStoreScreen
         language={language}
-
         goBack={() =>
-          setActiveTab(
-            "wCoinWallet"
-          )
+          setActiveTab("wCoinWallet")
         }
-
-        openItem={
-          openStoreItemDetail
-        }
-
+        openItem={openStoreItemDetail}
         goToPurchaseConfirmation={
           goToPurchaseConfirmation
         }
-
-        wCoinBalance={
-          wCoinBalance
-        }
-
-        lifetimeSteps={
-          lifetimeSteps
-        }
+        wCoinBalance={wCoinBalance}
+        lifetimeSteps={lifetimeSteps}
       />
     );
   }
@@ -2666,24 +1491,14 @@ export default function App() {
   // STORE ITEM DETAIL
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "storeItemDetail"
-  ) {
+  else if (activeTab === "storeItemDetail") {
     screen = (
       <StoreItemDetailScreen
         language={language}
-
-        item={
-          selectedStoreItem
-        }
-
+        item={selectedStoreItem}
         goBack={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
-
         goToPurchaseConfirmation={
           goToPurchaseConfirmation
         }
@@ -2692,49 +1507,25 @@ export default function App() {
   }
 
   // ==========================================================
-  // PURCHASE CONFIRMATION / STRIPE
+  // PURCHASE CONFIRMATION
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "purchaseConfirmation"
-  ) {
+  else if (activeTab === "purchaseConfirmation") {
     screen = (
       <PurchaseConfirmationScreen
         language={language}
-
-        item={
-          selectedStoreItem
-        }
-
-        userPlan={
-          subscriptionPlan
-        }
-
-        wCoinBalance={
-          wCoinBalance
-        }
-
+        item={selectedStoreItem}
+        userPlan={subscriptionPlan}
+        wCoinBalance={wCoinBalance}
         refreshWCoinBalance={
           refreshSecureWCoinBalance
         }
-
         goBack={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
-
-        goHome={() =>
-          setActiveTab(
-            "home"
-          )
-        }
-
+        goHome={goHome}
         goToInventory={() =>
-          setActiveTab(
-            "physicalMerch"
-          )
+          setActiveTab("physicalMerch")
         }
       />
     );
@@ -2744,94 +1535,47 @@ export default function App() {
   // JOURNEY STORY
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "journeyStory"
-  ) {
+  else if (activeTab === "journeyStory") {
+    const journey =
+      selectedJourney &&
+      typeof selectedJourney === "object"
+        ? selectedJourney
+        : lastJourney &&
+          typeof lastJourney === "object"
+        ? lastJourney
+        : {
+            id:
+              selectedJourney ||
+              lastJourney ||
+              "",
+          };
+
     screen = (
       <JourneyStoryScreen
         language={language}
-
         route={{
           params: {
-            journey:
-              typeof selectedJourney ===
-                "object" &&
-              selectedJourney
-
-                ? selectedJourney
-
-                : typeof lastJourney ===
-                    "object" &&
-                  lastJourney
-
-                  ? lastJourney
-
-                  : {
-                      id:
-                        selectedJourney ||
-                        lastJourney ||
-                        "",
-                    },
-
-            checkpoint:
-              selectedStoryCheckpoint,
+            journey,
+            checkpoint: selectedStoryCheckpoint,
           },
         }}
-
-        lifetimeSteps={
-          totalSteps
-        }
-
-        subscriptionPlan={
-          subscriptionPlan
-        }
-
+        lifetimeSteps={totalSteps}
+        subscriptionPlan={subscriptionPlan}
         goBack={() =>
-          setActiveTab(
-            "journeys"
-          )
+          setActiveTab("journeys")
         }
+        goToProgress={item => {
+          const next =
+            item && typeof item === "object"
+              ? item
+              : journey;
 
-        goToProgress={(
-          journey
-        ) => {
-          const journeyToContinue =
-            journey &&
-            typeof journey ===
-              "object"
-
-              ? journey
-
-              : typeof selectedJourney ===
-                  "object" &&
-                selectedJourney
-
-                ? selectedJourney
-
-                : typeof lastJourney ===
-                    "object" &&
-                  lastJourney
-
-                  ? lastJourney
-
-                  : null;
-
-          if (
-            journeyToContinue
-          ) {
-            setSelectedJourney(
-              journeyToContinue
-            );
-
-            setLastJourney(
-              journeyToContinue
-            );
+          if (next) {
+            setSelectedJourney(next);
+            setLastJourney(next);
           }
 
-          setActiveTab(
-            "journeyMap"
-          );
+          setActiveTab("journeyMap");
         }}
       />
     );
@@ -2841,152 +1585,85 @@ export default function App() {
   // AVATAR PROFILE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "avatarProfile"
-  ) {
+  else if (activeTab === "avatarProfile") {
     screen = (
       <AvatarProfileScreen
         language={language}
-
-        currentAvatar={
-          equippedAvatar
-        }
-
-        equippedAvatar={
-          equippedAvatar
-        }
-
-        goBack={
-          goHome
-        }
-
+        currentAvatar={equippedAvatar}
+        equippedAvatar={equippedAvatar}
+        goBack={goHome}
         goToAvatarCenter={() =>
-          setActiveTab(
-            "avatarCenter"
-          )
+          setActiveTab("avatarCenter")
         }
-
         changeAvatar={() =>
-          setActiveTab(
-            "avatarCenter"
-          )
+          setActiveTab("avatarCenter")
         }
       />
     );
   }
 
   // ==========================================================
-  // WORLD PASSPORT
+  // WORLD PASSPORT - JOURNEYS ONLY
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "worldPassport"
-  ) {
+  else if (activeTab === "worldPassport") {
     screen = (
       <PassportScreen
         language={language}
-
-        selectedPassport={
-          selectedPassport
-        }
-
+        selectedPassport={selectedPassport}
         goBack={() =>
-          setActiveTab(
-            "journeys"
-          )
-        }
-
-        goToCertificate={() =>
-          setActiveTab(
-            "certificate"
-          )
+          setActiveTab("journeys")
         }
       />
     );
   }
 
   // ==========================================================
-  // LEGATHONS
+  // LEGATHONS - WITH NEW MEDAL COLLECTION BUTTON
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "legathons"
-  ) {
+  else if (activeTab === "legathons") {
     screen = (
-      <MarathonScreen
-        language={language}
+      <View style={styles.legathonsWrap}>
+        <TouchableOpacity
+          style={styles.medalShortcutButton}
+          activeOpacity={0.85}
+          onPress={goMedals}
+        >
+          <Text style={styles.medalShortcutText}>
+            🏅 View My Medal Collection
+          </Text>
+        </TouchableOpacity>
 
-        goBack={
-          goMore
-        }
-
-        goToWorldMarathonDetail={(
-          marathonId
-        ) => {
-          setSelectedMarathonId(
-            marathonId
-          );
-
-          setActiveTab(
-            "worldMarathonDetail"
-          );
-        }}
-      />
+        <View style={styles.legathonsContent}>
+          <MarathonScreen
+            language={language}
+            goBack={goMore}
+            goToWorldMarathonDetail={marathonId => {
+              setSelectedMarathonId(marathonId);
+              setActiveTab("worldMarathonDetail");
+            }}
+          />
+        </View>
+      </View>
     );
   }
 
   // ==========================================================
-  // WORLD MARATHON DETAIL
+  // LEGATHON DETAIL
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "worldMarathonDetail"
-  ) {
+  else if (activeTab === "worldMarathonDetail") {
     screen = (
       <WorldMarathonDetailScreen
         language={language}
-
-        marathonId={
-          selectedMarathonId
-        }
-
+        marathonId={selectedMarathonId}
         goBack={() =>
-          setActiveTab(
-            "legathons"
-          )
+          setActiveTab("legathons")
         }
-
-        goToCertificate={(
-          params
-        ) => {
-          setSelectedMarathonId(
-            params
-              ?.marathonId ||
-            selectedMarathonId
-          );
-
-          setActiveTab(
-            "certificate"
-          );
-        }}
-
-        goToPassport={(
-          params
-        ) => {
-          setSelectedMarathonId(
-            params
-              ?.marathonId ||
-            selectedMarathonId
-          );
-
-          setActiveTab(
-            "worldPassport"
-          );
-        }}
+        goToCertificate={goMedals}
+        goToPassport={goMedals}
+        goToMedalCollection={goMedals}
       />
     );
   }
@@ -2995,23 +1672,12 @@ export default function App() {
   // LANGUAGE
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "language"
-  ) {
+  else if (activeTab === "language") {
     screen = (
       <LanguageSelectionScreen
-        language={
-          language
-        }
-
-        setLanguage={
-          setLanguage
-        }
-
-        goBack={
-          goMore
-        }
+        language={language}
+        setLanguage={setLanguage}
+        goBack={goMore}
       />
     );
   }
@@ -3020,58 +1686,33 @@ export default function App() {
   // SETTINGS
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "settings"
-  ) {
+  else if (activeTab === "settings") {
     screen = (
       <SettingsScreen
-        language={
-          language
-        }
-
-        goBack={
-          goMore
-        }
-
+        language={language}
+        goBack={goMore}
         goToLanguage={() =>
-          setActiveTab(
-            "language"
-          )
+          setActiveTab("language")
         }
-
         goToPrivacy={() =>
-          setActiveTab(
-            "privacyPolicy"
-          )
+          setActiveTab("privacyPolicy")
         }
-
         goToAbout={() =>
-          setActiveTab(
-            "about"
-          )
+          setActiveTab("about")
         }
       />
     );
   }
 
   // ==========================================================
-  // PRIVACY
+  // PRIVACY POLICY
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "privacyPolicy"
-  ) {
+  else if (activeTab === "privacyPolicy") {
     screen = (
       <PrivacyPolicyScreen
-        language={
-          language
-        }
-
-        goBack={
-          goMore
-        }
+        language={language}
+        goBack={goMore}
       />
     );
   }
@@ -3080,84 +1721,22 @@ export default function App() {
   // ABOUT
   // ==========================================================
 
-  else if (
-    activeTab ===
-    "about"
-  ) {
+  else if (activeTab === "about") {
     screen = (
       <AboutScreen
-        language={
-          language
-        }
-
-        goBack={
-          goMore
-        }
+        language={language}
+        goBack={goMore}
       />
     );
   }
 
   // ==========================================================
-  // FALLBACK HOME
+  // FALLBACK
   // ==========================================================
 
   else {
     screen = (
-      <WalkingDashboardScreen
-        language={
-          language
-        }
-
-        currentAvatar={
-          equippedAvatar
-        }
-
-        activeJourney={
-          selectedJourney
-        }
-
-        goToJourneys={() =>
-          setActiveTab(
-            "journeys"
-          )
-        }
-
-        goToGPSJourneyMap={() =>
-          setActiveTab(
-            "journeyMap"
-          )
-        }
-
-        goToPassport={() =>
-          setActiveTab(
-            "passport"
-          )
-        }
-
-        goToAvatarProfile={() =>
-          setActiveTab(
-            "avatarProfile"
-          )
-        }
-
-        goToRewards={() =>
-          setActiveTab(
-            "rewards"
-          )
-        }
-
-        goToWalkingAnalytics={() =>
-          setActiveTab(
-            "walkingAnalytics"
-          )
-        }
-
-        goToLegathons={() =>
-          setActiveTab(
-            "legathons"
-          )
-        }
-      />
+      <WalkingDashboardScreen {...dashboardProps} />
     );
   }
 
@@ -3166,65 +1745,29 @@ export default function App() {
   // ==========================================================
 
   const appLayout = (
-    <View
-      style={
-        styles.app
-      }
-    >
-      <View
-        style={
-          styles.screen
-        }
-      >
+    <View style={styles.app}>
+      <View style={styles.screen}>
         {screen}
       </View>
 
-      <View
-        style={
-          styles.bottomNav
-        }
-      >
+      <View style={styles.bottomNav}>
         <NavButton
           icon={require(
             "./assets/legathon/icons/legacyhome.png"
           )}
-
-          label={translate(
-            language,
-            "home"
-          )}
-
-          active={
-            activeTab ===
-            "home"
-          }
-
-          onPress={() =>
-            setActiveTab(
-              "home"
-            )
-          }
+          label={translate(language, "home")}
+          active={activeTab === "home"}
+          onPress={goHome}
         />
 
         <NavButton
           icon={require(
             "./assets/legathon/icons/passporthome.png"
           )}
-
-          label={translate(
-            language,
-            "journeys"
-          )}
-
-          active={
-            activeTab ===
-            "journeys"
-          }
-
+          label={translate(language, "journeys")}
+          active={activeTab === "journeys"}
           onPress={() =>
-            setActiveTab(
-              "journeys"
-            )
+            setActiveTab("journeys")
           }
         />
 
@@ -3232,21 +1775,10 @@ export default function App() {
           icon={require(
             "./assets/legathon/icons/coin.png"
           )}
-
-          label={translate(
-            language,
-            "rewards"
-          )}
-
-          active={
-            activeTab ===
-            "rewards"
-          }
-
+          label={translate(language, "rewards")}
+          active={activeTab === "rewards"}
           onPress={() =>
-            setActiveTab(
-              "rewards"
-            )
+            setActiveTab("rewards")
           }
         />
 
@@ -3254,22 +1786,9 @@ export default function App() {
           icon={require(
             "./assets/legathon/icons/morehome.png"
           )}
-
-          label={translate(
-            language,
-            "more"
-          )}
-
-          active={
-            activeTab ===
-            "more"
-          }
-
-          onPress={() =>
-            setActiveTab(
-              "more"
-            )
-          }
+          label={translate(language, "more")}
+          active={activeTab === "more"}
+          onPress={goMore}
         />
       </View>
     </View>
@@ -3279,14 +1798,10 @@ export default function App() {
   // STRIPE PROVIDER
   // ==========================================================
 
-  if (
-    !STRIPE_PUBLISHABLE_KEY
-  ) {
-    if (
-      __DEV__
-    ) {
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    if (__DEV__) {
       console.warn(
-        "Stripe publishable key is missing. Add EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env file."
+        "Stripe publishable key missing. Add EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY to your .env file."
       );
     }
 
@@ -3295,9 +1810,7 @@ export default function App() {
 
   return (
     <StripeProvider
-      publishableKey={
-        STRIPE_PUBLISHABLE_KEY
-      }
+      publishableKey={STRIPE_PUBLISHABLE_KEY}
     >
       {appLayout}
     </StripeProvider>
@@ -3308,134 +1821,112 @@ export default function App() {
 // STYLES
 // ============================================================
 
-const styles =
-  StyleSheet.create({
-    app: {
-      flex: 1,
-      backgroundColor:
-        "#020611",
+const styles = StyleSheet.create({
+  app: {
+    flex: 1,
+    backgroundColor: "#020611",
+  },
+
+  screen: {
+    flex: 1,
+    backgroundColor: "#020611",
+    paddingBottom: 98,
+  },
+
+  bottomNav: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 98,
+    backgroundColor: "#03142D",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingTop: 10,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,215,90,0.55)",
+    shadowColor: "#FFD75A",
+    shadowOffset: {
+      width: 0,
+      height: -4,
     },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 999,
+    zIndex: 999,
+  },
 
-    screen: {
-      flex: 1,
-      backgroundColor:
-        "#020611",
-      paddingBottom: 98,
+  navButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    marginHorizontal: 2,
+    borderRadius: 18,
+  },
+
+  navIconImage: {
+    width: 42,
+    height: 42,
+    resizeMode: "contain",
+    marginBottom: 3,
+  },
+
+  activeNavIcon: {
+    transform: [
+      { scale: 1.16 },
+    ],
+  },
+
+  navText: {
+    color: "#A8B6D4",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+
+  activeNavText: {
+    color: "#FFD75A",
+    textShadowColor: "#FFD75A",
+    textShadowOffset: {
+      width: 0,
+      height: 0,
     },
+    textShadowRadius: 8,
+  },
 
-    bottomNav: {
-      position: "absolute",
+  // ==========================================================
+  // LEGATHON MEDAL COLLECTION SHORTCUT
+  // ==========================================================
 
-      left: 0,
-      right: 0,
-      bottom: 0,
+legathonsWrap: {
+  flex: 1,
+  backgroundColor: "#071427",
+  paddingTop: 60,
+},
 
-      height: 98,
+  legathonsContent: {
+    flex: 1,
+  },
 
-      backgroundColor:
-        "#03142D",
+  medalShortcutButton: {
+    minHeight: 52,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: "#D4AF37",
+    backgroundColor: "#142640",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 18,
+    marginBottom: 8,
+    paddingHorizontal: 15,
+  },
 
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "space-around",
-
-      paddingTop: 10,
-      paddingBottom: 24,
-
-      borderTopWidth: 1,
-
-      borderTopColor:
-        "rgba(255, 215, 90, 0.55)",
-
-      shadowColor:
-        "#FFD75A",
-
-      shadowOffset: {
-        width: 0,
-        height: -4,
-      },
-
-      shadowOpacity:
-        0.35,
-
-      shadowRadius:
-        14,
-
-      elevation:
-        999,
-
-      zIndex:
-        999,
-    },
-
-    navButton: {
-      flex: 1,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      paddingVertical:
-        6,
-
-      marginHorizontal:
-        2,
-
-      borderRadius:
-        18,
-    },
-
-    navIconImage: {
-      width: 42,
-      height: 42,
-
-      resizeMode:
-        "contain",
-
-      marginBottom:
-        3,
-    },
-
-    activeNavIcon: {
-      transform: [
-        {
-          scale:
-            1.16,
-        },
-      ],
-    },
-
-    navText: {
-      color:
-        "#A8B6D4",
-
-      fontSize:
-        10,
-
-      fontWeight:
-        "800",
-    },
-
-    activeNavText: {
-      color:
-        "#FFD75A",
-
-      textShadowColor:
-        "#FFD75A",
-
-      textShadowOffset: {
-        width: 0,
-        height: 0,
-      },
-
-      textShadowRadius:
-        8,
-    },
-  });
+  medalShortcutText: {
+    color: "#FFD75A",
+    fontSize: 16,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+});

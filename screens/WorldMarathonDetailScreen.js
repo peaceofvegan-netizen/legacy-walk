@@ -11,6 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Image,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -292,7 +293,7 @@ export default function WorldMarathonDetailScreen({
             marathon.rewardCoins
           ).toLocaleString()} WCoins, ${safeNumber(
             marathon.rewardPoints
-          ).toLocaleString()} Legacy Points, and ${safeNumber(
+          ).toLocaleString()} Legathon Points, and ${safeNumber(
             marathon.avatarXP
           ).toLocaleString()} Avatar XP were awarded.`
         );
@@ -791,11 +792,14 @@ export default function WorldMarathonDetailScreen({
             <View
               style={styles.rewardIconBox}
             >
-              <Text
-                style={styles.rewardIcon}
-              >
-                🪙
-              </Text>
+             <Image
+  source={require("../assets/wcoin.png")}
+  style={{
+    width: 48,
+    height: 48,
+  }}
+  resizeMode="contain"
+/>
             </View>
 
             <View
@@ -840,7 +844,7 @@ export default function WorldMarathonDetailScreen({
                 {safeNumber(
                   marathon.rewardPoints
                 ).toLocaleString()}{" "}
-                Legacy Points
+                Legathon Points
               </Text>
 
               <Text

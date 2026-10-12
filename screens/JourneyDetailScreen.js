@@ -3119,54 +3119,8 @@ export default function JourneyDetailScreen({
                   styles.heroContent
                 }
               >
-                {!!journey
-                  ?.category && (
-                  <Text
-                    style={
-                      styles.categoryText
-                    }
-                  >
-                    {
-                      journey
-                        .category
-                    }
-                  </Text>
-                )}
+                
 
-                <Text
-                  style={
-                    styles.journeyTitle
-                  }
-                  numberOfLines={
-                    3
-                  }
-                  adjustsFontSizeToFit
-                  minimumFontScale={
-                    0.72
-                  }
-                >
-                  {
-                    journey.title
-                  }
-                </Text>
-
-                {!!(
-                  journey
-                    ?.country ||
-                  journey
-                    ?.location
-                ) && (
-                  <Text
-                    style={
-                      styles.locationText
-                    }
-                  >
-                    {journey
-                      ?.location ||
-                      journey
-                        ?.country}
-                  </Text>
-                )}
               </View>
             </View>
 
