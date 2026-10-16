@@ -1,3 +1,5 @@
+// screens/AIWellnessMasterScreen.js
+
 import React, {
   useCallback,
   useEffect,
@@ -24,22 +26,27 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from
+  "@react-native-async-storage/async-storage";
+
+import {
+  STEP_STATS_KEY,
+} from "../utils/stepTrackingEngine";
 
 // ============================================================
 // CONSTANTS
 // ============================================================
 
-const DEFAULT_STEP_GOAL = 7000;
+const DEFAULT_STEP_GOAL = 10000;
 const DEFAULT_HYDRATION_GOAL = 100;
+const REFRESH_INTERVAL_MS = 1500;
 
 const INITIAL_WELLNESS = {
-  userName: "Walker",
+  userName: "",
   greeting: "",
 
-  steps: 0,
+  steps: null,
   stepGoal: DEFAULT_STEP_GOAL,
-  stepsRemaining: DEFAULT_STEP_GOAL,
 
   recovery: null,
   sleepHours: null,
@@ -47,11 +54,8 @@ const INITIAL_WELLNESS = {
   hydration: 0,
   hydrationGoal: DEFAULT_HYDRATION_GOAL,
 
-  calories: 0,
+  calories: null,
   stress: null,
-
-  wellnessScore: null,
-  wellnessLabel: "",
 
   streak: 0,
 
@@ -59,9 +63,10 @@ const INITIAL_WELLNESS = {
   journeyFull: "",
   activeJourney: null,
   journeyProgress: 0,
-  checkpoint: "",
+  checkpoint: null,
 
-  aiMessage: "",
+  stepError: false,
+  loadError: false,
 };
 
 // ============================================================
@@ -71,12 +76,12 @@ const INITIAL_WELLNESS = {
 const TEXT = {
   en: {
     walker: "Walker",
-
     goodMorning: "Good Morning",
     goodAfternoon: "Good Afternoon",
     goodEvening: "Good Evening",
     welcome: "Welcome",
 
+    wellness: "WELLNESS",
     aiWellnessCoach: "Your AI Wellness Coach",
 
     heroDescription:
@@ -89,13 +94,11 @@ const TEXT = {
       "Your AI coach is ready to help with your next wellness goal.",
 
     messageCoach: "Message Your Coach",
-
     walk: "Walk",
     calm: "Calm",
     meal: "Meal",
 
     todaysWellness: "Today’s Wellness",
-
     steps: "Steps",
     hydration: "Hydration",
     recovery: "Recovery",
@@ -111,7 +114,6 @@ const TEXT = {
     aiInsight: "AI Insight",
     todaysRecommendation: "Today's Recommendation",
     startWalk: "Start Walk",
-
     confidence: "Confidence",
 
     recoveryNotRecorded: "Recovery not recorded",
@@ -130,7 +132,6 @@ const TEXT = {
       "You are {steps} steps away from today’s goal.",
 
     aiActivityFeed: "AI Activity Feed",
-
     walkProgress: "Walk Progress",
     walkedToday: "You walked {steps} steps today.",
 
@@ -143,43 +144,6 @@ const TEXT = {
 
     today: "Today",
 
-    wellnessOverview: "Wellness Overview",
-    aiWellnessSummary: "AI Wellness Summary",
-
-    wellnessSummary:
-      "Your wellness dashboard uses your stored walking, hydration, recovery, sleep, and journey information to help guide your next step.",
-
-    stress: "Stress",
-
-    aiCoachingTools: "AI Coaching Tools",
-    mealPlan: "Meal Plan",
-    breathing: "Breathing",
-    motivation: "Motivation",
-
-    journeyCoach: "Journey Coach",
-    currentJourney: "CURRENT JOURNEY",
-
-    checkpointProgress:
-      "Checkpoint {checkpoint} • {progress}% complete",
-
-    continueJourney: "Continue Journey",
-
-    aiRoutePlan: "AI Route Plan",
-    nextCheckpoint: "Next Checkpoint",
-    nextCheckpointMessage:
-      "Continue walking toward your next journey checkpoint.",
-
-    suggestedPace: "Suggested Pace",
-    suggestedPaceMessage:
-      "Keep a comfortable, steady walking pace.",
-
-    dailyGoal: "Daily Goal",
-    dailyGoalMessage:
-      "Walk {steps} steps today.",
-
-    thisWeek: "This week",
-    ai: "AI",
-
     goalMessageRemaining:
       "You are {steps} steps from today's goal.",
 
@@ -189,48 +153,23 @@ const TEXT = {
     unavailable:
       "Wellness information is temporarily unavailable.",
 
-    recoveryTrend: "Recovery: {trend}",
+    stepsUnavailable:
+      "Saved daily steps are unavailable. Your walking progress has not been changed.",
 
-    plan: "PLAN",
+    loading: "Loading your wellness information…",
 
-    eliteAI: "ELITE AI",
-    unlockFullCoach: "Unlock Your Full AI Coach",
-
-    eliteDescription:
-      "Premium coaching, personalized wellness intelligence, and exclusive AI-powered tools.",
-
-    advancedAnalytics: "Advanced Analytics",
-    advancedAnalyticsDescription:
-      "Detailed wellness trends and predictions.",
-
-    recoveryForecast: "Recovery Forecast",
-    recoveryForecastDescription:
-      "AI-powered recovery and readiness insights.",
-
-    journeyNarrator: "Journey Narrator",
-    journeyNarratorDescription:
-      "Historical storytelling during every Legathon Journey.",
-
-    mealPlanning: "Meal Planning",
-    mealPlanningDescription:
-      "Personalized nutrition recommendations.",
-
-    aiMemory: "AI Memory",
-    aiMemoryDescription:
-      "A coach that remembers your habits and goals.",
-
-    learnMore: "Learn More",
-    upgrade: "Upgrade",
+    checkpointOf:
+      "{checkpoint} of 5",
   },
 
   es: {
     walker: "Caminante",
-
     goodMorning: "Buenos días",
     goodAfternoon: "Buenas tardes",
     goodEvening: "Buenas noches",
     welcome: "Bienvenido",
 
+    wellness: "BIENESTAR",
     aiWellnessCoach: "Tu Coach de Bienestar con IA",
 
     heroDescription:
@@ -243,13 +182,11 @@ const TEXT = {
       "Tu coach de IA está listo para ayudarte con tu próximo objetivo de bienestar.",
 
     messageCoach: "Habla con Tu Coach",
-
     walk: "Caminar",
     calm: "Calma",
     meal: "Comida",
 
     todaysWellness: "Bienestar de Hoy",
-
     steps: "Pasos",
     hydration: "Hidratación",
     recovery: "Recuperación",
@@ -265,14 +202,14 @@ const TEXT = {
     aiInsight: "Información de IA",
     todaysRecommendation: "Recomendación de Hoy",
     startWalk: "Comenzar Caminata",
-
     confidence: "Confianza",
 
     recoveryNotRecorded: "Recuperación no registrada",
     excellentRecovery: "Recuperación excelente",
     recoveryImproving: "Recuperación mejorando",
     moderateRecovery: "Recuperación moderada",
-    recoveryNeedsAttention: "La recuperación necesita atención",
+    recoveryNeedsAttention:
+      "La recuperación necesita atención",
 
     startShortWalk:
       "Comienza con una caminata corta hoy para empezar a desarrollar tu progreso de bienestar.",
@@ -284,7 +221,6 @@ const TEXT = {
       "Estás a {steps} pasos de la meta de hoy.",
 
     aiActivityFeed: "Actividad de IA",
-
     walkProgress: "Progreso de Caminata",
     walkedToday: "Caminaste {steps} pasos hoy.",
 
@@ -292,47 +228,13 @@ const TEXT = {
     journeyInProgress: "Viaje en progreso",
     noActiveJourneyPeriod: "No hay un viaje activo.",
 
-    recoveryScore: "Puntuación de recuperación: {score}%.",
-    recoveryNotRecordedPeriod: "Recuperación no registrada.",
+    recoveryScore:
+      "Puntuación de recuperación: {score}%.",
+
+    recoveryNotRecordedPeriod:
+      "Recuperación no registrada.",
 
     today: "Hoy",
-
-    wellnessOverview: "Resumen de Bienestar",
-    aiWellnessSummary: "Resumen de Bienestar con IA",
-
-    wellnessSummary:
-      "Tu panel utiliza tus datos guardados de caminata, hidratación, recuperación, sueño y viajes para ayudarte a decidir tu próximo paso.",
-
-    stress: "Estrés",
-
-    aiCoachingTools: "Herramientas de Coaching IA",
-    mealPlan: "Plan de Comidas",
-    breathing: "Respiración",
-    motivation: "Motivación",
-
-    journeyCoach: "Coach de Viaje",
-    currentJourney: "VIAJE ACTUAL",
-
-    checkpointProgress:
-      "Punto de control {checkpoint} • {progress}% completado",
-
-    continueJourney: "Continuar Viaje",
-
-    aiRoutePlan: "Plan de Ruta con IA",
-    nextCheckpoint: "Próximo Punto de Control",
-    nextCheckpointMessage:
-      "Continúa caminando hacia tu próximo punto de control.",
-
-    suggestedPace: "Ritmo Sugerido",
-    suggestedPaceMessage:
-      "Mantén un ritmo cómodo y constante.",
-
-    dailyGoal: "Meta Diaria",
-    dailyGoalMessage:
-      "Camina {steps} pasos hoy.",
-
-    thisWeek: "Esta semana",
-    ai: "IA",
 
     goalMessageRemaining:
       "Estás a {steps} pasos de la meta de hoy.",
@@ -343,48 +245,21 @@ const TEXT = {
     unavailable:
       "La información de bienestar no está disponible temporalmente.",
 
-    recoveryTrend: "Recuperación: {trend}",
+    stepsUnavailable:
+      "Los pasos diarios guardados no están disponibles. Tu progreso no ha cambiado.",
 
-    plan: "PLAN",
-
-    eliteAI: "IA ELITE",
-    unlockFullCoach: "Desbloquea Tu Coach de IA Completo",
-
-    eliteDescription:
-      "Coaching premium, inteligencia de bienestar personalizada y herramientas exclusivas con IA.",
-
-    advancedAnalytics: "Análisis Avanzado",
-    advancedAnalyticsDescription:
-      "Tendencias y predicciones detalladas de bienestar.",
-
-    recoveryForecast: "Pronóstico de Recuperación",
-    recoveryForecastDescription:
-      "Información de recuperación y preparación impulsada por IA.",
-
-    journeyNarrator: "Narrador de Viaje",
-    journeyNarratorDescription:
-      "Historias durante cada viaje de Legathon.",
-
-    mealPlanning: "Planificación de Comidas",
-    mealPlanningDescription:
-      "Recomendaciones nutricionales personalizadas.",
-
-    aiMemory: "Memoria IA",
-    aiMemoryDescription:
-      "Un coach que recuerda tus hábitos y objetivos.",
-
-    learnMore: "Más Información",
-    upgrade: "Mejorar",
+    loading: "Cargando tu información de bienestar…",
+    checkpointOf: "{checkpoint} de 5",
   },
 
   fr: {
     walker: "Marcheur",
-
     goodMorning: "Bonjour",
     goodAfternoon: "Bon après-midi",
     goodEvening: "Bonsoir",
     welcome: "Bienvenue",
 
+    wellness: "BIEN-ÊTRE",
     aiWellnessCoach: "Votre Coach Bien-être IA",
 
     heroDescription:
@@ -397,13 +272,11 @@ const TEXT = {
       "Votre coach IA est prêt à vous aider avec votre prochain objectif de bien-être.",
 
     messageCoach: "Écrire à Votre Coach",
-
     walk: "Marche",
     calm: "Calme",
     meal: "Repas",
 
     todaysWellness: "Bien-être du Jour",
-
     steps: "Pas",
     hydration: "Hydratation",
     recovery: "Récupération",
@@ -419,14 +292,14 @@ const TEXT = {
     aiInsight: "Analyse IA",
     todaysRecommendation: "Recommandation du Jour",
     startWalk: "Commencer la Marche",
-
     confidence: "Confiance",
 
     recoveryNotRecorded: "Récupération non enregistrée",
     excellentRecovery: "Excellente récupération",
     recoveryImproving: "Récupération en amélioration",
     moderateRecovery: "Récupération modérée",
-    recoveryNeedsAttention: "La récupération mérite votre attention",
+    recoveryNeedsAttention:
+      "La récupération mérite votre attention",
 
     startShortWalk:
       "Commencez par une courte marche aujourd’hui pour développer votre progression bien-être.",
@@ -438,55 +311,21 @@ const TEXT = {
       "Il vous reste {steps} pas pour atteindre votre objectif aujourd’hui.",
 
     aiActivityFeed: "Activité IA",
-
     walkProgress: "Progression de Marche",
-    walkedToday: "Vous avez marché {steps} pas aujourd’hui.",
+
+    walkedToday:
+      "Vous avez marché {steps} pas aujourd’hui.",
 
     journeyProgress: "Progression du Voyage",
     journeyInProgress: "Voyage en cours",
     noActiveJourneyPeriod: "Aucun voyage actif.",
 
     recoveryScore: "Score de récupération : {score}%.",
-    recoveryNotRecordedPeriod: "Récupération non enregistrée.",
+
+    recoveryNotRecordedPeriod:
+      "Récupération non enregistrée.",
 
     today: "Aujourd’hui",
-
-    wellnessOverview: "Aperçu du Bien-être",
-    aiWellnessSummary: "Résumé Bien-être IA",
-
-    wellnessSummary:
-      "Votre tableau utilise vos données de marche, hydratation, récupération, sommeil et voyage pour vous guider.",
-
-    stress: "Stress",
-
-    aiCoachingTools: "Outils de Coaching IA",
-    mealPlan: "Plan de Repas",
-    breathing: "Respiration",
-    motivation: "Motivation",
-
-    journeyCoach: "Coach de Voyage",
-    currentJourney: "VOYAGE ACTUEL",
-
-    checkpointProgress:
-      "Point de contrôle {checkpoint} • {progress}% terminé",
-
-    continueJourney: "Continuer le Voyage",
-
-    aiRoutePlan: "Plan de Route IA",
-    nextCheckpoint: "Prochain Point de Contrôle",
-    nextCheckpointMessage:
-      "Continuez à marcher vers votre prochain point de contrôle.",
-
-    suggestedPace: "Rythme Suggéré",
-    suggestedPaceMessage:
-      "Maintenez un rythme confortable et régulier.",
-
-    dailyGoal: "Objectif Quotidien",
-    dailyGoalMessage:
-      "Marchez {steps} pas aujourd’hui.",
-
-    thisWeek: "Cette semaine",
-    ai: "IA",
 
     goalMessageRemaining:
       "Il vous reste {steps} pas avant l’objectif du jour.",
@@ -497,48 +336,23 @@ const TEXT = {
     unavailable:
       "Les informations de bien-être sont temporairement indisponibles.",
 
-    recoveryTrend: "Récupération : {trend}",
+    stepsUnavailable:
+      "Les pas quotidiens enregistrés sont indisponibles. Votre progression n’a pas été modifiée.",
 
-    plan: "FORMULE",
+    loading:
+      "Chargement de vos informations de bien-être…",
 
-    eliteAI: "IA ELITE",
-    unlockFullCoach: "Débloquez Votre Coach IA Complet",
-
-    eliteDescription:
-      "Coaching premium, intelligence personnalisée et outils IA exclusifs.",
-
-    advancedAnalytics: "Analyses Avancées",
-    advancedAnalyticsDescription:
-      "Tendances et prévisions détaillées.",
-
-    recoveryForecast: "Prévision de Récupération",
-    recoveryForecastDescription:
-      "Informations IA sur la récupération et la préparation.",
-
-    journeyNarrator: "Narrateur de Voyage",
-    journeyNarratorDescription:
-      "Récits historiques pendant chaque voyage Legathon.",
-
-    mealPlanning: "Planification des Repas",
-    mealPlanningDescription:
-      "Recommandations nutritionnelles personnalisées.",
-
-    aiMemory: "Mémoire IA",
-    aiMemoryDescription:
-      "Un coach qui se souvient de vos habitudes et objectifs.",
-
-    learnMore: "En Savoir Plus",
-    upgrade: "Améliorer",
+    checkpointOf: "{checkpoint} sur 5",
   },
 
   de: {
     walker: "Walker",
-
     goodMorning: "Guten Morgen",
     goodAfternoon: "Guten Tag",
     goodEvening: "Guten Abend",
     welcome: "Willkommen",
 
+    wellness: "WELLNESS",
     aiWellnessCoach: "Dein KI-Wellness-Coach",
 
     heroDescription:
@@ -551,13 +365,11 @@ const TEXT = {
       "Dein KI-Coach ist bereit, dich beim nächsten Wellness-Ziel zu unterstützen.",
 
     messageCoach: "Coach Schreiben",
-
     walk: "Gehen",
     calm: "Ruhe",
     meal: "Essen",
 
     todaysWellness: "Heutiges Wohlbefinden",
-
     steps: "Schritte",
     hydration: "Hydration",
     recovery: "Erholung",
@@ -573,14 +385,14 @@ const TEXT = {
     aiInsight: "KI-Einblick",
     todaysRecommendation: "Heutige Empfehlung",
     startWalk: "Spaziergang Starten",
-
     confidence: "Vertrauen",
 
     recoveryNotRecorded: "Erholung nicht erfasst",
     excellentRecovery: "Ausgezeichnete Erholung",
     recoveryImproving: "Erholung verbessert sich",
     moderateRecovery: "Mittlere Erholung",
-    recoveryNeedsAttention: "Erholung braucht Aufmerksamkeit",
+    recoveryNeedsAttention:
+      "Erholung braucht Aufmerksamkeit",
 
     startShortWalk:
       "Beginne heute mit einem kurzen Spaziergang, um deinen Wellness-Fortschritt aufzubauen.",
@@ -592,55 +404,20 @@ const TEXT = {
       "Du bist noch {steps} Schritte vom heutigen Ziel entfernt.",
 
     aiActivityFeed: "KI-Aktivitäten",
-
     walkProgress: "Gehfortschritt",
-    walkedToday: "Du bist heute {steps} Schritte gegangen.",
+
+    walkedToday:
+      "Du bist heute {steps} Schritte gegangen.",
 
     journeyProgress: "Reisefortschritt",
     journeyInProgress: "Reise läuft",
     noActiveJourneyPeriod: "Keine aktive Reise.",
 
     recoveryScore: "Erholungswert: {score}%.",
-    recoveryNotRecordedPeriod: "Erholung nicht erfasst.",
+    recoveryNotRecordedPeriod:
+      "Erholung nicht erfasst.",
 
     today: "Heute",
-
-    wellnessOverview: "Wellness-Übersicht",
-    aiWellnessSummary: "KI-Wellness-Zusammenfassung",
-
-    wellnessSummary:
-      "Dein Dashboard verwendet deine gespeicherten Geh-, Hydrations-, Erholungs-, Schlaf- und Reisedaten.",
-
-    stress: "Stress",
-
-    aiCoachingTools: "KI-Coaching-Tools",
-    mealPlan: "Essensplan",
-    breathing: "Atmung",
-    motivation: "Motivation",
-
-    journeyCoach: "Reise-Coach",
-    currentJourney: "AKTUELLE REISE",
-
-    checkpointProgress:
-      "Checkpoint {checkpoint} • {progress}% abgeschlossen",
-
-    continueJourney: "Reise Fortsetzen",
-
-    aiRoutePlan: "KI-Routenplan",
-    nextCheckpoint: "Nächster Checkpoint",
-    nextCheckpointMessage:
-      "Gehe weiter in Richtung deines nächsten Checkpoints.",
-
-    suggestedPace: "Empfohlenes Tempo",
-    suggestedPaceMessage:
-      "Halte ein angenehmes, gleichmäßiges Tempo.",
-
-    dailyGoal: "Tagesziel",
-    dailyGoalMessage:
-      "Gehe heute {steps} Schritte.",
-
-    thisWeek: "Diese Woche",
-    ai: "KI",
 
     goalMessageRemaining:
       "Noch {steps} Schritte bis zum heutigen Ziel.",
@@ -651,48 +428,21 @@ const TEXT = {
     unavailable:
       "Wellness-Informationen sind vorübergehend nicht verfügbar.",
 
-    recoveryTrend: "Erholung: {trend}",
+    stepsUnavailable:
+      "Gespeicherte Tagesschritte sind nicht verfügbar. Dein Fortschritt wurde nicht verändert.",
 
-    plan: "PLAN",
-
-    eliteAI: "ELITE KI",
-    unlockFullCoach: "Vollen KI-Coach Freischalten",
-
-    eliteDescription:
-      "Premium-Coaching, personalisierte Wellness-Informationen und exklusive KI-Tools.",
-
-    advancedAnalytics: "Erweiterte Analysen",
-    advancedAnalyticsDescription:
-      "Detaillierte Wellness-Trends und Prognosen.",
-
-    recoveryForecast: "Erholungsprognose",
-    recoveryForecastDescription:
-      "KI-gestützte Erholungs- und Bereitschaftsinformationen.",
-
-    journeyNarrator: "Reise-Erzähler",
-    journeyNarratorDescription:
-      "Historische Geschichten während jeder Legathon-Reise.",
-
-    mealPlanning: "Essensplanung",
-    mealPlanningDescription:
-      "Personalisierte Ernährungsempfehlungen.",
-
-    aiMemory: "KI-Gedächtnis",
-    aiMemoryDescription:
-      "Ein Coach, der sich an deine Gewohnheiten und Ziele erinnert.",
-
-    learnMore: "Mehr Erfahren",
-    upgrade: "Upgrade",
+    loading: "Deine Wellness-Daten werden geladen…",
+    checkpointOf: "{checkpoint} von 5",
   },
 
   pt: {
     walker: "Caminhante",
-
     goodMorning: "Bom dia",
     goodAfternoon: "Boa tarde",
     goodEvening: "Boa noite",
     welcome: "Bem-vindo",
 
+    wellness: "BEM-ESTAR",
     aiWellnessCoach: "Seu Coach de Bem-Estar com IA",
 
     heroDescription:
@@ -705,13 +455,11 @@ const TEXT = {
       "Seu coach de IA está pronto para ajudar com seu próximo objetivo de bem-estar.",
 
     messageCoach: "Falar com Seu Coach",
-
     walk: "Caminhar",
     calm: "Calma",
     meal: "Refeição",
 
     todaysWellness: "Bem-Estar de Hoje",
-
     steps: "Passos",
     hydration: "Hidratação",
     recovery: "Recuperação",
@@ -727,14 +475,14 @@ const TEXT = {
     aiInsight: "Insight de IA",
     todaysRecommendation: "Recomendação de Hoje",
     startWalk: "Iniciar Caminhada",
-
     confidence: "Confiança",
 
     recoveryNotRecorded: "Recuperação não registrada",
     excellentRecovery: "Recuperação excelente",
     recoveryImproving: "Recuperação melhorando",
     moderateRecovery: "Recuperação moderada",
-    recoveryNeedsAttention: "A recuperação precisa de atenção",
+    recoveryNeedsAttention:
+      "A recuperação precisa de atenção",
 
     startShortWalk:
       "Comece com uma caminhada curta hoje para desenvolver seu progresso de bem-estar.",
@@ -746,55 +494,22 @@ const TEXT = {
       "Você está a {steps} passos da meta de hoje.",
 
     aiActivityFeed: "Atividade de IA",
-
     walkProgress: "Progresso da Caminhada",
-    walkedToday: "Você caminhou {steps} passos hoje.",
+
+    walkedToday:
+      "Você caminhou {steps} passos hoje.",
 
     journeyProgress: "Progresso da Jornada",
     journeyInProgress: "Jornada em andamento",
     noActiveJourneyPeriod: "Nenhuma jornada ativa.",
 
-    recoveryScore: "Pontuação de recuperação: {score}%.",
-    recoveryNotRecordedPeriod: "Recuperação não registrada.",
+    recoveryScore:
+      "Pontuação de recuperação: {score}%.",
+
+    recoveryNotRecordedPeriod:
+      "Recuperação não registrada.",
 
     today: "Hoje",
-
-    wellnessOverview: "Visão Geral de Bem-Estar",
-    aiWellnessSummary: "Resumo de Bem-Estar com IA",
-
-    wellnessSummary:
-      "Seu painel usa seus dados de caminhada, hidratação, recuperação, sono e jornada para orientar seu próximo passo.",
-
-    stress: "Estresse",
-
-    aiCoachingTools: "Ferramentas de Coaching IA",
-    mealPlan: "Plano Alimentar",
-    breathing: "Respiração",
-    motivation: "Motivação",
-
-    journeyCoach: "Coach de Jornada",
-    currentJourney: "JORNADA ATUAL",
-
-    checkpointProgress:
-      "Checkpoint {checkpoint} • {progress}% concluído",
-
-    continueJourney: "Continuar Jornada",
-
-    aiRoutePlan: "Plano de Rota com IA",
-    nextCheckpoint: "Próximo Checkpoint",
-    nextCheckpointMessage:
-      "Continue caminhando em direção ao próximo checkpoint.",
-
-    suggestedPace: "Ritmo Sugerido",
-    suggestedPaceMessage:
-      "Mantenha um ritmo confortável e constante.",
-
-    dailyGoal: "Meta Diária",
-    dailyGoalMessage:
-      "Caminhe {steps} passos hoje.",
-
-    thisWeek: "Esta semana",
-    ai: "IA",
 
     goalMessageRemaining:
       "Faltam {steps} passos para a meta de hoje.",
@@ -805,48 +520,23 @@ const TEXT = {
     unavailable:
       "As informações de bem-estar estão temporariamente indisponíveis.",
 
-    recoveryTrend: "Recuperação: {trend}",
+    stepsUnavailable:
+      "Os passos diários salvos não estão disponíveis. Seu progresso não foi alterado.",
 
-    plan: "PLANO",
+    loading:
+      "Carregando suas informações de bem-estar…",
 
-    eliteAI: "IA ELITE",
-    unlockFullCoach: "Desbloqueie Seu Coach de IA Completo",
-
-    eliteDescription:
-      "Coaching premium, inteligência de bem-estar personalizada e ferramentas exclusivas de IA.",
-
-    advancedAnalytics: "Análises Avançadas",
-    advancedAnalyticsDescription:
-      "Tendências e previsões detalhadas de bem-estar.",
-
-    recoveryForecast: "Previsão de Recuperação",
-    recoveryForecastDescription:
-      "Insights de recuperação e prontidão com IA.",
-
-    journeyNarrator: "Narrador da Jornada",
-    journeyNarratorDescription:
-      "Histórias durante cada Jornada Legathon.",
-
-    mealPlanning: "Planejamento de Refeições",
-    mealPlanningDescription:
-      "Recomendações nutricionais personalizadas.",
-
-    aiMemory: "Memória IA",
-    aiMemoryDescription:
-      "Um coach que lembra seus hábitos e objetivos.",
-
-    learnMore: "Saiba Mais",
-    upgrade: "Atualizar",
+    checkpointOf: "{checkpoint} de 5",
   },
 
   ja: {
     walker: "ウォーカー",
-
     goodMorning: "おはようございます",
     goodAfternoon: "こんにちは",
     goodEvening: "こんばんは",
     welcome: "ようこそ",
 
+    wellness: "ウェルネス",
     aiWellnessCoach: "AIウェルネスコーチ",
 
     heroDescription:
@@ -859,13 +549,11 @@ const TEXT = {
       "AIコーチが次のウェルネス目標をサポートする準備ができています。",
 
     messageCoach: "コーチにメッセージ",
-
     walk: "歩く",
     calm: "リラックス",
     meal: "食事",
 
     todaysWellness: "今日のウェルネス",
-
     steps: "歩数",
     hydration: "水分補給",
     recovery: "回復",
@@ -881,7 +569,6 @@ const TEXT = {
     aiInsight: "AIインサイト",
     todaysRecommendation: "今日のおすすめ",
     startWalk: "ウォーキング開始",
-
     confidence: "信頼度",
 
     recoveryNotRecorded: "回復データ未記録",
@@ -900,55 +587,19 @@ const TEXT = {
       "今日の目標まであと{steps}歩です。",
 
     aiActivityFeed: "AIアクティビティ",
-
     walkProgress: "ウォーキング進捗",
     walkedToday: "今日は{steps}歩歩きました。",
 
     journeyProgress: "ジャーニー進捗",
     journeyInProgress: "ジャーニー進行中",
-    noActiveJourneyPeriod: "進行中のジャーニーはありません。",
+    noActiveJourneyPeriod:
+      "進行中のジャーニーはありません。",
 
     recoveryScore: "回復スコア：{score}%",
-    recoveryNotRecordedPeriod: "回復データは未記録です。",
+    recoveryNotRecordedPeriod:
+      "回復データは未記録です。",
 
     today: "今日",
-
-    wellnessOverview: "ウェルネス概要",
-    aiWellnessSummary: "AIウェルネス概要",
-
-    wellnessSummary:
-      "保存された歩行、水分、回復、睡眠、ジャーニーデータを使って次の行動をサポートします。",
-
-    stress: "ストレス",
-
-    aiCoachingTools: "AIコーチングツール",
-    mealPlan: "食事プラン",
-    breathing: "呼吸",
-    motivation: "モチベーション",
-
-    journeyCoach: "ジャーニーコーチ",
-    currentJourney: "現在のジャーニー",
-
-    checkpointProgress:
-      "チェックポイント {checkpoint} • {progress}% 完了",
-
-    continueJourney: "ジャーニーを続ける",
-
-    aiRoutePlan: "AIルートプラン",
-    nextCheckpoint: "次のチェックポイント",
-    nextCheckpointMessage:
-      "次のチェックポイントに向かって歩き続けましょう。",
-
-    suggestedPace: "おすすめペース",
-    suggestedPaceMessage:
-      "快適で安定したペースを維持しましょう。",
-
-    dailyGoal: "今日の目標",
-    dailyGoalMessage:
-      "今日は{steps}歩を目指しましょう。",
-
-    thisWeek: "今週",
-    ai: "AI",
 
     goalMessageRemaining:
       "今日の目標まであと{steps}歩です。",
@@ -959,48 +610,21 @@ const TEXT = {
     unavailable:
       "ウェルネス情報は一時的に利用できません。",
 
-    recoveryTrend: "回復：{trend}",
+    stepsUnavailable:
+      "保存された今日の歩数を取得できません。歩行の進捗は変更されていません。",
 
-    plan: "プラン",
-
-    eliteAI: "ELITE AI",
-    unlockFullCoach: "フルAIコーチをアンロック",
-
-    eliteDescription:
-      "プレミアムコーチング、パーソナライズされたウェルネス情報、限定AIツール。",
-
-    advancedAnalytics: "高度な分析",
-    advancedAnalyticsDescription:
-      "詳細なウェルネストレンドと予測。",
-
-    recoveryForecast: "回復予測",
-    recoveryForecastDescription:
-      "AIによる回復と準備状態の分析。",
-
-    journeyNarrator: "ジャーニーナレーター",
-    journeyNarratorDescription:
-      "Legathonジャーニーで歴史ストーリーを楽しめます。",
-
-    mealPlanning: "食事プランニング",
-    mealPlanningDescription:
-      "個人に合わせた栄養アドバイス。",
-
-    aiMemory: "AIメモリー",
-    aiMemoryDescription:
-      "習慣や目標を覚えるコーチ。",
-
-    learnMore: "詳しく見る",
-    upgrade: "アップグレード",
+    loading: "ウェルネス情報を読み込み中…",
+    checkpointOf: "5か所中{checkpoint}",
   },
 
   ko: {
     walker: "워커",
-
     goodMorning: "좋은 아침입니다",
     goodAfternoon: "좋은 오후입니다",
     goodEvening: "좋은 저녁입니다",
     welcome: "환영합니다",
 
+    wellness: "웰니스",
     aiWellnessCoach: "나의 AI 웰니스 코치",
 
     heroDescription:
@@ -1013,13 +637,11 @@ const TEXT = {
       "AI 코치가 다음 웰니스 목표를 도울 준비가 되었습니다.",
 
     messageCoach: "코치에게 메시지",
-
     walk: "걷기",
     calm: "안정",
     meal: "식사",
 
     todaysWellness: "오늘의 웰니스",
-
     steps: "걸음 수",
     hydration: "수분",
     recovery: "회복",
@@ -1035,14 +657,14 @@ const TEXT = {
     aiInsight: "AI 인사이트",
     todaysRecommendation: "오늘의 추천",
     startWalk: "걷기 시작",
-
     confidence: "신뢰도",
 
     recoveryNotRecorded: "회복 기록 없음",
     excellentRecovery: "매우 좋은 회복",
     recoveryImproving: "회복 향상 중",
     moderateRecovery: "보통 회복",
-    recoveryNeedsAttention: "회복에 주의가 필요합니다",
+    recoveryNeedsAttention:
+      "회복에 주의가 필요합니다",
 
     startShortWalk:
       "오늘 짧은 걷기부터 시작해 웰니스 진행 상황을 만들어 보세요.",
@@ -1054,7 +676,6 @@ const TEXT = {
       "오늘 목표까지 {steps}걸음 남았습니다.",
 
     aiActivityFeed: "AI 활동",
-
     walkProgress: "걷기 진행",
     walkedToday: "오늘 {steps}걸음을 걸었습니다.",
 
@@ -1063,46 +684,10 @@ const TEXT = {
     noActiveJourneyPeriod: "활성 여정이 없습니다.",
 
     recoveryScore: "회복 점수: {score}%",
-    recoveryNotRecordedPeriod: "회복 기록이 없습니다.",
+    recoveryNotRecordedPeriod:
+      "회복 기록이 없습니다.",
 
     today: "오늘",
-
-    wellnessOverview: "웰니스 개요",
-    aiWellnessSummary: "AI 웰니스 요약",
-
-    wellnessSummary:
-      "저장된 걷기, 수분, 회복, 수면 및 여정 데이터를 사용해 다음 활동을 안내합니다.",
-
-    stress: "스트레스",
-
-    aiCoachingTools: "AI 코칭 도구",
-    mealPlan: "식사 계획",
-    breathing: "호흡",
-    motivation: "동기 부여",
-
-    journeyCoach: "여정 코치",
-    currentJourney: "현재 여정",
-
-    checkpointProgress:
-      "체크포인트 {checkpoint} • {progress}% 완료",
-
-    continueJourney: "여정 계속",
-
-    aiRoutePlan: "AI 경로 계획",
-    nextCheckpoint: "다음 체크포인트",
-    nextCheckpointMessage:
-      "다음 체크포인트를 향해 계속 걸으세요.",
-
-    suggestedPace: "추천 페이스",
-    suggestedPaceMessage:
-      "편안하고 일정한 걷기 속도를 유지하세요.",
-
-    dailyGoal: "일일 목표",
-    dailyGoalMessage:
-      "오늘 {steps}걸음을 걸어보세요.",
-
-    thisWeek: "이번 주",
-    ai: "AI",
 
     goalMessageRemaining:
       "오늘 목표까지 {steps}걸음 남았습니다.",
@@ -1113,48 +698,21 @@ const TEXT = {
     unavailable:
       "웰니스 정보를 일시적으로 사용할 수 없습니다.",
 
-    recoveryTrend: "회복: {trend}",
+    stepsUnavailable:
+      "저장된 일일 걸음 수를 사용할 수 없습니다. 걷기 진행 상황은 변경되지 않았습니다.",
 
-    plan: "플랜",
-
-    eliteAI: "ELITE AI",
-    unlockFullCoach: "전체 AI 코치 잠금 해제",
-
-    eliteDescription:
-      "프리미엄 코칭, 개인화된 웰니스 인사이트 및 독점 AI 도구.",
-
-    advancedAnalytics: "고급 분석",
-    advancedAnalyticsDescription:
-      "상세한 웰니스 추세 및 예측.",
-
-    recoveryForecast: "회복 예측",
-    recoveryForecastDescription:
-      "AI 기반 회복 및 준비 상태 인사이트.",
-
-    journeyNarrator: "여정 내레이터",
-    journeyNarratorDescription:
-      "Legathon 여정에서 역사 이야기를 제공합니다.",
-
-    mealPlanning: "식사 계획",
-    mealPlanningDescription:
-      "개인 맞춤 영양 추천.",
-
-    aiMemory: "AI 메모리",
-    aiMemoryDescription:
-      "습관과 목표를 기억하는 코치.",
-
-    learnMore: "더 알아보기",
-    upgrade: "업그레이드",
+    loading: "웰니스 정보를 불러오는 중…",
+    checkpointOf: "5개 중 {checkpoint}",
   },
 
   zh: {
     walker: "步行者",
-
     goodMorning: "早上好",
     goodAfternoon: "下午好",
     goodEvening: "晚上好",
     welcome: "欢迎",
 
+    wellness: "健康",
     aiWellnessCoach: "你的AI健康教练",
 
     heroDescription:
@@ -1167,13 +725,11 @@ const TEXT = {
       "你的AI教练已准备好帮助你实现下一个健康目标。",
 
     messageCoach: "给教练发消息",
-
     walk: "步行",
     calm: "放松",
     meal: "饮食",
 
     todaysWellness: "今日健康",
-
     steps: "步数",
     hydration: "补水",
     recovery: "恢复",
@@ -1189,7 +745,6 @@ const TEXT = {
     aiInsight: "AI建议",
     todaysRecommendation: "今日建议",
     startWalk: "开始步行",
-
     confidence: "可信度",
 
     recoveryNotRecorded: "恢复数据未记录",
@@ -1208,55 +763,19 @@ const TEXT = {
       "距离今天的目标还差{steps}步。",
 
     aiActivityFeed: "AI活动动态",
-
     walkProgress: "步行进度",
     walkedToday: "你今天走了{steps}步。",
 
     journeyProgress: "旅程进度",
     journeyInProgress: "旅程进行中",
-    noActiveJourneyPeriod: "目前没有进行中的旅程。",
+    noActiveJourneyPeriod:
+      "目前没有进行中的旅程。",
 
     recoveryScore: "恢复评分：{score}%",
-    recoveryNotRecordedPeriod: "恢复数据未记录。",
+    recoveryNotRecordedPeriod:
+      "恢复数据未记录。",
 
     today: "今天",
-
-    wellnessOverview: "健康概览",
-    aiWellnessSummary: "AI健康总结",
-
-    wellnessSummary:
-      "健康面板使用已保存的步行、补水、恢复、睡眠和旅程数据来帮助你规划下一步。",
-
-    stress: "压力",
-
-    aiCoachingTools: "AI指导工具",
-    mealPlan: "饮食计划",
-    breathing: "呼吸",
-    motivation: "动力",
-
-    journeyCoach: "旅程教练",
-    currentJourney: "当前旅程",
-
-    checkpointProgress:
-      "检查点 {checkpoint} • 已完成 {progress}%",
-
-    continueJourney: "继续旅程",
-
-    aiRoutePlan: "AI路线计划",
-    nextCheckpoint: "下一个检查点",
-    nextCheckpointMessage:
-      "继续向下一个旅程检查点前进。",
-
-    suggestedPace: "建议速度",
-    suggestedPaceMessage:
-      "保持舒适且稳定的步行速度。",
-
-    dailyGoal: "每日目标",
-    dailyGoalMessage:
-      "今天步行{steps}步。",
-
-    thisWeek: "本周",
-    ai: "AI",
 
     goalMessageRemaining:
       "距离今天的目标还差{steps}步。",
@@ -1264,51 +783,23 @@ const TEXT = {
     goalMessageComplete:
       "你已经完成今天的步数目标。",
 
-    unavailable:
-      "健康信息暂时无法使用。",
+    unavailable: "健康信息暂时无法使用。",
 
-    recoveryTrend: "恢复：{trend}",
+    stepsUnavailable:
+      "暂时无法读取已保存的每日步数。你的步行进度未被更改。",
 
-    plan: "计划",
-
-    eliteAI: "ELITE AI",
-    unlockFullCoach: "解锁完整AI教练",
-
-    eliteDescription:
-      "高级指导、个性化健康分析以及专属AI工具。",
-
-    advancedAnalytics: "高级分析",
-    advancedAnalyticsDescription:
-      "详细的健康趋势和预测。",
-
-    recoveryForecast: "恢复预测",
-    recoveryForecastDescription:
-      "AI驱动的恢复和准备状态分析。",
-
-    journeyNarrator: "旅程讲述",
-    journeyNarratorDescription:
-      "在每次Legathon旅程中提供历史故事。",
-
-    mealPlanning: "饮食规划",
-    mealPlanningDescription:
-      "个性化营养建议。",
-
-    aiMemory: "AI记忆",
-    aiMemoryDescription:
-      "能够记住你的习惯和目标的教练。",
-
-    learnMore: "了解更多",
-    upgrade: "升级",
+    loading: "正在加载健康信息…",
+    checkpointOf: "{checkpoint}/5",
   },
 
   it: {
     walker: "Camminatore",
-
     goodMorning: "Buongiorno",
     goodAfternoon: "Buon pomeriggio",
     goodEvening: "Buonasera",
     welcome: "Benvenuto",
 
+    wellness: "BENESSERE",
     aiWellnessCoach: "Il Tuo Coach Benessere AI",
 
     heroDescription:
@@ -1321,13 +812,11 @@ const TEXT = {
       "Il tuo coach AI è pronto ad aiutarti con il prossimo obiettivo di benessere.",
 
     messageCoach: "Scrivi al Tuo Coach",
-
     walk: "Cammina",
     calm: "Calma",
     meal: "Pasto",
 
     todaysWellness: "Benessere di Oggi",
-
     steps: "Passi",
     hydration: "Idratazione",
     recovery: "Recupero",
@@ -1343,14 +832,14 @@ const TEXT = {
     aiInsight: "Insight AI",
     todaysRecommendation: "Raccomandazione di Oggi",
     startWalk: "Inizia Camminata",
-
     confidence: "Affidabilità",
 
     recoveryNotRecorded: "Recupero non registrato",
     excellentRecovery: "Recupero eccellente",
     recoveryImproving: "Recupero in miglioramento",
     moderateRecovery: "Recupero moderato",
-    recoveryNeedsAttention: "Il recupero richiede attenzione",
+    recoveryNeedsAttention:
+      "Il recupero richiede attenzione",
 
     startShortWalk:
       "Inizia oggi con una breve camminata per costruire il tuo progresso di benessere.",
@@ -1362,55 +851,20 @@ const TEXT = {
       "Ti mancano {steps} passi per raggiungere l’obiettivo di oggi.",
 
     aiActivityFeed: "Attività AI",
-
     walkProgress: "Progresso della Camminata",
-    walkedToday: "Hai camminato {steps} passi oggi.",
+
+    walkedToday:
+      "Hai camminato {steps} passi oggi.",
 
     journeyProgress: "Progresso del Viaggio",
     journeyInProgress: "Viaggio in corso",
     noActiveJourneyPeriod: "Nessun viaggio attivo.",
 
     recoveryScore: "Punteggio recupero: {score}%.",
-    recoveryNotRecordedPeriod: "Recupero non registrato.",
+    recoveryNotRecordedPeriod:
+      "Recupero non registrato.",
 
     today: "Oggi",
-
-    wellnessOverview: "Panoramica Benessere",
-    aiWellnessSummary: "Riepilogo Benessere AI",
-
-    wellnessSummary:
-      "La dashboard usa i dati salvati su camminata, idratazione, recupero, sonno e viaggio per guidarti.",
-
-    stress: "Stress",
-
-    aiCoachingTools: "Strumenti Coaching AI",
-    mealPlan: "Piano Pasti",
-    breathing: "Respirazione",
-    motivation: "Motivazione",
-
-    journeyCoach: "Coach del Viaggio",
-    currentJourney: "VIAGGIO ATTUALE",
-
-    checkpointProgress:
-      "Checkpoint {checkpoint} • {progress}% completato",
-
-    continueJourney: "Continua Viaggio",
-
-    aiRoutePlan: "Piano Percorso AI",
-    nextCheckpoint: "Prossimo Checkpoint",
-    nextCheckpointMessage:
-      "Continua a camminare verso il prossimo checkpoint.",
-
-    suggestedPace: "Ritmo Suggerito",
-    suggestedPaceMessage:
-      "Mantieni un ritmo comodo e costante.",
-
-    dailyGoal: "Obiettivo Giornaliero",
-    dailyGoalMessage:
-      "Cammina {steps} passi oggi.",
-
-    thisWeek: "Questa settimana",
-    ai: "AI",
 
     goalMessageRemaining:
       "Ti mancano {steps} passi per l’obiettivo di oggi.",
@@ -1421,49 +875,25 @@ const TEXT = {
     unavailable:
       "Le informazioni sul benessere sono temporaneamente non disponibili.",
 
-    recoveryTrend: "Recupero: {trend}",
+    stepsUnavailable:
+      "I passi giornalieri salvati non sono disponibili. I tuoi progressi non sono stati modificati.",
 
-    plan: "PIANO",
+    loading:
+      "Caricamento delle informazioni sul benessere…",
 
-    eliteAI: "AI ELITE",
-    unlockFullCoach: "Sblocca il Coach AI Completo",
-
-    eliteDescription:
-      "Coaching premium, intelligence personalizzata e strumenti AI esclusivi.",
-
-    advancedAnalytics: "Analisi Avanzate",
-    advancedAnalyticsDescription:
-      "Tendenze e previsioni dettagliate.",
-
-    recoveryForecast: "Previsione Recupero",
-    recoveryForecastDescription:
-      "Analisi AI del recupero e della preparazione.",
-
-    journeyNarrator: "Narratore del Viaggio",
-    journeyNarratorDescription:
-      "Narrazione storica durante ogni viaggio Legathon.",
-
-    mealPlanning: "Pianificazione Pasti",
-    mealPlanningDescription:
-      "Raccomandazioni nutrizionali personalizzate.",
-
-    aiMemory: "Memoria AI",
-    aiMemoryDescription:
-      "Un coach che ricorda abitudini e obiettivi.",
-
-    learnMore: "Scopri di Più",
-    upgrade: "Aggiorna",
+    checkpointOf: "{checkpoint} di 5",
   },
 
   ar: {
     walker: "المشّاء",
-
     goodMorning: "صباح الخير",
     goodAfternoon: "مساء الخير",
     goodEvening: "مساء الخير",
     welcome: "مرحبًا",
 
-    aiWellnessCoach: "مدرب العافية بالذكاء الاصطناعي",
+    wellness: "العافية",
+    aiWellnessCoach:
+      "مدرب العافية بالذكاء الاصطناعي",
 
     heroDescription:
       "جاهز لمساعدتك في المشي والتعافي والوجبات والترطيب ورحلة Legathon القادمة.",
@@ -1475,13 +905,11 @@ const TEXT = {
       "مدربك بالذكاء الاصطناعي جاهز لمساعدتك في هدف العافية التالي.",
 
     messageCoach: "راسل مدربك",
-
     walk: "مشي",
     calm: "استرخاء",
     meal: "وجبة",
 
     todaysWellness: "عافية اليوم",
-
     steps: "الخطوات",
     hydration: "الترطيب",
     recovery: "التعافي",
@@ -1497,14 +925,14 @@ const TEXT = {
     aiInsight: "تحليل الذكاء الاصطناعي",
     todaysRecommendation: "توصية اليوم",
     startWalk: "ابدأ المشي",
-
     confidence: "الثقة",
 
     recoveryNotRecorded: "التعافي غير مسجل",
     excellentRecovery: "تعافٍ ممتاز",
     recoveryImproving: "التعافي يتحسن",
     moderateRecovery: "تعافٍ متوسط",
-    recoveryNeedsAttention: "التعافي يحتاج إلى اهتمام",
+    recoveryNeedsAttention:
+      "التعافي يحتاج إلى اهتمام",
 
     startShortWalk:
       "ابدأ اليوم بمشية قصيرة لبناء تقدمك في العافية.",
@@ -1516,7 +944,6 @@ const TEXT = {
       "تبقى {steps} خطوة للوصول إلى هدف اليوم.",
 
     aiActivityFeed: "نشاط الذكاء الاصطناعي",
-
     walkProgress: "تقدم المشي",
     walkedToday: "مشيت {steps} خطوة اليوم.",
 
@@ -1525,46 +952,10 @@ const TEXT = {
     noActiveJourneyPeriod: "لا توجد رحلة نشطة.",
 
     recoveryScore: "درجة التعافي: {score}٪.",
-    recoveryNotRecordedPeriod: "التعافي غير مسجل.",
+    recoveryNotRecordedPeriod:
+      "التعافي غير مسجل.",
 
     today: "اليوم",
-
-    wellnessOverview: "نظرة عامة على العافية",
-    aiWellnessSummary: "ملخص العافية بالذكاء الاصطناعي",
-
-    wellnessSummary:
-      "تستخدم لوحة العافية بيانات المشي والترطيب والتعافي والنوم والرحلات المحفوظة لمساعدتك.",
-
-    stress: "التوتر",
-
-    aiCoachingTools: "أدوات التدريب بالذكاء الاصطناعي",
-    mealPlan: "خطة الوجبات",
-    breathing: "التنفس",
-    motivation: "التحفيز",
-
-    journeyCoach: "مدرب الرحلة",
-    currentJourney: "الرحلة الحالية",
-
-    checkpointProgress:
-      "نقطة التحقق {checkpoint} • مكتمل {progress}٪",
-
-    continueJourney: "متابعة الرحلة",
-
-    aiRoutePlan: "خطة المسار بالذكاء الاصطناعي",
-    nextCheckpoint: "نقطة التحقق التالية",
-    nextCheckpointMessage:
-      "استمر في المشي نحو نقطة التحقق التالية.",
-
-    suggestedPace: "السرعة المقترحة",
-    suggestedPaceMessage:
-      "حافظ على سرعة مشي مريحة وثابتة.",
-
-    dailyGoal: "الهدف اليومي",
-    dailyGoalMessage:
-      "امشِ {steps} خطوة اليوم.",
-
-    thisWeek: "هذا الأسبوع",
-    ai: "AI",
 
     goalMessageRemaining:
       "تبقى {steps} خطوة للوصول إلى هدف اليوم.",
@@ -1575,106 +966,123 @@ const TEXT = {
     unavailable:
       "معلومات العافية غير متاحة مؤقتًا.",
 
-    recoveryTrend: "التعافي: {trend}",
+    stepsUnavailable:
+      "الخطوات اليومية المحفوظة غير متاحة. لم يتم تغيير تقدم المشي.",
 
-    plan: "الخطة",
-
-    eliteAI: "ELITE AI",
-    unlockFullCoach: "افتح المدرب الكامل بالذكاء الاصطناعي",
-
-    eliteDescription:
-      "تدريب مميز وتحليلات عافية مخصصة وأدوات AI حصرية.",
-
-    advancedAnalytics: "تحليلات متقدمة",
-    advancedAnalyticsDescription:
-      "اتجاهات وتوقعات تفصيلية للعافية.",
-
-    recoveryForecast: "توقع التعافي",
-    recoveryForecastDescription:
-      "تحليلات التعافي والاستعداد بالذكاء الاصطناعي.",
-
-    journeyNarrator: "راوي الرحلة",
-    journeyNarratorDescription:
-      "قصص تاريخية خلال رحلات Legathon.",
-
-    mealPlanning: "تخطيط الوجبات",
-    mealPlanningDescription:
-      "توصيات غذائية مخصصة.",
-
-    aiMemory: "ذاكرة AI",
-    aiMemoryDescription:
-      "مدرب يتذكر عاداتك وأهدافك.",
-
-    learnMore: "اعرف المزيد",
-    upgrade: "ترقية",
+    loading: "جارٍ تحميل معلومات العافية…",
+    checkpointOf: "{checkpoint} من 5",
   },
 };
 
 // ============================================================
-// TRANSLATION HELPERS
+// LANGUAGE HELPERS
 // ============================================================
 
-function fillTemplate(
-  text,
-  variables = {}
-) {
-  return String(text).replace(
-    /\{(\w+)\}/g,
-    (match, key) => {
-      if (
-        Object.prototype.hasOwnProperty.call(
-          variables,
-          key
-        )
-      ) {
-        return String(
-          variables[key]
-        );
-      }
+function normalizeLanguage(value) {
+  const code = String(value || "en")
+    .toLowerCase()
+    .split(/[-_]/)[0];
 
-      return match;
-    }
+  return Object.prototype.hasOwnProperty.call(
+    TEXT,
+    code
+  )
+    ? code
+    : "en";
+}
+
+function fillTemplate(value, variables = {}) {
+  return String(value).replace(
+    /\{(\w+)\}/g,
+    (match, key) =>
+      Object.prototype.hasOwnProperty.call(
+        variables,
+        key
+      )
+        ? String(variables[key])
+        : match
   );
 }
 
-function getText(
-  language,
-  key,
-  variables = {}
-) {
+function getText(language, key, variables = {}) {
   const value =
-    TEXT?.[language]?.[key] ??
-    TEXT.en?.[key] ??
+    TEXT[language]?.[key] ??
+    TEXT.en[key] ??
     key;
 
-  return fillTemplate(
-    value,
-    variables
-  );
+  return fillTemplate(value, variables);
+}
+
+function formatNumber(value, language) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "—";
+  }
+
+  const safe = Math.max(0, Math.floor(number));
+
+  try {
+    return safe.toLocaleString(language);
+  } catch {
+    return safe.toLocaleString();
+  }
 }
 
 // ============================================================
-// HELPERS
+// DATA HELPERS
 // ============================================================
 
-function safelyParseJSON(
-  value,
-  fallback = null
-) {
-  if (!value) {
+function parseJSON(value, fallback = null) {
+  if (value == null || value === "") {
     return fallback;
   }
 
   try {
     return JSON.parse(value);
-  } catch (error) {
-    console.log(
-      "JSON parse error:",
-      error
-    );
-
+  } catch {
     return fallback;
   }
+}
+
+function asObject(value) {
+  return value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+    ? value
+    : {};
+}
+
+function nonnegative(value, fallback = 0) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return fallback;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? Math.max(0, number)
+    : fallback;
+}
+
+function optionalNumber(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0
+    ? number
+    : null;
 }
 
 function clampNumber(
@@ -1682,85 +1090,314 @@ function clampNumber(
   minimum = 0,
   maximum = 100
 ) {
-  const numericValue =
-    Number(value);
+  const number = Number(value);
 
-  if (
-    !Number.isFinite(
-      numericValue
-    )
-  ) {
+  if (!Number.isFinite(number)) {
     return minimum;
   }
 
   return Math.min(
-    Math.max(
-      numericValue,
-      minimum
-    ),
-    maximum
+    maximum,
+    Math.max(minimum, number)
   );
 }
 
-function calculateGreeting(
-  language
-) {
-  const hour =
-    new Date().getHours();
+function getLocalDateKey(date = new Date()) {
+  return (
+    `${date.getFullYear()}-` +
+    `${String(date.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(date.getDate()).padStart(2, "0")}`
+  );
+}
 
-  if (
-    hour < 12
-  ) {
-    return getText(
-      language,
-      "goodMorning"
-    );
-  }
-
-  if (
-    hour < 18
-  ) {
-    return getText(
-      language,
-      "goodAfternoon"
-    );
-  }
+function calculateGreeting(language) {
+  const hour = new Date().getHours();
 
   return getText(
     language,
-    "goodEvening"
+    hour < 12
+      ? "goodMorning"
+      : hour < 18
+      ? "goodAfternoon"
+      : "goodEvening"
   );
 }
 
-async function getFirstStoredValue(
-  keys = []
-) {
-  for (
-    const key of keys
-  ) {
-    try {
-      const value =
-        await AsyncStorage.getItem(
-          key
-        );
+async function getFirstStoredValue(keys) {
+  for (const key of keys) {
+    const value = await AsyncStorage.getItem(key);
 
-      if (
-        value !== null &&
-        value !== undefined
-      ) {
-        return value;
-      }
-    } catch (
-      error
-    ) {
-      console.log(
-        `Storage read error for ${key}:`,
-        error
-      );
+    if (value !== null) {
+      return value;
     }
   }
 
   return null;
+}
+
+// ============================================================
+// DAILY STEPS
+//
+// Same source, date check, and goal as WalkingDashboard.
+//
+// This screen never writes step totals.
+// It never creates its own pedometer subscription.
+// ============================================================
+
+function readDailySteps(raw) {
+  if (!raw) {
+    throw new Error("Step statistics are unavailable.");
+  }
+
+  const stats = JSON.parse(raw);
+
+  if (
+    !stats ||
+    typeof stats !== "object" ||
+    Array.isArray(stats)
+  ) {
+    throw new Error("Invalid step statistics.");
+  }
+
+  if (
+    typeof stats.dateKey !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(stats.dateKey)
+  ) {
+    throw new Error("Invalid step statistics date.");
+  }
+
+  // Matches the Dashboard's local calendar-day check.
+  if (stats.dateKey !== getLocalDateKey()) {
+    return 0;
+  }
+
+  const steps = Number(stats.todaySteps ?? 0);
+
+  if (
+    !Number.isFinite(steps) ||
+    steps < 0
+  ) {
+    throw new Error("Invalid daily step total.");
+  }
+
+  return Math.floor(steps);
+}
+
+// ============================================================
+// READ WELLNESS SNAPSHOT
+// ============================================================
+
+async function readWellnessSnapshot(
+  language,
+  activeJourneyProp
+) {
+  const [
+    savedProfile,
+    savedStats,
+    savedJourney,
+    savedHydration,
+    savedSleep,
+    savedRecovery,
+    savedStreak,
+  ] = await Promise.all([
+    getFirstStoredValue([
+      "userProfile",
+      "profile",
+      "legathonWalkProfile",
+    ]),
+
+    AsyncStorage.getItem(STEP_STATS_KEY),
+
+    getFirstStoredValue([
+      "activeJourney",
+      "currentJourney",
+    ]),
+
+    getFirstStoredValue([
+      "hydrationData",
+      "dailyHydration",
+    ]),
+
+    getFirstStoredValue([
+      "sleepData",
+      "dailySleep",
+    ]),
+
+    getFirstStoredValue([
+      "recoveryData",
+      "dailyRecovery",
+    ]),
+
+    getFirstStoredValue([
+      "walkingStreak",
+      "currentStreak",
+    ]),
+  ]);
+
+  const profile = asObject(
+    parseJSON(savedProfile, {})
+  );
+
+  const hydrationData = asObject(
+    parseJSON(savedHydration, {})
+  );
+
+  const sleepData = asObject(
+    parseJSON(savedSleep, {})
+  );
+
+  const recoveryData = asObject(
+    parseJSON(savedRecovery, {})
+  );
+
+  const storedJourney = parseJSON(
+    savedJourney,
+    null
+  );
+
+  const candidateJourney =
+    activeJourneyProp || storedJourney;
+
+  const journey =
+    candidateJourney &&
+    typeof candidateJourney === "object" &&
+    !Array.isArray(candidateJourney)
+      ? candidateJourney
+      : null;
+
+  let steps = null;
+  let stepError = false;
+
+  try {
+    steps = readDailySteps(savedStats);
+  } catch (error) {
+    stepError = true;
+  }
+
+  const hydration = nonnegative(
+    hydrationData.amount ??
+      hydrationData.ounces ??
+      hydrationData.hydration ??
+      hydrationData.current ??
+      hydrationData.todayAmount,
+    0
+  );
+
+  const hydrationGoal = Math.max(
+    1,
+    nonnegative(
+      hydrationData.goal ??
+        hydrationData.hydrationGoal ??
+        hydrationData.dailyGoal,
+      DEFAULT_HYDRATION_GOAL
+    ) || DEFAULT_HYDRATION_GOAL
+  );
+
+  const rawRecovery = optionalNumber(
+    recoveryData.score
+  );
+
+  const recovery =
+    rawRecovery === null
+      ? null
+      : clampNumber(rawRecovery);
+
+  const sleepHours = optionalNumber(
+    sleepData.hours
+  );
+
+  const streakData = parseJSON(
+    savedStreak,
+    null
+  );
+
+  const rawStreak =
+    streakData &&
+    typeof streakData === "object"
+      ? streakData.streak ??
+        streakData.days ??
+        streakData.value ??
+        0
+      : streakData ?? savedStreak ?? 0;
+
+  const streak = Math.floor(
+    nonnegative(rawStreak)
+  );
+
+  const checkpointNumber = optionalNumber(
+    journey?.currentCheckpoint ??
+      journey?.checkpoint
+  );
+
+  const checkpoint =
+    checkpointNumber !== null &&
+    checkpointNumber > 0
+      ? Math.min(
+          5,
+          Math.floor(checkpointNumber)
+        )
+      : null;
+
+  return {
+    userName:
+      profile.userName ||
+      profile.username ||
+      profile.name ||
+      "",
+
+    greeting: calculateGreeting(language),
+
+    steps,
+
+    // WalkingDashboard currently uses this fixed goal.
+    stepGoal: DEFAULT_STEP_GOAL,
+
+    recovery,
+    sleepHours,
+
+    hydration,
+    hydrationGoal,
+
+    // Same estimate used by WalkingDashboard.
+    calories:
+      steps === null
+        ? null
+        : Math.round(steps * 0.04),
+
+    stress:
+      recoveryData.stress ??
+      recoveryData.stressLevel ??
+      profile.stressLevel ??
+      null,
+
+    streak,
+
+    journey:
+      journey?.shortTitle ||
+      journey?.title ||
+      journey?.name ||
+      "",
+
+    journeyFull:
+      journey?.title ||
+      journey?.name ||
+      "",
+
+    activeJourney: journey,
+
+    journeyProgress: clampNumber(
+      journey?.progress ??
+        journey?.journeyProgress ??
+        journey?.progressPercent ??
+        journey?.percentComplete ??
+        0
+    ),
+
+    checkpoint,
+
+    stepError,
+    loadError: false,
+  };
 }
 
 // ============================================================
@@ -1792,1376 +1429,703 @@ export default function AIWellnessMasterScreen({
   goToWalkHistory,
   goToGoals,
 
-  activeJourney:
-    activeJourneyProp = null,
+  activeJourney: activeJourneyProp = null,
 
   userPlan = "free",
 }) {
+  const currentLanguage =
+    normalizeLanguage(language);
+
+  const isRTL = currentLanguage === "ar";
+
   const t = useCallback(
-    (
-      key,
-      variables = {}
-    ) =>
-      getText(
-        language,
-        key,
-        variables
-      ),
-    [
-      language,
-    ]
+    (key, variables = {}) =>
+      getText(currentLanguage, key, variables),
+    [currentLanguage]
   );
 
-  const [
-    activeTab,
-    setActiveTab,
-  ] =
-    useState("Home");
+  const [wellness, setWellness] =
+    useState(INITIAL_WELLNESS);
 
-  const [
-    aiStatus,
-    setAIStatus,
-  ] =
-    useState("");
-
-  const [
-    isLoading,
-    setIsLoading,
-  ] =
+  const [isLoading, setIsLoading] =
     useState(true);
 
-  const [
-    wellness,
-    setWellness,
-  ] =
-    useState(
-      INITIAL_WELLNESS
-    );
+  const pulse = useRef(
+    new Animated.Value(1)
+  ).current;
 
-  const pulse =
-    useRef(
-      new Animated.Value(1)
-    ).current;
+  const rotate = useRef(
+    new Animated.Value(0)
+  ).current;
 
-  const rotate =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const glow =
-    useRef(
-      new Animated.Value(0)
-    ).current;
+  const glow = useRef(
+    new Animated.Value(0)
+  ).current;
 
   // ==========================================================
   // NAVIGATION
   // ==========================================================
 
-  const runAction =
-    useCallback(
-      (
-        callback,
-        screenName,
-        params = undefined
-      ) => {
-        if (
-          typeof callback ===
-          "function"
-        ) {
-          callback(params);
-          return;
-        }
+  const runAction = useCallback(
+    (callback, screenName, params) => {
+      if (typeof callback === "function") {
+        callback(params);
+        return;
+      }
 
-        if (
-          navigation?.navigate &&
-          screenName
-        ) {
-          navigation.navigate(
-            screenName,
-            params
-          );
+      if (
+        typeof navigation?.navigate === "function"
+      ) {
+        navigation.navigate(screenName, params);
+        return;
+      }
 
-          return;
-        }
+      console.warn(
+        `${screenName} is not connected.`
+      );
+    },
+    [navigation]
+  );
 
-        console.warn(
-          `${screenName} is not connected.`
-        );
-      },
-      [
-        navigation,
-      ]
+  const handleBack = () => {
+    if (typeof goBack === "function") {
+      goBack();
+      return;
+    }
+
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation?.navigate?.("More");
+  };
+
+  const handleNotifications = () => {
+    runAction(
+      goToNotifications,
+      "NotificationSettings"
     );
+  };
 
-  const navTo =
-    useCallback(
-      (
-        screenName,
-        params
-      ) => {
-        switch (
-          screenName
+  const handleTextCoach = () => {
+    runAction(
+      goToAIConversation,
+      "aiConversation"
+    );
+  };
+
+  const handleHydration = () => {
+    runAction(
+      goToHydration,
+      "HydrationCoach"
+    );
+  };
+
+  const handleRecovery = () => {
+    runAction(
+      goToRecovery,
+      "RecoveryCoach"
+    );
+  };
+
+  const handleSleep = () => {
+    runAction(
+      goToSleep,
+      "SleepCoach"
+    );
+  };
+
+  const handleBreathing = () => {
+    runAction(
+      goToBreathing,
+      "StressBreathingCoach"
+    );
+  };
+
+  const handleMealPlanner = () => {
+    runAction(
+      goToMealPlanner,
+      "MealPlanner"
+    );
+  };
+
+  const handleWalkingAnalytics = () => {
+    runAction(
+      goToWalkingAnalytics,
+      "WalkingAnalytics"
+    );
+  };
+
+  const handleGoals = () => {
+    runAction(
+      goToGoals,
+      "WellnessGoals"
+    );
+  };
+
+  const handleStartWalk = async () => {
+    try {
+      let journey =
+        wellness.activeJourney ||
+        activeJourneyProp ||
+        null;
+
+      if (!journey) {
+        const raw = await getFirstStoredValue([
+          "activeJourney",
+          "currentJourney",
+        ]);
+
+        const stored = parseJSON(raw, null);
+
+        if (
+          stored &&
+          typeof stored === "object" &&
+          !Array.isArray(stored)
         ) {
-          case "MealPlanner":
-            runAction(
-              goToMealPlanner,
-              screenName,
-              params
-            );
-            return;
-
-          case "HydrationCoach":
-            runAction(
-              goToHydration,
-              screenName,
-              params
-            );
-            return;
-
-          case "RecoveryCoach":
-            runAction(
-              goToRecovery,
-              screenName,
-              params
-            );
-            return;
-
-          case "SleepCoach":
-            runAction(
-              goToSleep,
-              screenName,
-              params
-            );
-            return;
-
-          case "StressBreathingCoach":
-            runAction(
-              goToBreathing,
-              screenName,
-              params
-            );
-            return;
-
-          case "WalkingAnalytics":
-            runAction(
-              goToWalkingAnalytics,
-              screenName,
-              params
-            );
-            return;
-
-          case "WalkHistory":
-            runAction(
-              goToWalkHistory,
-              screenName,
-              params
-            );
-            return;
-
-          case "WellnessGoals":
-            runAction(
-              goToGoals,
-              screenName,
-              params
-            );
-            return;
-
-          case "Journeys":
-            runAction(
-              goToJourneys,
-              screenName,
-              params
-            );
-            return;
-
-          case "JourneyStory":
-            runAction(
-              goToJourneyStory,
-              screenName,
-              params
-            );
-            return;
-
-          case "GPSJourneyMap":
-            runAction(
-              goToGPSJourneyMap,
-              screenName,
-              params
-            );
-            return;
-
-          case "Subscription":
-            runAction(
-              goToSubscription,
-              screenName,
-              params
-            );
-            return;
-
-          default:
-            navigation?.navigate?.(
-              screenName,
-              params
-            );
+          journey = stored;
         }
-      },
-      [
-        navigation,
-        runAction,
-        goToMealPlanner,
-        goToHydration,
-        goToRecovery,
-        goToSleep,
-        goToBreathing,
-        goToWalkingAnalytics,
-        goToWalkHistory,
-        goToGoals,
+      }
+
+      if (journey) {
+        runAction(
+          goToGPSJourneyMap,
+          "GPSJourneyMap",
+          { journey }
+        );
+
+        return;
+      }
+
+      runAction(
         goToJourneys,
-        goToJourneyStory,
-        goToGPSJourneyMap,
-        goToSubscription,
-      ]
+        "Journeys"
+      );
+    } catch (error) {
+      console.log(
+        "AI Wellness journey navigation error:",
+        error
+      );
+
+      runAction(
+        goToJourneys,
+        "Journeys"
+      );
+    }
+  };
+
+  // ==========================================================
+  // ANIMATIONS
+  // ==========================================================
+
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.08,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1200,
+          useNativeDriver: true,
+        }),
+      ])
     );
 
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
+    const rotateAnimation = Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 9000,
+        useNativeDriver: true,
+      })
+    );
 
-  useEffect(
-    () => {
-      const pulseAnimation =
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(
-              pulse,
-              {
-                toValue:
-                  1.08,
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
 
-                duration:
-                  1200,
+        Animated.timing(glow, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+      ])
+    );
 
-                useNativeDriver:
-                  true,
-              }
-            ),
+    pulseAnimation.start();
+    rotateAnimation.start();
+    glowAnimation.start();
 
-            Animated.timing(
-              pulse,
-              {
-                toValue:
-                  1,
-
-                duration:
-                  1200,
-
-                useNativeDriver:
-                  true,
-              }
-            ),
-          ])
-        );
-
-      const rotateAnimation =
-        Animated.loop(
-          Animated.timing(
-            rotate,
-            {
-              toValue:
-                1,
-
-              duration:
-                9000,
-
-              useNativeDriver:
-                true,
-            }
-          )
-        );
-
-      const glowAnimation =
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(
-              glow,
-              {
-                toValue:
-                  1,
-
-                duration:
-                  1500,
-
-                useNativeDriver:
-                  false,
-              }
-            ),
-
-            Animated.timing(
-              glow,
-              {
-                toValue:
-                  0,
-
-                duration:
-                  1500,
-
-                useNativeDriver:
-                  false,
-              }
-            ),
-          ])
-        );
-
-      pulseAnimation.start();
-      rotateAnimation.start();
-      glowAnimation.start();
-
-      return () => {
-        pulseAnimation.stop();
-        rotateAnimation.stop();
-        glowAnimation.stop();
-      };
-    },
-    [
-      glow,
-      pulse,
-      rotate,
-    ]
-  );
+    return () => {
+      pulseAnimation.stop();
+      rotateAnimation.stop();
+      glowAnimation.stop();
+    };
+  }, [pulse, rotate, glow]);
 
   // ==========================================================
-  // LOAD WELLNESS DATA
+  // AUTOMATIC WELLNESS REFRESH
+  //
+  // Reads the engine's saved record every 1.5 seconds.
+  // Prevents overlapping refreshes and updates after unmount.
   // ==========================================================
 
-  const loadWellnessData =
-    useCallback(
-      async () => {
-        try {
-          setIsLoading(
-            true
+  useEffect(() => {
+    let disposed = false;
+    let refreshing = false;
+    let refreshAgain = false;
+
+    let foreground =
+      AppState.currentState !== "background" &&
+      AppState.currentState !== "inactive";
+
+    async function refresh() {
+      if (disposed || !foreground) {
+        return;
+      }
+
+      if (refreshing) {
+        refreshAgain = true;
+        return;
+      }
+
+      refreshing = true;
+
+      try {
+        const snapshot =
+          await readWellnessSnapshot(
+            currentLanguage,
+            activeJourneyProp
           );
 
-          const [
-            savedProfile,
-            savedTodaySteps,
-            savedActiveJourney,
-            savedHydration,
-            savedSleep,
-            savedRecovery,
-            savedStreak,
-          ] =
-            await Promise.all([
-              getFirstStoredValue([
-                "userProfile",
-                "profile",
-                "legathonWalkProfile",
-              ]),
-
-              getFirstStoredValue([
-                "todaySteps",
-                "dailySteps",
-                "currentDaySteps",
-              ]),
-
-              getFirstStoredValue([
-                "activeJourney",
-                "currentJourney",
-              ]),
-
-              getFirstStoredValue([
-                "hydrationData",
-                "dailyHydration",
-              ]),
-
-              getFirstStoredValue([
-                "sleepData",
-                "dailySleep",
-              ]),
-
-              getFirstStoredValue([
-                "recoveryData",
-                "dailyRecovery",
-              ]),
-
-              getFirstStoredValue([
-                "walkingStreak",
-                "currentStreak",
-              ]),
-            ]);
-
-          const profile =
-            safelyParseJSON(
-              savedProfile,
-              {}
-            );
-
-          const storedJourney =
-            safelyParseJSON(
-              savedActiveJourney,
-              null
-            );
-
-          const journey =
-            activeJourneyProp ||
-            storedJourney ||
-            null;
-
-          const hydrationData =
-            safelyParseJSON(
-              savedHydration,
-              {}
-            );
-
-          const hydrationAmount =
-            Math.max(
-              0,
-              Number(
-                hydrationData
-                  ?.amount ??
-                  hydrationData
-                    ?.ounces ??
-                  hydrationData
-                    ?.hydration ??
-                  hydrationData
-                    ?.current ??
-                  hydrationData
-                    ?.todayAmount ??
-                  0
-              ) || 0
-            );
-
-          const hydrationGoal =
-            Math.max(
-              1,
-              Number(
-                hydrationData
-                  ?.goal ??
-                  hydrationData
-                    ?.hydrationGoal ??
-                  hydrationData
-                    ?.dailyGoal ??
-                  DEFAULT_HYDRATION_GOAL
-              ) ||
-                DEFAULT_HYDRATION_GOAL
-            );
-
-          const sleepData =
-            safelyParseJSON(
-              savedSleep,
-              {}
-            );
-
-          const recoveryData =
-            safelyParseJSON(
-              savedRecovery,
-              {}
-            );
-
-          const steps =
-            Math.max(
-              0,
-              Number(
-                savedTodaySteps
-              ) || 0
-            );
-
-          const stepGoal =
-            Math.max(
-              1,
-              Number(
-                profile
-                  ?.stepGoal ??
-                  profile
-                    ?.dailyStepGoal ??
-                  DEFAULT_STEP_GOAL
-              ) ||
-                DEFAULT_STEP_GOAL
-            );
-
-          const stepsRemaining =
-            Math.max(
-              stepGoal -
-                steps,
-              0
-            );
-
-          const rawJourneyProgress =
-            journey?.progress ??
-            journey?.journeyProgress ??
-            journey?.progressPercent ??
-            journey?.percentComplete ??
-            0;
-
-          const journeyProgress =
-            clampNumber(
-              rawJourneyProgress,
-              0,
-              100
-            );
-
-          const recovery =
-            recoveryData
-              ?.score !==
-              undefined &&
-            recoveryData
-              ?.score !==
-              null
-              ? clampNumber(
-                  recoveryData
-                    .score,
-                  0,
-                  100
-                )
-              : null;
-
-          const sleepHours =
-            sleepData
-              ?.hours !==
-              undefined &&
-            sleepData
-              ?.hours !==
-              null
-              ? Math.max(
-                  0,
-                  Number(
-                    sleepData
-                      .hours
-                  ) || 0
-                )
-              : null;
-
-          const parsedStreakObject =
-            safelyParseJSON(
-              savedStreak,
-              null
-            );
-
-          const streakValue =
-            typeof parsedStreakObject ===
-              "object" &&
-            parsedStreakObject !==
-              null
-              ? parsedStreakObject
-                  .streak ??
-                parsedStreakObject
-                  .days ??
-                parsedStreakObject
-                  .value ??
-                0
-              : savedStreak ??
-                0;
-
-          const streak =
-            Math.max(
-              0,
-              Number(
-                streakValue
-              ) || 0
-            );
-
-          const calories =
-            Math.max(
-              0,
-              Math.round(
-                steps *
-                  0.04
-              )
-            );
-
-          const currentCheckpoint =
-            Number(
-              journey
-                ?.currentCheckpoint ??
-                journey
-                  ?.checkpoint ??
-                0
-            ) || 0;
-
-          const checkpoint =
-            currentCheckpoint >
-            0
-              ? `${Math.min(
-                  currentCheckpoint,
-                  5
-                )} of 5`
-              : "";
-
-          const greeting =
-            calculateGreeting(
-              language
-            );
-
-          const userName =
-            profile
-              ?.userName ||
-            profile
-              ?.username ||
-            profile
-              ?.name ||
-            t(
-              "walker"
-            );
-
-          const journeyTitle =
-            journey
-              ?.shortTitle ||
-            journey
-              ?.title ||
-            "";
-
-          const journeyFull =
-            journey
-              ?.title ||
-            journey
-              ?.name ||
-            "";
-
-          const stress =
-            recoveryData
-              ?.stress ??
-            recoveryData
-              ?.stressLevel ??
-            profile
-              ?.stressLevel ??
-            null;
-
-          const aiMessage =
-            stepsRemaining >
-            0
-              ? t(
-                  "goalMessageRemaining",
-                  {
-                    steps:
-                      stepsRemaining.toLocaleString(),
-                  }
-                )
-              : t(
-                  "goalMessageComplete"
-                );
-
-          setWellness({
-            userName,
-            greeting,
-
-            steps,
-            stepGoal,
-            stepsRemaining,
-
-            recovery,
-            sleepHours,
-
-            hydration:
-              hydrationAmount,
-
-            hydrationGoal,
-
-            calories,
-            stress,
-
-            wellnessScore:
-              null,
-
-            wellnessLabel:
-              "",
-
-            streak,
-
-            journey:
-              journeyTitle,
-
-            journeyFull,
-
-            activeJourney:
-              journey,
-
-            journeyProgress,
-
-            checkpoint,
-
-            aiMessage,
-          });
-        } catch (
-          error
-        ) {
-          console.log(
-            "AI Wellness load error:",
-            error
-          );
-
-          setWellness(
-            current => ({
-              ...current,
-
-              greeting:
-                calculateGreeting(
-                  language
-                ),
-
-              aiMessage:
-                t(
-                  "unavailable"
-                ),
-            })
-          );
-        } finally {
-          setIsLoading(
-            false
-          );
+        if (!disposed) {
+          setWellness(snapshot);
         }
-      },
-      [
-        activeJourneyProp,
-        language,
-        t,
-      ]
-    );
-
-  useEffect(
-    () => {
-      loadWellnessData();
-    },
-    [
-      loadWellnessData,
-    ]
-  );
-
-  useEffect(
-    () => {
-      const subscription =
-        AppState.addEventListener(
-          "change",
-          nextState => {
-            if (
-              nextState ===
-              "active"
-            ) {
-              loadWellnessData();
-            }
-          }
+      } catch (error) {
+        console.log(
+          "AI Wellness refresh error:",
+          error
         );
 
-      return () => {
-        subscription.remove();
-      };
-    },
-    [
-      loadWellnessData,
-    ]
-  );
+        if (!disposed) {
+          setWellness((current) => ({
+            ...current,
+
+            greeting:
+              calculateGreeting(currentLanguage),
+
+            // Avoid presenting an old daily count as current.
+            steps: null,
+            calories: null,
+
+            stepError: true,
+            loadError: true,
+          }));
+        }
+      } finally {
+        refreshing = false;
+
+        if (!disposed) {
+          setIsLoading(false);
+        }
+
+        if (
+          refreshAgain &&
+          !disposed &&
+          foreground
+        ) {
+          refreshAgain = false;
+          void refresh();
+        }
+      }
+    }
+
+    void refresh();
+
+    const timer = setInterval(() => {
+      void refresh();
+    }, REFRESH_INTERVAL_MS);
+
+    const appStateSubscription =
+      AppState.addEventListener(
+        "change",
+        (nextState) => {
+          foreground = nextState === "active";
+
+          if (foreground) {
+            void refresh();
+          }
+        }
+      );
+
+    const unsubscribeFocus =
+      navigation?.addListener?.(
+        "focus",
+        () => {
+          void refresh();
+        }
+      );
+
+    return () => {
+      disposed = true;
+
+      clearInterval(timer);
+      appStateSubscription.remove();
+
+      if (
+        typeof unsubscribeFocus === "function"
+      ) {
+        unsubscribeFocus();
+      }
+    };
+  }, [
+    currentLanguage,
+    activeJourneyProp,
+    navigation,
+  ]);
 
   // ==========================================================
   // ANIMATION VALUES
   // ==========================================================
 
-  const spin =
-    rotate.interpolate({
-      inputRange: [
-        0,
-        1,
-      ],
+  const spin = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
-      outputRange: [
-        "0deg",
-        "360deg",
-      ],
-    });
+  const reverseSpin = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["360deg", "0deg"],
+  });
 
-  const reverseSpin =
-    rotate.interpolate({
-      inputRange: [
-        0,
-        1,
-      ],
-
-      outputRange: [
-        "360deg",
-        "0deg",
-      ],
-    });
-
-  const glowOpacity =
-    glow.interpolate({
-      inputRange: [
-        0,
-        1,
-      ],
-
-      outputRange: [
-        0.25,
-        0.8,
-      ],
-    });
+  const glowOpacity = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.25, 0.8],
+  });
 
   // ==========================================================
-  // PROGRESS
+  // DISPLAY VALUES
   // ==========================================================
 
-  const stepProgress =
-    useMemo(
-      () => {
-        if (
-          !wellness.stepGoal
-        ) {
-          return 0;
-        }
+  const stepsAvailable =
+    wellness.steps !== null &&
+    !wellness.stepError &&
+    !wellness.loadError;
 
-        return clampNumber(
-          (
-            wellness.steps /
-            wellness.stepGoal
-          ) * 100,
-          0,
-          100
-        );
-      },
-      [
-        wellness.stepGoal,
-        wellness.steps,
-      ]
-    );
+  const stepsRemaining = stepsAvailable
+    ? Math.max(
+        0,
+        wellness.stepGoal - wellness.steps
+      )
+    : null;
 
-  const hydrationProgress =
-    useMemo(
-      () => {
-        if (
-          !wellness
-            .hydrationGoal
-        ) {
-          return 0;
-        }
+  const stepProgress = stepsAvailable
+    ? clampNumber(
+        (wellness.steps / wellness.stepGoal) * 100
+      )
+    : 0;
 
-        return clampNumber(
-          (
-            wellness
-              .hydration /
-            wellness
-              .hydrationGoal
-          ) * 100,
-          0,
-          100
-        );
-      },
-      [
-        wellness.hydration,
-        wellness.hydrationGoal,
-      ]
-    );
+  const hydrationProgress = clampNumber(
+    (wellness.hydration /
+      wellness.hydrationGoal) * 100
+  );
 
   const recoveryProgress =
-    useMemo(
-      () => {
-        if (
-          wellness
-            .recovery ===
-          null
-        ) {
-          return 0;
-        }
-
-        return clampNumber(
-          wellness.recovery,
-          0,
-          100
-        );
-      },
-      [
-        wellness.recovery,
-      ]
-    );
+    wellness.recovery === null
+      ? 0
+      : clampNumber(wellness.recovery);
 
   const sleepProgress =
-    useMemo(
-      () => {
-        if (
-          wellness
-            .sleepHours ===
-          null
-        ) {
-          return 0;
-        }
-
-        return clampNumber(
-          (
-            wellness
-              .sleepHours /
-            8
-          ) * 100,
-          0,
-          100
+    wellness.sleepHours === null
+      ? 0
+      : clampNumber(
+          (wellness.sleepHours / 8) * 100
         );
-      },
-      [
-        wellness.sleepHours,
-      ]
-    );
+
+  const calorieGoal =
+    wellness.stepGoal * 0.04;
 
   const calorieProgress =
-    useMemo(
-      () => {
-        const calorieGoal =
-          Number(
-            wellness.stepGoal ||
-              0
-          ) * 0.04;
-
-        if (
-          !calorieGoal
-        ) {
-          return 0;
-        }
-
-        return clampNumber(
-          (
-            Number(
-              wellness.calories ||
-                0
-            ) /
-            calorieGoal
-          ) * 100,
-          0,
-          100
+    wellness.calories === null
+      ? 0
+      : clampNumber(
+          (wellness.calories / calorieGoal) * 100
         );
-      },
-      [
-        wellness.calories,
-        wellness.stepGoal,
-      ]
-    );
 
-  // FIXED: stressProgress was missing in the original file.
-  const stressProgress =
-    useMemo(
-      () => {
-        if (
-          wellness.stress ===
-            null ||
-          wellness.stress ===
-            undefined
-        ) {
-          return 0;
-        }
+  const aiMessage = isLoading
+    ? t("loading")
+    : wellness.loadError
+    ? t("unavailable")
+    : !stepsAvailable
+    ? t("stepsUnavailable")
+    : stepsRemaining > 0
+    ? t("goalMessageRemaining", {
+        steps: formatNumber(
+          stepsRemaining,
+          currentLanguage
+        ),
+      })
+    : t("goalMessageComplete");
 
-        const numeric =
-          Number(
-            wellness.stress
-          );
+  const insightMessage = useMemo(() => {
+    if (isLoading) {
+      return t("loading");
+    }
 
-        if (
-          Number.isFinite(
-            numeric
-          )
-        ) {
-          return clampNumber(
-            numeric,
-            0,
-            100
-          );
-        }
+    if (!stepsAvailable) {
+      return t("stepsUnavailable");
+    }
 
-        return 0;
-      },
-      [
-        wellness.stress,
-      ]
-    );
+    if (wellness.steps <= 0) {
+      return t("startShortWalk");
+    }
 
-  // ==========================================================
-  // AI INSIGHT
-  // ==========================================================
+    if (stepsRemaining === 0) {
+      return t("completedGoal");
+    }
 
-  const insightMessage =
-    useMemo(
-      () => {
-        const steps =
-          Number(
-            wellness.steps ||
-              0
-          );
+    return t("stepsAway", {
+      steps: formatNumber(
+        stepsRemaining,
+        currentLanguage
+      ),
+    });
+  }, [
+    isLoading,
+    stepsAvailable,
+    wellness.steps,
+    stepsRemaining,
+    currentLanguage,
+    t,
+  ]);
 
-        const goal =
-          Number(
-            wellness.stepGoal ||
-              DEFAULT_STEP_GOAL
-          );
+  // Preserves the original data-availability calculation.
+  const aiConfidence = useMemo(() => {
+    let score = 0;
 
-        const remaining =
-          Math.max(
-            goal -
-              steps,
-            0
-          );
+    if (
+      stepsAvailable &&
+      wellness.steps > 0
+    ) {
+      score += 30;
+    }
 
-        if (
-          steps <= 0
-        ) {
-          return t(
-            "startShortWalk"
-          );
-        }
+    if (wellness.hydration > 0) {
+      score += 20;
+    }
 
-        if (
-          remaining === 0
-        ) {
-          return t(
-            "completedGoal"
-          );
-        }
+    if (wellness.recovery !== null) {
+      score += 20;
+    }
 
-        return t(
-          "stepsAway",
-          {
-            steps:
-              remaining.toLocaleString(),
-          }
-        );
-      },
-      [
+    if (wellness.sleepHours !== null) {
+      score += 20;
+    }
+
+    if (wellness.journey) {
+      score += 10;
+    }
+
+    return clampNumber(score);
+  }, [
+    stepsAvailable,
+    wellness.steps,
+    wellness.hydration,
+    wellness.recovery,
+    wellness.sleepHours,
+    wellness.journey,
+  ]);
+
+  const recoveryTrend = useMemo(() => {
+    if (wellness.recovery === null) {
+      return t("recoveryNotRecorded");
+    }
+
+    if (wellness.recovery >= 90) {
+      return t("excellentRecovery");
+    }
+
+    if (wellness.recovery >= 75) {
+      return t("recoveryImproving");
+    }
+
+    if (wellness.recovery >= 60) {
+      return t("moderateRecovery");
+    }
+
+    return t("recoveryNeedsAttention");
+  }, [wellness.recovery, t]);
+
+  const recoveryColor =
+    wellness.recovery === null
+      ? "#AAB8C8"
+      : wellness.recovery < 60
+      ? "#FFB85C"
+      : "#44F58A";
+
+  const checkpointText =
+    wellness.checkpoint !== null
+      ? t("checkpointOf", {
+          checkpoint: wellness.checkpoint,
+        })
+      : t("journeyInProgress");
+
+  const stepValue = stepsAvailable
+    ? `${formatNumber(
         wellness.steps,
+        currentLanguage
+      )} / ${formatNumber(
         wellness.stepGoal,
-        t,
-      ]
-    );
+        currentLanguage
+      )}`
+    : `— / ${formatNumber(
+        wellness.stepGoal,
+        currentLanguage
+      )}`;
 
-  const aiConfidence =
-    useMemo(
-      () => {
-        let score = 0;
+  const stats = [
+    {
+      key: "steps",
+      icon: "walk",
+      title: t("steps"),
+      value: stepValue,
+      progress: stepProgress,
+      color: "#44F58A",
+      onPress: handleWalkingAnalytics,
+    },
 
-        if (
-          Number(
-            wellness.steps ||
-              0
-          ) > 0
-        ) {
-          score += 30;
-        }
+    {
+      key: "hydration",
+      icon: "water",
+      title: t("hydration"),
 
-        if (
-          Number(
-            wellness
-              .hydration ||
-              0
-          ) > 0
-        ) {
-          score += 20;
-        }
+      value:
+        `${wellness.hydration} / ` +
+        `${wellness.hydrationGoal} oz`,
 
-        if (
-          wellness
-            .recovery != null
-        ) {
-          score += 20;
-        }
+      progress: hydrationProgress,
+      color: "#38D6FF",
+      onPress: handleHydration,
+    },
 
-        if (
-          wellness
-            .sleepHours !=
-          null
-        ) {
-          score += 20;
-        }
+    {
+      key: "recovery",
+      icon: "heart",
+      title: t("recovery"),
 
-        if (
-          wellness.journey
-        ) {
-          score += 10;
-        }
+      value:
+        wellness.recovery === null
+          ? t("notRecorded")
+          : `${Math.round(wellness.recovery)}%`,
 
-        return clampNumber(
-          score,
-          0,
-          100
-        );
-      },
-      [
-        wellness.steps,
-        wellness.hydration,
-        wellness.recovery,
-        wellness.sleepHours,
-        wellness.journey,
-      ]
-    );
+      progress: recoveryProgress,
+      color: "#FF5A6A",
+      onPress: handleRecovery,
+    },
 
-  const recoveryTrend =
-    useMemo(
-      () => {
-        if (
-          wellness
-            .recovery ==
-          null
-        ) {
-          return t(
-            "recoveryNotRecorded"
-          );
-        }
+    {
+      key: "sleep",
+      icon: "moon",
+      title: t("sleep"),
 
-        if (
-          wellness
-            .recovery >=
-          90
-        ) {
-          return t(
-            "excellentRecovery"
-          );
-        }
+      value:
+        wellness.sleepHours === null
+          ? t("notRecorded")
+          : `${wellness.sleepHours.toFixed(1)}h`,
 
-        if (
-          wellness
-            .recovery >=
-          75
-        ) {
-          return t(
-            "recoveryImproving"
-          );
-        }
+      progress: sleepProgress,
+      color: "#A66CFF",
+      onPress: handleSleep,
+    },
 
-        if (
-          wellness
-            .recovery >=
-          60
-        ) {
-          return t(
-            "moderateRecovery"
-          );
-        }
+    {
+      key: "calories",
+      icon: "flame",
+      title: t("calories"),
 
-        return t(
-          "recoveryNeedsAttention"
-        );
-      },
-      [
-        wellness.recovery,
-        t,
-      ]
-    );
+      value:
+        wellness.calories === null
+          ? "—"
+          : formatNumber(
+              wellness.calories,
+              currentLanguage
+            ),
 
-  // ==========================================================
-  // HANDLERS
-  // ==========================================================
+      progress: calorieProgress,
+      color: "#FF9F1C",
+      onPress: handleWalkingAnalytics,
+    },
 
-  const handleBack =
-    () => {
-      if (
-        typeof goBack ===
-        "function"
-      ) {
-        goBack();
-        return;
-      }
+    {
+      key: "journey",
+      icon: "map",
+      title: t("journey"),
 
-      if (
-        navigation?.canGoBack?.()
-      ) {
-        navigation.goBack();
-        return;
-      }
+      value:
+        wellness.journey ||
+        t("noActiveJourney"),
 
-      navigation?.navigate?.(
-        "More"
-      );
-    };
+      progress: wellness.journeyProgress,
+      color: "#2D7FF9",
+      onPress: handleStartWalk,
+    },
 
-  const handleNotifications =
-    () => {
-      runAction(
-        goToNotifications,
-        "NotificationSettings"
-      );
-    };
+    {
+      key: "streak",
+      icon: "trophy",
+      title: t("streak"),
 
-  const handleTextCoach =
-    () => {
-      runAction(
-        goToAIConversation,
-        "aiConversation"
-      );
-    };
+      value:
+        `${formatNumber(
+          wellness.streak,
+          currentLanguage
+        )} ${t("days")}`,
 
-  const handleHydration =
-    () => {
-      runAction(
-        goToHydration,
-        "HydrationCoach"
-      );
-    };
+      progress: clampNumber(
+        (wellness.streak / 7) * 100
+      ),
 
-  const handleRecovery =
-    () => {
-      runAction(
-        goToRecovery,
-        "RecoveryCoach"
-      );
-    };
-
-  const handleSleep =
-    () => {
-      runAction(
-        goToSleep,
-        "SleepCoach"
-      );
-    };
-
-  const handleBreathing =
-    () => {
-      runAction(
-        goToBreathing,
-        "StressBreathingCoach"
-      );
-    };
-
-  const handleMealPlanner =
-    () => {
-      runAction(
-        goToMealPlanner,
-        "MealPlanner"
-      );
-    };
-
-  const handleWalkingAnalytics =
-    () => {
-      runAction(
-        goToWalkingAnalytics,
-        "WalkingAnalytics"
-      );
-    };
-
-  const handleWalkHistory =
-    () => {
-      runAction(
-        goToWalkHistory,
-        "WalkHistory"
-      );
-    };
-
-  const handleGoals =
-    () => {
-      runAction(
-        goToGoals,
-        "WellnessGoals"
-      );
-    };
-
-  const handleJourneys =
-    () => {
-      runAction(
-        goToJourneys,
-        "Journeys"
-      );
-    };
-
-  const handleJourneyStory =
-    () => {
-      runAction(
-        goToJourneyStory,
-        "JourneyStory",
-        {
-          journey:
-            wellness
-              .activeJourney ||
-            activeJourneyProp ||
-            null,
-        }
-      );
-    };
-
-  const handleStartWalk =
-    async () => {
-      let journey =
-        wellness
-          .activeJourney ||
-        activeJourneyProp ||
-        null;
-
-      if (
-        !journey
-      ) {
-        const savedJourney =
-          await AsyncStorage.getItem(
-            "activeJourney"
-          );
-
-        if (
-          savedJourney
-        ) {
-          try {
-            journey =
-              JSON.parse(
-                savedJourney
-              );
-          } catch (
-            error
-          ) {
-            console.log(
-              "Active journey parse error:",
-              error
-            );
-          }
-        }
-      }
-
-      if (
-        journey
-      ) {
-        runAction(
-          goToGPSJourneyMap,
-          "GPSJourneyMap",
-          {
-            journey,
-          }
-        );
-
-        return;
-      }
-
-      runAction(
-        goToJourneys,
-        "Journeys"
-      );
-    };
+      color: "#F7C948",
+      onPress: handleGoals,
+    },
+  ];
 
   // ==========================================================
   // UI
   // ==========================================================
 
   return (
-    <SafeAreaView
-      style={
-        styles.safe
-      }
-    >
+    <SafeAreaView style={styles.safe}>
       <LinearGradient
         colors={[
           "#020611",
           "#071A33",
           "#020611",
         ]}
-        style={
-          styles.container
-        }
+        style={styles.container}
       >
         <ScrollView
-          showsVerticalScrollIndicator={
-            false
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={
+            styles.scrollContent
           }
-          contentContainerStyle={{
-            paddingBottom:
-              40,
-          }}
         >
           {/* HEADER */}
 
-          <View
-            style={
-              styles.header
-            }
-          >
+          <View style={styles.header}>
             <TouchableOpacity
-              style={
-                styles.iconButton
-              }
-              onPress={
-                handleBack
-              }
+              style={styles.iconButton}
+              onPress={handleBack}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
             >
               <Ionicons
                 name="chevron-back"
@@ -3171,30 +2135,20 @@ export default function AIWellnessMasterScreen({
             </TouchableOpacity>
 
             <View>
-              <Text
-                style={
-                  styles.headerTitle
-                }
-              >
+              <Text style={styles.headerTitle}>
                 LEGATHON AI
               </Text>
 
-              <Text
-                style={
-                  styles.headerSubtitle
-                }
-              >
-                WELLNESS
+              <Text style={styles.headerSubtitle}>
+                {t("wellness")}
               </Text>
             </View>
 
             <TouchableOpacity
-              style={
-                styles.iconButton
-              }
-              onPress={
-                handleNotifications
-              }
+              style={styles.iconButton}
+              onPress={handleNotifications}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
             >
               <Ionicons
                 name="notifications-outline"
@@ -3212,54 +2166,28 @@ export default function AIWellnessMasterScreen({
               "rgba(9,26,48,0.94)",
               "#061326",
             ]}
-            style={
-              styles.heroCard
-            }
+            style={styles.heroCard}
           >
-            <Text
-              style={
-                styles.smallLabel
-              }
-            >
+            <Text style={styles.smallLabel}>
               {`${wellness.greeting || t("welcome")} ${
-                wellness.userName ||
-                t("walker")
+                wellness.userName || t("walker")
               }`.toUpperCase()}
             </Text>
 
-            <Text
-              style={
-                styles.heroTitle
-              }
-            >
-              {t(
-                "aiWellnessCoach"
-              )}
+            <Text style={styles.heroTitle}>
+              {t("aiWellnessCoach")}
             </Text>
 
-            <Text
-              style={
-                styles.heroText
-              }
-            >
-              {t(
-                "heroDescription"
-              )}
+            <Text style={styles.heroText}>
+              {t("heroDescription")}
             </Text>
 
-            <View
-              style={
-                styles.orbWrap
-              }
-            >
+            <View style={styles.orbWrap}>
               <Animated.View
                 pointerEvents="none"
                 style={[
                   styles.orbGlow,
-                  {
-                    opacity:
-                      glowOpacity,
-                  },
+                  { opacity: glowOpacity },
                 ]}
               />
 
@@ -3269,10 +2197,7 @@ export default function AIWellnessMasterScreen({
                   styles.orbOuter,
                   {
                     transform: [
-                      {
-                        rotate:
-                          spin,
-                      },
+                      { rotate: spin },
                     ],
                   },
                 ]}
@@ -3284,10 +2209,7 @@ export default function AIWellnessMasterScreen({
                   styles.orbMiddle,
                   {
                     transform: [
-                      {
-                        rotate:
-                          reverseSpin,
-                      },
+                      { rotate: reverseSpin },
                     ],
                   },
                 ]}
@@ -3298,108 +2220,43 @@ export default function AIWellnessMasterScreen({
                   styles.orbInner,
                   {
                     transform: [
-                      {
-                        scale:
-                          pulse,
-                      },
+                      { scale: pulse },
                     ],
                   },
                 ]}
               >
-                {wellness
-                  .wellnessScore !==
-                  null &&
-                wellness
-                  .wellnessScore !==
-                  undefined ? (
-                  <>
-                    <Text
-                      style={
-                        styles.orbScore
-                      }
-                    >
-                      {Math.round(
-                        Number(
-                          wellness
-                            .wellnessScore
-                        ) || 0
-                      )}
-                    </Text>
+                <MaterialCommunityIcons
+                  name="brain"
+                  size={54}
+                  color="#9DFFCF"
+                />
 
-                    <Text
-                      style={
-                        styles.orbScoreLabel
-                      }
-                    >
-                      Score
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <MaterialCommunityIcons
-                      name="brain"
-                      size={54}
-                      color="#9DFFCF"
-                    />
-
-                    <Text
-                      style={
-                        styles.orbScoreLabel
-                      }
-                    >
-                      {t(
-                        "aiCoach"
-                      )}
-                    </Text>
-                  </>
-                )}
+                <Text style={styles.orbScoreLabel}>
+                  {t("aiCoach")}
+                </Text>
               </Animated.View>
             </View>
 
-            <View
-              style={
-                styles.aiStatusRow
-              }
-            >
-              <View
-                style={
-                  styles.statusDot
-                }
-              />
+            <View style={styles.aiStatusRow}>
+              <View style={styles.statusDot} />
 
-              <Text
-                style={
-                  styles.aiStatusText
-                }
-              >
-                {aiStatus ||
-                  t(
-                    "aiReady"
-                  )}
+              <Text style={styles.aiStatusText}>
+                {t("aiReady")}
               </Text>
             </View>
 
             <Text
-              style={
-                styles.aiStatusMessage
-              }
+              style={styles.aiStatusMessage}
+              accessibilityLiveRegion="polite"
             >
-              {wellness.aiMessage ||
-                t(
-                  "coachReady"
-                )}
+              {aiMessage}
             </Text>
 
             <TouchableOpacity
-              style={
-                styles.textCoachButton
-              }
-              activeOpacity={
-                0.85
-              }
-              onPress={
-                handleTextCoach
-              }
+              style={styles.textCoachButton}
+              activeOpacity={0.85}
+              onPress={handleTextCoach}
+              accessibilityRole="button"
             >
               <Ionicons
                 name="chatbubble-ellipses"
@@ -3408,17 +2265,11 @@ export default function AIWellnessMasterScreen({
               />
 
               <Text
-                style={
-                  styles.textCoachButtonText
-                }
-                numberOfLines={
-                  1
-                }
+                style={styles.textCoachButtonText}
+                numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                {t(
-                  "messageCoach"
-                )}
+                {t("messageCoach")}
               </Text>
 
               <Ionicons
@@ -3428,889 +2279,166 @@ export default function AIWellnessMasterScreen({
               />
             </TouchableOpacity>
 
-            <View
-              style={
-                styles.heroActions
-              }
-            >
+            <View style={styles.heroActions}>
               <HeroAction
                 icon="walk"
-                title={
-                  t(
-                    "walk"
-                  )
-                }
-                onPress={
-                  handleStartWalk
-                }
+                title={t("walk")}
+                onPress={handleStartWalk}
               />
 
               <HeroAction
                 icon="leaf"
-                title={
-                  t(
-                    "calm"
-                  )
-                }
-                onPress={
-                  handleBreathing
-                }
+                title={t("calm")}
+                onPress={handleBreathing}
               />
 
               <HeroAction
                 icon="restaurant"
-                title={
-                  t(
-                    "meal"
-                  )
-                }
-                onPress={
-                  handleMealPlanner
-                }
+                title={t("meal")}
+                onPress={handleMealPlanner}
               />
             </View>
           </LinearGradient>
 
-          {/* TODAY */}
+          {/* TODAY'S WELLNESS */}
 
           <Text
-            style={
-              styles.sectionTitle
-            }
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.rtlText,
+            ]}
           >
-            {t(
-              "todaysWellness"
-            )}
+            {t("todaysWellness")}
           </Text>
 
-          <View
-            style={
-              styles.quickStatsGrid
-            }
-          >
-            <QuickStatCard
-              icon="walk"
-              title={
-                t(
-                  "steps"
-                )
-              }
-              value={`${Number(
-                wellness.steps ||
-                  0
-              ).toLocaleString()} / ${Number(
-                wellness.stepGoal ||
-                  DEFAULT_STEP_GOAL
-              ).toLocaleString()}`}
-              progress={
-                stepProgress
-              }
-              color="#44F58A"
-              onPress={
-                handleWalkingAnalytics
-              }
-            />
+          {!isLoading &&
+            (wellness.stepError ||
+              wellness.loadError) && (
+              <Text
+                style={[
+                  styles.errorText,
+                  isRTL && styles.rtlText,
+                ]}
+                accessibilityRole="alert"
+              >
+                {wellness.loadError
+                  ? t("unavailable")
+                  : t("stepsUnavailable")}
+              </Text>
+            )}
 
-            <QuickStatCard
-              icon="water"
-              title={
-                t(
-                  "hydration"
-                )
-              }
-              value={`${Number(
-                wellness.hydration ||
-                  0
-              )} / ${Number(
-                wellness.hydrationGoal ||
-                  DEFAULT_HYDRATION_GOAL
-              )} oz`}
-              progress={
-                hydrationProgress
-              }
-              color="#38D6FF"
-              onPress={
-                handleHydration
-              }
-            />
-
-            <QuickStatCard
-              icon="heart"
-              title={
-                t(
-                  "recovery"
-                )
-              }
-              value={
-                wellness.recovery !=
-                null
-                  ? `${wellness.recovery}%`
-                  : t(
-                      "notRecorded"
-                    )
-              }
-              progress={
-                recoveryProgress
-              }
-              color="#FF5A6A"
-              onPress={
-                handleRecovery
-              }
-            />
-
-            <QuickStatCard
-              icon="moon"
-              title={
-                t(
-                  "sleep"
-                )
-              }
-              value={
-                wellness.sleepHours !=
-                null
-                  ? `${Number(
-                      wellness.sleepHours
-                    ).toFixed(
-                      1
-                    )}h`
-                  : t(
-                      "notRecorded"
-                    )
-              }
-              progress={
-                sleepProgress
-              }
-              color="#A66CFF"
-              onPress={
-                handleSleep
-              }
-            />
-
-            <QuickStatCard
-              icon="flame"
-              title={
-                t(
-                  "calories"
-                )
-              }
-              value={Number(
-                wellness.calories ||
-                  0
-              ).toLocaleString()}
-              progress={
-                calorieProgress
-              }
-              color="#FF9F1C"
-              onPress={
-                handleWalkingAnalytics
-              }
-            />
-
-            <QuickStatCard
-              icon="map"
-              title={
-                t(
-                  "journey"
-                )
-              }
-              value={
-                wellness.journey ||
-                t(
-                  "noActiveJourney"
-                )
-              }
-              progress={
-                wellness
-                  .journeyProgress ||
-                0
-              }
-              color="#2D7FF9"
-              onPress={
-                handleStartWalk
-              }
-            />
-
-            <QuickStatCard
-              icon="trophy"
-              title={
-                t(
-                  "streak"
-                )
-              }
-              value={`${Number(
-                wellness.streak ||
-                  0
-              )} ${t(
-                "days"
-              )}`}
-              progress={clampNumber(
-                (
-                  Number(
-                    wellness.streak ||
-                      0
-                  ) /
-                  7
-                ) * 100,
-                0,
-                100
-              )}
-              color="#F7C948"
-              onPress={
-                handleGoals
-              }
-            />
+          <View style={styles.quickStatsGrid}>
+            {stats.map((stat) => (
+              <QuickStatCard
+                key={stat.key}
+                icon={stat.icon}
+                title={stat.title}
+                value={stat.value}
+                progress={stat.progress}
+                color={stat.color}
+                onPress={stat.onPress}
+                isRTL={isRTL}
+              />
+            ))}
           </View>
 
           {/* AI INSIGHT */}
 
           <Text
-            style={
-              styles.sectionTitle
-            }
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.rtlText,
+            ]}
           >
-            {t(
-              "aiInsight"
-            )}
+            {t("aiInsight")}
           </Text>
 
           <AIInsightCard
-            title={
-              t(
-                "todaysRecommendation"
-              )
-            }
-            message={
-              insightMessage
-            }
-            confidence={
-              aiConfidence
-            }
-            trend={
-              recoveryTrend
-            }
-            action={
-              t(
-                "startWalk"
-              )
-            }
-            confidenceLabel={
-              t(
-                "confidence"
-              )
-            }
-            trendLabel={
-              t(
-                "recoveryTrend",
-                {
-                  trend:
-                    recoveryTrend,
-                }
-              )
-            }
-            onPress={
-              handleStartWalk
-            }
+            title={t("todaysRecommendation")}
+            message={insightMessage}
+            confidence={aiConfidence}
+            confidenceLabel={t("confidence")}
+            trend={recoveryTrend}
+            trendColor={recoveryColor}
+            action={t("startWalk")}
+            onPress={handleStartWalk}
+            isRTL={isRTL}
           />
 
-          {/* ACTIVITY */}
+          {/* ACTIVITY FEED */}
 
           <Text
-            style={
-              styles.sectionTitle
-            }
+            style={[
+              styles.sectionTitle,
+              isRTL && styles.rtlText,
+            ]}
           >
-            {t(
-              "aiActivityFeed"
-            )}
+            {t("aiActivityFeed")}
           </Text>
 
-          <View
-            style={
-              styles.activityContainer
-            }
-          >
+          <View style={styles.activityContainer}>
             <ActivityItem
               icon="walk"
               color="#44F58A"
-              title={
-                t(
-                  "walkProgress"
-                )
+              title={t("walkProgress")}
+              subtitle={
+                isLoading
+                  ? t("loading")
+                  : stepsAvailable
+                  ? t("walkedToday", {
+                      steps: formatNumber(
+                        wellness.steps,
+                        currentLanguage
+                      ),
+                    })
+                  : t("stepsUnavailable")
               }
-              subtitle={t(
-                "walkedToday",
-                {
-                  steps:
-                    Number(
-                      wellness.steps ||
-                        0
-                    ).toLocaleString(),
-                }
-              )}
               time={
-                t(
-                  "today"
-                )
+                stepsAvailable
+                  ? t("today")
+                  : ""
               }
+              isRTL={isRTL}
             />
 
             <ActivityItem
               icon="flag"
               color="#2D7FF9"
-              title={
-                t(
-                  "journeyProgress"
-                )
-              }
+              title={t("journeyProgress")}
               subtitle={
                 wellness.journey
-                  ? `${
-                      wellness.checkpoint ||
-                      t(
-                        "journeyInProgress"
-                      )
-                    } — ${
-                      wellness.journey
-                    }`
-                  : t(
-                      "noActiveJourneyPeriod"
-                    )
+                  ? `${checkpointText} — ${wellness.journey}`
+                  : t("noActiveJourneyPeriod")
               }
               time={
                 wellness.journey
-                  ? t(
-                      "today"
-                    )
+                  ? t("today")
                   : ""
               }
+              isRTL={isRTL}
             />
 
             <ActivityItem
               icon="heart"
               color="#FF5A6A"
-              title={
-                t(
-                  "recovery"
-                )
-              }
+              title={t("recovery")}
               subtitle={
-                wellness.recovery !=
-                null
-                  ? t(
-                      "recoveryScore",
-                      {
-                        score:
-                          Math.round(
-                            Number(
-                              wellness.recovery
-                            )
-                          ),
-                      }
-                    )
-                  : t(
-                      "recoveryNotRecordedPeriod"
-                    )
+                wellness.recovery !== null
+                  ? t("recoveryScore", {
+                      score: Math.round(
+                        wellness.recovery
+                      ),
+                    })
+                  : t("recoveryNotRecordedPeriod")
               }
               time={
-                wellness.recovery !=
-                null
-                  ? t(
-                      "today"
-                    )
+                wellness.recovery !== null
+                  ? t("today")
                   : ""
               }
+              isRTL={isRTL}
             />
           </View>
-
-          {/* OPTIONAL WELLNESS TAB CONTENT */}
-
-          {activeTab ===
-            "Wellness" && (
-            <View>
-              <Text
-                style={
-                  styles.sectionTitle
-                }
-              >
-                {t(
-                  "wellnessOverview"
-                )}
-              </Text>
-
-              <View
-                style={
-                  styles.quickStatsGrid
-                }
-              >
-                <QuickStatCard
-                  icon="walk"
-                  title={
-                    t(
-                      "steps"
-                    )
-                  }
-                  value={`${Number(
-                    wellness.steps ||
-                      0
-                  ).toLocaleString()} / ${Number(
-                    wellness.stepGoal ||
-                      DEFAULT_STEP_GOAL
-                  ).toLocaleString()}`}
-                  progress={
-                    stepProgress
-                  }
-                  color="#44F58A"
-                  onPress={
-                    handleWalkingAnalytics
-                  }
-                />
-
-                <QuickStatCard
-                  icon="heart"
-                  title={
-                    t(
-                      "recovery"
-                    )
-                  }
-                  value={
-                    wellness.recovery !=
-                    null
-                      ? `${wellness.recovery}%`
-                      : t(
-                          "notRecorded"
-                        )
-                  }
-                  progress={
-                    recoveryProgress
-                  }
-                  color="#FF5A6A"
-                  onPress={
-                    handleRecovery
-                  }
-                />
-
-                <QuickStatCard
-                  icon="moon"
-                  title={
-                    t(
-                      "sleep"
-                    )
-                  }
-                  value={
-                    wellness.sleepHours !=
-                    null
-                      ? `${Number(
-                          wellness.sleepHours
-                        ).toFixed(
-                          1
-                        )}h`
-                      : t(
-                          "notRecorded"
-                        )
-                  }
-                  progress={
-                    sleepProgress
-                  }
-                  color="#A66CFF"
-                  onPress={
-                    handleSleep
-                  }
-                />
-
-                <QuickStatCard
-                  icon="water"
-                  title={
-                    t(
-                      "hydration"
-                    )
-                  }
-                  value={`${Number(
-                    wellness.hydration ||
-                      0
-                  )} / ${Number(
-                    wellness.hydrationGoal ||
-                      DEFAULT_HYDRATION_GOAL
-                  )} oz`}
-                  progress={
-                    hydrationProgress
-                  }
-                  color="#38D6FF"
-                  onPress={
-                    handleHydration
-                  }
-                />
-
-                <QuickStatCard
-                  icon="flame"
-                  title={
-                    t(
-                      "calories"
-                    )
-                  }
-                  value={Number(
-                    wellness.calories ||
-                      0
-                  ).toLocaleString()}
-                  progress={
-                    calorieProgress
-                  }
-                  color="#FF9F1C"
-                  onPress={
-                    handleWalkingAnalytics
-                  }
-                />
-
-                <QuickStatCard
-                  icon="leaf"
-                  title={
-                    t(
-                      "stress"
-                    )
-                  }
-                  value={
-                    wellness.stress ??
-                    t(
-                      "notRecorded"
-                    )
-                  }
-                  progress={
-                    stressProgress
-                  }
-                  color="#64FFD2"
-                  onPress={
-                    handleBreathing
-                  }
-                />
-              </View>
-
-              <LinearGradient
-                colors={[
-                  "#0A2442",
-                  "#08192F",
-                  "#051120",
-                ]}
-                style={
-                  styles.largeCard
-                }
-              >
-                <Text
-                  style={
-                    styles.cardTitle
-                  }
-                >
-                  {t(
-                    "aiWellnessSummary"
-                  )}
-                </Text>
-
-                <Text
-                  style={
-                    styles.cardText
-                  }
-                >
-                  {t(
-                    "wellnessSummary"
-                  )}
-                </Text>
-              </LinearGradient>
-            </View>
-          )}
-
-          {/* OPTIONAL COACH TAB */}
-
-          {activeTab ===
-            "Coach" && (
-            <View>
-              <Text
-                style={
-                  styles.sectionTitle
-                }
-              >
-                {t(
-                  "aiCoachingTools"
-                )}
-              </Text>
-
-              <View
-                style={
-                  styles.quickStatsGrid
-                }
-              >
-                <ActionCard
-                  icon="restaurant"
-                  title={
-                    t(
-                      "mealPlan"
-                    )
-                  }
-                  onPress={
-                    handleMealPlanner
-                  }
-                />
-
-                <ActionCard
-                  icon="water"
-                  title={
-                    t(
-                      "hydration"
-                    )
-                  }
-                  onPress={
-                    handleHydration
-                  }
-                />
-
-                <ActionCard
-                  icon="heart"
-                  title={
-                    t(
-                      "recovery"
-                    )
-                  }
-                  onPress={
-                    handleRecovery
-                  }
-                />
-
-                <ActionCard
-                  icon="moon"
-                  title={
-                    t(
-                      "sleep"
-                    )
-                  }
-                  onPress={
-                    handleSleep
-                  }
-                />
-
-                <ActionCard
-                  icon="leaf"
-                  title={
-                    t(
-                      "breathing"
-                    )
-                  }
-                  onPress={
-                    handleBreathing
-                  }
-                />
-
-                <ActionCard
-                  icon="sparkles"
-                  title={
-                    t(
-                      "motivation"
-                    )
-                  }
-                  onPress={() =>
-                    navTo(
-                      "MotivationCoach"
-                    )
-                  }
-                />
-              </View>
-            </View>
-          )}
-
-          {/* OPTIONAL JOURNEY TAB */}
-
-          {activeTab ===
-            "Journey" && (
-            <View>
-              <Text
-                style={
-                  styles.sectionTitle
-                }
-              >
-                {t(
-                  "journeyCoach"
-                )}
-              </Text>
-
-              <LinearGradient
-                colors={[
-                  "#132A46",
-                  "#0B1D35",
-                  "#071221",
-                ]}
-                style={
-                  styles.largeCard
-                }
-              >
-                <Text
-                  style={
-                    styles.smallLabel
-                  }
-                >
-                  {t(
-                    "currentJourney"
-                  )}
-                </Text>
-
-                <Text
-                  style={
-                    styles.cardTitle
-                  }
-                >
-                  {wellness.journeyFull ||
-                    t(
-                      "noActiveJourney"
-                    )}
-                </Text>
-
-                {wellness.journey ? (
-                  <Text
-                    style={
-                      styles.cardText
-                    }
-                  >
-                    {t(
-                      "checkpointProgress",
-                      {
-                        checkpoint:
-                          wellness.checkpoint ||
-                          "—",
-
-                        progress:
-                          Math.round(
-                            wellness.journeyProgress
-                          ),
-                      }
-                    )}
-                  </Text>
-                ) : null}
-
-                <View
-                  style={
-                    styles.progressTrack
-                  }
-                >
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width:
-                          `${wellness.journeyProgress}%`,
-                      },
-                    ]}
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={
-                    styles.goldButton
-                  }
-                  onPress={
-                    handleStartWalk
-                  }
-                >
-                  <Text
-                    style={
-                      styles.goldButtonText
-                    }
-                  >
-                    {t(
-                      "continueJourney"
-                    )}
-                  </Text>
-
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color="#020611"
-                  />
-                </TouchableOpacity>
-              </LinearGradient>
-
-              <Text
-                style={
-                  styles.sectionTitle
-                }
-              >
-                {t(
-                  "aiRoutePlan"
-                )}
-              </Text>
-
-              <View
-                style={
-                  styles.activityContainer
-                }
-              >
-                <ActivityItem
-                  icon="flag"
-                  color="#2D7FF9"
-                  title={
-                    t(
-                      "nextCheckpoint"
-                    )
-                  }
-                  subtitle={
-                    t(
-                      "nextCheckpointMessage"
-                    )
-                  }
-                  time={
-                    t(
-                      "thisWeek"
-                    )
-                  }
-                />
-
-                <ActivityItem
-                  icon="speedometer"
-                  color="#44F58A"
-                  title={
-                    t(
-                      "suggestedPace"
-                    )
-                  }
-                  subtitle={
-                    t(
-                      "suggestedPaceMessage"
-                    )
-                  }
-                  time={
-                    t(
-                      "ai"
-                    )
-                  }
-                />
-
-                <ActivityItem
-                  icon="walk"
-                  color="#F7C948"
-                  title={
-                    t(
-                      "dailyGoal"
-                    )
-                  }
-                  subtitle={t(
-                    "dailyGoalMessage",
-                    {
-                      steps:
-                        Number(
-                          wellness.stepGoal ||
-                            DEFAULT_STEP_GOAL
-                        ).toLocaleString(),
-                    }
-                  )}
-                  time={
-                    t(
-                      "today"
-                    )
-                  }
-                />
-              </View>
-            </View>
-          )}
-
-          <View
-            style={{
-              height: 180,
-            }}
-          />
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -4328,15 +2456,10 @@ function HeroAction({
 }) {
   return (
     <TouchableOpacity
-      style={
-        styles.heroAction
-      }
-      onPress={
-        onPress
-      }
-      activeOpacity={
-        0.85
-      }
+      style={styles.heroAction}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
     >
       <Ionicons
         name={icon}
@@ -4345,12 +2468,8 @@ function HeroAction({
       />
 
       <Text
-        style={
-          styles.heroActionText
-        }
-        numberOfLines={
-          1
-        }
+        style={styles.heroActionText}
+        numberOfLines={1}
         adjustsFontSizeToFit
       >
         {title}
@@ -4360,7 +2479,7 @@ function HeroAction({
 }
 
 // ============================================================
-// QUICK STAT
+// QUICK STAT CARD
 // ============================================================
 
 function QuickStatCard({
@@ -4370,35 +2489,19 @@ function QuickStatCard({
   progress,
   color,
   onPress,
+  isRTL = false,
 }) {
   const safeProgress =
-    Math.min(
-      100,
-      Math.max(
-        0,
-        Number(
-          progress
-        ) || 0
-      )
-    );
+    clampNumber(progress);
 
   return (
     <TouchableOpacity
-      style={
-        styles.quickStatCard
-      }
-      onPress={
-        onPress
-      }
-      activeOpacity={
-        0.85
-      }
+      style={styles.quickStatCard}
+      onPress={onPress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
     >
-      <View
-        style={
-          styles.quickStatTop
-        }
-      >
+      <View style={styles.quickStatTop}>
         <Ionicons
           name={icon}
           size={24}
@@ -4406,12 +2509,11 @@ function QuickStatCard({
         />
 
         <Text
-          style={
-            styles.quickStatTitle
-          }
-          numberOfLines={
-            2
-          }
+          style={[
+            styles.quickStatTitle,
+            isRTL && styles.rtlText,
+          ]}
+          numberOfLines={2}
           adjustsFontSizeToFit
         >
           {title}
@@ -4419,31 +2521,23 @@ function QuickStatCard({
       </View>
 
       <Text
-        style={
-          styles.quickStatValue
-        }
-        numberOfLines={
-          2
-        }
+        style={[
+          styles.quickStatValue,
+          isRTL && styles.rtlText,
+        ]}
+        numberOfLines={2}
         adjustsFontSizeToFit
       >
         {value}
       </Text>
 
-      <View
-        style={
-          styles.quickProgressTrack
-        }
-      >
+      <View style={styles.quickProgressTrack}>
         <View
           style={[
             styles.quickProgressFill,
             {
-              width:
-                `${safeProgress}%`,
-
-              backgroundColor:
-                color,
+              width: `${safeProgress}%`,
+              backgroundColor: color,
             },
           ]}
         />
@@ -4453,60 +2547,19 @@ function QuickStatCard({
 }
 
 // ============================================================
-// ACTION CARD
-// ============================================================
-
-function ActionCard({
-  icon,
-  title,
-  onPress,
-}) {
-  return (
-    <TouchableOpacity
-      style={
-        styles.actionCard
-      }
-      onPress={
-        onPress
-      }
-      activeOpacity={
-        0.85
-      }
-    >
-      <Ionicons
-        name={icon}
-        size={28}
-        color="#F7C948"
-      />
-
-      <Text
-        style={
-          styles.actionTitle
-        }
-        numberOfLines={
-          2
-        }
-        adjustsFontSizeToFit
-      >
-        {title}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-// ============================================================
-// AI INSIGHT
+// AI INSIGHT CARD
 // ============================================================
 
 function AIInsightCard({
   title,
   message,
   confidence,
-  trend,
-  trendLabel,
-  action,
   confidenceLabel,
+  trend,
+  trendColor,
+  action,
   onPress,
+  isRTL = false,
 }) {
   return (
     <LinearGradient
@@ -4515,102 +2568,72 @@ function AIInsightCard({
         "#08192F",
         "#051120",
       ]}
-      style={
-        styles.insightCard
-      }
+      style={styles.insightCard}
     >
-      <View
-        style={
-          styles.insightHeader
-        }
-      >
-        <View
-          style={
-            styles.aiBadge
-          }
-        >
+      <View style={styles.insightHeader}>
+        <View style={styles.aiBadge}>
           <Ionicons
             name="sparkles"
             size={18}
             color="#F7C948"
           />
 
-          <Text
-            style={
-              styles.aiBadgeText
-            }
-          >
+          <Text style={styles.aiBadgeText}>
             LEGATHON AI
           </Text>
         </View>
 
-        <View
-          style={
-            styles.confidenceBox
-          }
-        >
-          <Text
-            style={
-              styles.confidenceNumber
-            }
-          >
+        <View style={styles.confidenceBox}>
+          <Text style={styles.confidenceNumber}>
             {confidence}%
           </Text>
 
-          <Text
-            style={
-              styles.confidenceLabel
-            }
-          >
+          <Text style={styles.confidenceLabel}>
             {confidenceLabel}
           </Text>
         </View>
       </View>
 
       <Text
-        style={
-          styles.insightTitle
-        }
+        style={[
+          styles.insightTitle,
+          isRTL && styles.rtlText,
+        ]}
       >
         {title}
       </Text>
 
       <Text
-        style={
-          styles.insightMessage
-        }
+        style={[
+          styles.insightMessage,
+          isRTL && styles.rtlText,
+        ]}
       >
         {message}
       </Text>
 
-      <View
-        style={
-          styles.trendRow
-        }
-      >
+      <View style={styles.trendRow}>
         <Ionicons
-          name="trending-up"
+          name="heart-outline"
           size={18}
-          color="#44F58A"
+          color={trendColor}
         />
 
         <Text
-          style={
-            styles.trendText
-          }
+          style={[
+            styles.trendText,
+            { color: trendColor },
+            isRTL && styles.rtlText,
+          ]}
         >
-          {trendLabel ||
-            trend}
+          {trend}
         </Text>
       </View>
 
       <TouchableOpacity
-        style={
-          styles.insightButton
-        }
-        onPress={
-          onPress
-        }
+        style={styles.insightButton}
+        onPress={onPress}
+        accessibilityRole="button"
       >
         <Ionicons
           name="walk"
@@ -4618,11 +2641,7 @@ function AIInsightCard({
           color="#020611"
         />
 
-        <Text
-          style={
-            styles.insightButtonText
-          }
-        >
+        <Text style={styles.insightButtonText}>
           {action}
         </Text>
 
@@ -4646,19 +2665,15 @@ function ActivityItem({
   title,
   subtitle,
   time,
+  isRTL = false,
 }) {
   return (
-    <View
-      style={
-        styles.activityCard
-      }
-    >
+    <View style={styles.activityCard}>
       <View
         style={[
           styles.activityIcon,
           {
-            backgroundColor:
-              `${color}20`,
+            backgroundColor: `${color}20`,
           },
         ]}
       >
@@ -4669,34 +2684,28 @@ function ActivityItem({
         />
       </View>
 
-      <View
-        style={{
-          flex: 1,
-        }}
-      >
+      <View style={styles.activityCopy}>
         <Text
-          style={
-            styles.activityTitle
-          }
+          style={[
+            styles.activityTitle,
+            isRTL && styles.rtlText,
+          ]}
         >
           {title}
         </Text>
 
         <Text
-          style={
-            styles.activitySubtitle
-          }
+          style={[
+            styles.activitySubtitle,
+            isRTL && styles.rtlText,
+          ]}
         >
           {subtitle}
         </Text>
       </View>
 
       {!!time && (
-        <Text
-          style={
-            styles.activityTime
-          }
-        >
+        <Text style={styles.activityTime}>
           {time}
         </Text>
       )}
@@ -4718,6 +2727,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  scrollContent: {
+    paddingBottom: 220,
+  },
+
+  rtlText: {
+    textAlign: "right",
+    writingDirection: "rtl",
+  },
+
   header: {
     paddingHorizontal: 20,
     paddingTop: 12,
@@ -4731,9 +2749,11 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor:
+      "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+    borderColor:
+      "rgba(255,255,255,0.12)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -4761,7 +2781,8 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor:
+      "rgba(255,255,255,0.14)",
     overflow: "hidden",
   },
 
@@ -4838,12 +2859,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  orbScore: {
-    color: "#FFFFFF",
-    fontSize: 42,
-    fontWeight: "900",
-  },
-
   orbScoreLabel: {
     color: "#44F58A",
     fontSize: 13,
@@ -4854,7 +2869,8 @@ const styles = StyleSheet.create({
   aiStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(68,245,138,0.12)",
+    backgroundColor:
+      "rgba(68,245,138,0.12)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -4940,6 +2956,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  errorText: {
+    color: "#F7C948",
+    fontSize: 13,
+    lineHeight: 20,
+    marginHorizontal: 20,
+    marginBottom: 14,
+  },
+
   quickStatsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -4981,7 +3005,8 @@ const styles = StyleSheet.create({
   quickProgressTrack: {
     height: 8,
     borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor:
+      "rgba(255,255,255,0.12)",
     marginTop: 14,
     overflow: "hidden",
   },
@@ -5004,15 +3029,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
   },
 
   aiBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(247,201,72,0.12)",
+    backgroundColor:
+      "rgba(247,201,72,0.12)",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
+    marginRight: 8,
+    marginBottom: 8,
   },
 
   aiBadgeText: {
@@ -5025,6 +3054,7 @@ const styles = StyleSheet.create({
 
   confidenceBox: {
     alignItems: "center",
+    marginBottom: 8,
   },
 
   confidenceNumber: {
@@ -5061,7 +3091,6 @@ const styles = StyleSheet.create({
 
   trendText: {
     flex: 1,
-    color: "#44F58A",
     marginLeft: 8,
     fontSize: 14,
     fontWeight: "800",
@@ -5112,6 +3141,11 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
 
+  activityCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+
   activityTitle: {
     color: "#FFFFFF",
     fontSize: 16,
@@ -5130,83 +3164,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginLeft: 8,
-  },
-
-  largeCard: {
-    marginHorizontal: 20,
-    marginTop: 8,
-    borderRadius: 30,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "#1B3353",
-  },
-
-  cardTitle: {
-    color: "#FFFFFF",
-    fontSize: 24,
-    fontWeight: "900",
-    marginTop: 10,
-  },
-
-  cardText: {
-    color: "#B8C5D6",
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 10,
-  },
-
-  progressTrack: {
-    height: 12,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    marginTop: 20,
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    height: "100%",
-    borderRadius: 12,
-    backgroundColor: "#44F58A",
-  },
-
-  goldButton: {
-    marginTop: 24,
-    minHeight: 54,
-    borderRadius: 27,
-    backgroundColor: "#F7C948",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    paddingHorizontal: 15,
-  },
-
-  goldButtonText: {
-    flexShrink: 1,
-    color: "#020611",
-    fontSize: 16,
-    fontWeight: "900",
-    marginRight: 8,
-    textAlign: "center",
-  },
-
-  actionCard: {
-    width: "48%",
-    minHeight: 118,
-    backgroundColor: "#091A30",
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#1B3353",
-    paddingHorizontal: 10,
-  },
-
-  actionTitle: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-    marginTop: 12,
-    textAlign: "center",
+    maxWidth: 90,
   },
 });
