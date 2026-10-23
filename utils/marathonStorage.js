@@ -804,19 +804,20 @@ export function addMarathonSteps(stepDelta, options = {}) {
       map
     );
 
-    if (!active) {
-      return {
-        saved: false,
-        added: 0,
-        overflow: incoming,
-        completedNow: false,
-        reason: "no-active-marathon",
-      };
+    // Closed-app reconciliation may finish a previously active marathon.
+    // Require the engine's persisted transaction, not just a caller flag.
+    let historical = false;
+    if (options.historyCredit && options.creditId && requestedId) {
+      const raw = await _accountSession14.run(() => _accountSession14.storage.getItem('@legathon_step_stats'));
+      const tx = raw ? JSON.parse(raw).pendingCredit : null;
+      historical = tx?.id === options.creditId && tx?.marathonId === requestedId &&
+        tx?.amount === incoming && Number.isFinite(tx?.historyEnd) &&
+        map[requestedId]?.unlocked === true && Boolean(map[requestedId]?.startedAt);
     }
-
-    const marathon = active.marathon;
-    if (requestedId && requestedId !== marathon.id) {
-      return { saved: false, added: 0, reason: "marathon-owner-changed" };
+    if (!historical && !active) return { saved: false, added: 0, reason: 'no-active-marathon' };
+    const marathon = historical ? getMarathonById(requestedId) : active.marathon;
+    if (!marathon || (requestedId && requestedId !== marathon.id)) {
+      return { saved: false, added: 0, reason: 'marathon-owner-changed' };
     }
     const current = map[marathon.id];
 
@@ -870,7 +871,7 @@ export function addMarathonSteps(stepDelta, options = {}) {
     // Save progress and the next unlock in one write.
     await _accountSession14.run(async () => (writeJSON(PROGRESS_KEY, map)));
 
-    const cleanupWarning = completedNow
+    const cleanupWarning = completedNow && active?.marathon?.id === marathon.id
       ? await _accountSession14.run(async () => (removeCompletedActive()))
       : null;
 

@@ -17,7 +17,7 @@ export function useStepCounter() {
       reading = true;
       try {
         const stats = await account.run(loadStepStats);
-        const lifetime = stats.journeyLifetimeSteps + stats.marathonLifetimeSteps;
+        const lifetime = stats.journeyLifetimeSteps + stats.marathonLifetimeSteps + (stats.generalLifetimeSteps || 0);
         if (offset.current === null) offset.current = lifetime;
         lastLifetime.current = lifetime;
         if (!disposed) setState(previous => ({ ...previous, steps: stats.todaySteps,

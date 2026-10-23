@@ -1,9 +1,10 @@
 import { captureAccountSession, isAccountSessionEnded } from './accountStorage';
 import { Pedometer } from 'expo-sensors';
 import * as Location from 'expo-location';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { addMarathonSteps as commitMarathonSteps, getActiveMarathon } from './marathonStorage';
+import { historyBatch, nextHistory, recordOwner } from './stepHistory';
 import { count, localDateKey, reliableFix, verifyWindow } from './verifiedStepWindow';
 
 export const STEP_STATS_KEY = '@legathon_step_stats';
@@ -19,7 +20,7 @@ export const stepsToMiles = steps => Number((count(steps) / 2000).toFixed(2));
 export const stepsToCalories = steps => Math.round(count(steps) * 0.04);
 let queue = Promise.resolve();
 let runtime = null;
-let status = 'Start a Journey or Legathon to verify walking';
+let status = Platform.OS === 'ios' ? 'Preparing walking history' : 'Start a Journey or Legathon to verify walking';
 
 // All engine reads/writes share one queue. Capture the account before queuing.
 function serialized(operation) {
@@ -44,9 +45,12 @@ function normalize(value = {}) {
   const sameDay = value.dateKey === day;
   const journey = count(value.journeyLifetimeSteps ?? value.lifetimeSteps ?? value.totalSteps);
   const today = sameDay ? count(value.todaySteps) : 0;
-  return { ...value, schemaVersion: 3, dateKey: day, todaySteps: today,
+  return { ...value, schemaVersion: 4, dateKey: day, todaySteps: today,
     lifetimeSteps: journey, totalSteps: journey, journeyLifetimeSteps: journey,
     marathonLifetimeSteps: count(value.marathonLifetimeSteps),
+    generalLifetimeSteps: count(value.generalLifetimeSteps),
+    dailyHistory: value.dailyHistory || {},
+    trackingStartedAt: Number.isFinite(value.trackingStartedAt) ? value.trackingStartedAt : Date.now(),
     liveSessionSteps: sameDay ? count(value.liveSessionSteps) : 0,
     miles: stepsToMiles(journey), milesWalked: stepsToMiles(journey),
     calories: stepsToCalories(today), caloriesBurned: stepsToCalories(today),
@@ -64,7 +68,7 @@ async function read(account) {
   const raw = await account.run(() => account.storage.getItem(STEP_STATS_KEY));
   const saved = parse(raw, {});
   let stats = normalize(saved);
-  if (!raw || saved.dateKey !== stats.dateKey || saved.schemaVersion !== 3) stats = await write(account, stats);
+  if (!raw || saved.dateKey !== stats.dateKey || saved.schemaVersion !== 4) stats = await write(account, stats);
   if (stats.pendingCredit) stats = await recover(account, stats);
   return stats;
 }
@@ -85,7 +89,9 @@ function applyCredit(stats, transaction, amount) {
     next.todaySteps += amount;
     next.liveSessionSteps += amount;
   }
-  if (transaction.destination === 'marathon') next.marathonLifetimeSteps += amount;
+  next.dailyHistory = { ...next.dailyHistory, [transaction.dateKey]: count(next.dailyHistory[transaction.dateKey]) + amount };
+  if (transaction.destination === 'none') next.generalLifetimeSteps += amount;
+  else if (transaction.destination === 'marathon') next.marathonLifetimeSteps += amount;
   else {
     next.journeyLifetimeSteps += amount;
     if (transaction.journeyId) {
@@ -93,13 +99,21 @@ function applyCredit(stats, transaction, amount) {
         [transaction.journeyId]: count(next.journeyCredits[transaction.journeyId]) + amount };
     }
   }
+  if (transaction.historyEnd !== undefined) {
+    // Daily counts include all accepted physical steps, including marathon overflow.
+    const overflow = count(transaction.amount - amount);
+    next.generalLifetimeSteps += overflow;
+    next.dailyHistory[transaction.dateKey] += overflow;
+    if (transaction.dateKey === next.dateKey) { next.todaySteps += overflow; next.liveSessionSteps += overflow; }
+    next.history = nextHistory(next.history, transaction.historyEnd);
+  }
   next.pendingCredit = null;
   return next;
 }
 async function recover(account, stats) {
   const tx = stats.pendingCredit;
   const result = await account.run(() => commitMarathonSteps(tx.amount, {
-    creditId: tx.id, marathonId: tx.marathonId,
+    creditId: tx.id, marathonId: tx.marathonId, historyCredit: tx.historyEnd !== undefined,
   }));
   if (!result?.saved) throw new Error(result?.reason || 'Marathon credit could not be saved. Retry sync.');
   const updated = await write(account, applyCredit(stats, tx, count(result.added)));
@@ -219,9 +233,14 @@ function activate(destination, journeyId) {
   return serialized(async account => {
     const stats = await read(account);
     const previous = await owner(account, stats);
+    if (Platform.OS === 'ios' && !stats.history) stats.history = { cursor: stats.trackingStartedAt, owners: [{ at: stats.trackingStartedAt, ...previous }] };
     const nextId = journeyId ? String(journeyId) : stats.router.journeyId || null;
     if (previous.destination !== destination || nextId !== stats.router.journeyId) stopRuntime();
     stats.router = { ...stats.router, journeyId: nextId, lastDestination: destination };
+    if (Platform.OS === 'ios') {
+      const marathon = destination === 'marathon' ? await account.run(getActiveMarathon) : null;
+      stats.history = recordOwner(stats.history, { at: Date.now(), destination, journeyId: nextId, marathonId: marathon?.marathonId || marathon?.id || null });
+    }
     await write(account, stats);
     await account.run(() => account.storage.setItem(ACTIVE_DESTINATION_KEY, destination));
     if (destination === 'none') stopRuntime();
@@ -237,6 +256,10 @@ export function pauseJourneyTracking(journeyId) {
     const current = await owner(account, stats);
     if (current.destination === 'journey' && current.journeyId === String(journeyId)) {
       stopRuntime();
+      if (Platform.OS === 'ios') {
+        stats.history = recordOwner(stats.history || {cursor: stats.trackingStartedAt, owners: [{at: stats.trackingStartedAt, ...current}]}, {at: Date.now(), destination: 'none', journeyId: null, marathonId: null});
+        await write(account, stats);
+      }
       await account.run(() => account.storage.setItem(ACTIVE_DESTINATION_KEY, 'none'));
     }
     return { saved: true };
@@ -244,11 +267,15 @@ export function pauseJourneyTracking(journeyId) {
 }
 
 export function setActiveStepDestination(value) { return activate(destinationOf(value)); }
-export function resetStepRouterBaseline() {
+export function resetStepRouterBaseline({ discardHistory = false } = {}) {
   return serialized(async account => {
     stopRuntime();
     const stats = await read(account);
     stats.router = { journeyId: stats.router.journeyId || null };
+    if (discardHistory) {
+      stats.trackingStartedAt = Date.now();
+      stats.history = {cursor: Date.now(), owners: [{at: Date.now(), ...(await owner(account, stats))}]};
+    }
     await write(account, stats);
     return { reset: true, state: stats.router };
   });
@@ -256,6 +283,7 @@ export function resetStepRouterBaseline() {
 export async function requestStepVerificationPermissions() {
   const account = captureAccountSession(); account.assertCurrent();
   const motion = await account.run(() => Pedometer.requestPermissionsAsync());
+  if (Platform.OS === 'ios') return Boolean(motion.granted);
   const location = await account.run(() => Location.requestForegroundPermissionsAsync());
   return Boolean(motion.granted && location.granted);
 }
@@ -269,11 +297,47 @@ async function community(account, amount) {
     }
   } catch (error) { if (!isAccountSessionEnded(error)) console.warn('Community credit unavailable', error); }
 }
+async function syncHistory(account, stats, currentOwner) {
+  stopRuntime();
+  if (!stats.history) {
+    stats.history = { cursor: stats.trackingStartedAt,
+      owners: [{ at: stats.trackingStartedAt, ...currentOwner }] };
+    stats = await write(account, stats);
+  }
+  // Recorded ownership is authoritative for intervals, even if a session has
+  // changed since then. Future destination changes are saved by activate().
+  const batch = await account.run(() => historyBatch(stats.history, Date.now()));
+  let added = 0;
+  for (const segment of batch.segments) {
+    const tx = { id: `history-${segment.start}-${segment.end}`,
+      amount: segment.steps, dateKey: segment.dateKey,
+      destination: segment.destination, journeyId: segment.journeyId,
+      marathonId: segment.marathonId, historyEnd: segment.end };
+    if (tx.destination === 'marathon' && tx.marathonId && tx.amount > 0) {
+      stats.pendingCredit = tx;
+      stats = await write(account, stats);
+      stats = await recover(account, stats);
+    } else {
+      if (tx.destination === 'marathon') tx.destination = 'none';
+      stats = await write(account, applyCredit(stats, tx, tx.amount));
+    }
+    added += tx.amount;
+  }
+  await mirror(account, stats);
+  status = batch.message;
+  if (added) void community(account, added);
+  const active = currentOwner.destination === 'marathon' ? await account.run(getActiveMarathon) : null;
+  return { synced: true, routed: added > 0, added, delta: added, ...currentOwner,
+    stats, reason: batch.reason, verificationStatus: status,
+    completedNow: currentOwner.destination === 'marathon' && !active,
+    historyPending: batch.pending };
+}
 export async function syncTodaySteps() {
   try {
     return await serialized(async account => {
       let stats = await read(account); // Rollover happens even with no sensor/owner.
       const currentOwner = await owner(account, stats);
+      if (Platform.OS === 'ios') return syncHistory(account, stats, currentOwner);
       const empty = reason => ({ synced: true, routed: false, added: 0, delta: 0, ...currentOwner, reason });
       if (currentOwner.destination === 'none') { stopRuntime(); status = 'Start a Journey or Legathon to verify walking'; return empty('no-active-destination'); }
       if (AppState.currentState !== 'active') { if (runtime) resetWindow(runtime); return empty('background-unverified'); }
@@ -358,6 +422,7 @@ export function resetStepTrackingEngine({ preserveJourneyLifetime = true, preser
     const stats = await write(account, { dateKey: localDateKey(),
       journeyLifetimeSteps: preserveJourneyLifetime ? old.journeyLifetimeSteps : 0,
       marathonLifetimeSteps: preserveMarathonLifetime ? old.marathonLifetimeSteps : 0,
+      generalLifetimeSteps: preserveJourneyLifetime ? old.generalLifetimeSteps : 0,
       journeyCredits: old.journeyCredits });
     await account.run(() => account.storage.setItem(ACTIVE_DESTINATION_KEY, 'none'));
     await mirror(account, stats);

@@ -92,7 +92,7 @@ export function AuthProvider({ children }) {
           throw new Error("Unable to initialize account storage. Please retry.");
         }
         if (lastId !== nextId) {
-          const reset = await resetStepRouterBaseline();
+          const reset = await resetStepRouterBaseline({ discardHistory: true });
           if (!reset?.reset) throw new Error("Unable to initialize step tracking. Please retry.");
         }
         await DeviceStorage.setItem(LAST_ACCOUNT, nextId);

@@ -1608,7 +1608,7 @@ export default function WalkingDashboardScreen({
           Object.fromEntries(
             await _accountSession.run(async () => (AsyncStorage
               .multiGet([
-                STEP_STATS_KEY,           
+                STEP_STATS_KEY,
 
                 STORAGE_KEYS
                   .avatarProfile,
@@ -1750,7 +1750,7 @@ export default function WalkingDashboardScreen({
 
           setLifetimeSteps(
             journeyLifetime +
-              marathonLifetime
+              marathonLifetime + readCount(stats.generalLifetimeSteps)
           );
 
           setStepsLoaded(
@@ -2423,7 +2423,7 @@ return (item.id ===
                 styles.liveText
               }
             >
-              {verificationStatus === "Walking verified" ? t("live") : "VERIFYING"}
+              {verificationStatus.startsWith("Walking history synced") || verificationStatus.startsWith("Walking synced") ? "SYNCED" : verificationStatus === "Walking verified" ? t("live") : "VERIFYING"}
             </Text>
           </View>
         </View>
