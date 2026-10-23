@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 import {
   createAudioPlayer,
   setAudioModeAsync,
@@ -64,11 +65,16 @@ export function resumeCoachVoice() {
 }
 
 async function getAudioFile(text) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
   const cachedFile = audioCache.get(text);
 
   if (cachedFile) {
     const fileInformation =
-      await FileSystem.getInfoAsync(cachedFile);
+      await _accountSession.run(async () => (FileSystem.getInfoAsync(cachedFile)));
 
     if (fileInformation.exists) {
       return cachedFile;
@@ -78,14 +84,14 @@ async function getAudioFile(text) {
   }
 
   const { data, error } =
-    await supabase.functions.invoke(
+    await _accountSession.run(async () => (supabase.functions.invoke(
       "coach-voice",
       {
         body: {
           text,
         },
       }
-    );
+    )));
 
   if (error) {
     throw new Error(
@@ -105,24 +111,34 @@ async function getAudioFile(text) {
     `${FileSystem.cacheDirectory}` +
     `legathon-coach-${Date.now()}.mp3`;
 
-  await FileSystem.writeAsStringAsync(
+  await _accountSession.run(async () => (FileSystem.writeAsStringAsync(
     fileUri,
     data.audioBase64,
     {
       encoding:
         FileSystem.EncodingType.Base64,
     }
-  );
+  )));
 
   audioCache.set(text, fileUri);
 
   return fileUri;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function speakCoachVoice(
   text,
   options = {}
 ) {
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
   const naturalText = cleanText(text);
 
   if (!naturalText) {
@@ -134,13 +150,13 @@ export async function speakCoachVoice(
   const currentGeneration =
     playbackGeneration;
 
-  await setAudioModeAsync({
+  await _accountSession2.run(async () => (setAudioModeAsync({
     playsInSilentMode: true,
     interruptionMode: "doNotMix",
-  });
+  })));
 
   const fileUri =
-    await getAudioFile(naturalText);
+    await _accountSession2.run(async () => (getAudioFile(naturalText)));
 
   if (
     currentGeneration !== playbackGeneration
@@ -159,6 +175,8 @@ export async function speakCoachVoice(
     player.addListener(
       "playbackStatusUpdate",
       (status) => {
+  
+
         if (activePlayer !== player) {
           return;
         }
@@ -204,4 +222,9 @@ export async function speakCoachVoice(
   player.play();
 
   return player;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

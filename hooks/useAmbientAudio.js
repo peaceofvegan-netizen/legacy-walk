@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import { useState } from "react";
 import { useAudioPlayer } from "expo-audio";
 
@@ -9,12 +10,17 @@ const SOUND_FILES = {
 };
 
 export function useAmbientAudio() {
+  const _accountSession = captureAccountSession();
+
   const player = useAudioPlayer(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentMode, setCurrentMode] = useState(null);
 
   async function playSound(mode) {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       const source = SOUND_FILES[mode];
 
@@ -26,8 +32,10 @@ export function useAmbientAudio() {
       player.pause();
 
       try {
-        await player.seekTo(0);
+        await _accountSession.run(async () => (player.seekTo(0)));
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         // Ignore seek errors when no previous source is loaded.
       }
 
@@ -41,34 +49,61 @@ export function useAmbientAudio() {
       setCurrentMode(mode);
       setIsPlaying(true);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Audio play error:", error);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   async function stopSound() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       player.pause();
 
       try {
-        await player.seekTo(0);
+        await _accountSession.run(async () => (player.seekTo(0)));
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         // Ignore if the player has not loaded a source yet.
       }
 
       setIsPlaying(false);
       setCurrentMode(null);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Audio stop error:", error);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   async function toggleSound(mode) {
+  try {
+    _accountSession.assertCurrent();
+
     if (isPlaying && currentMode === mode) {
-      await stopSound();
+      await _accountSession.run(async () => (stopSound()));
     } else {
-      await playSound(mode);
+      await _accountSession.run(async () => (playSound(mode)));
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return {
     isPlaying,

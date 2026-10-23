@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useMemo,
   useState,
@@ -15,8 +16,7 @@ import {
   TextInput,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import JourneyCard
   from "./JourneyCard";
@@ -1344,6 +1344,9 @@ export default function JourneysScreen({
 
   subscriptionPlan = "free",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [
     activeFilter,
     setActiveFilter,
@@ -1491,8 +1494,13 @@ export default function JourneysScreen({
   const journeysWithRewards =
     useMemo(
       () =>
-        journeys.map(
+        {
+  
+
+return (journeys.map(
           item => {
+  
+
             const saved =
               display
                 .detailsMap[
@@ -1540,7 +1548,8 @@ export default function JourneysScreen({
                 false,
             };
           }
-        ),
+        ));
+},
 
       [
         journeys,
@@ -1556,6 +1565,8 @@ export default function JourneysScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       let mounted =
         true;
 
@@ -1565,6 +1576,8 @@ export default function JourneysScreen({
         )
         .then(
           raw => {
+  if (!_accountSession.isCurrent()) return;
+
             const value =
               raw
                 ? JSON.parse(
@@ -1587,6 +1600,8 @@ export default function JourneysScreen({
         )
         .catch(
           () => {
+  
+
             if (
               mounted
             ) {
@@ -1617,14 +1632,21 @@ export default function JourneysScreen({
   async function toggleFavorite(
     id
   ) {
+  try {
+    _accountSession.assertCurrent();
+
     const updated =
       favorites.includes(
         id
       )
         ? favorites.filter(
             item =>
-              item !==
-              id
+              {
+  
+
+return (item !==
+              id);
+}
           )
         : [
             ...favorites,
@@ -1636,26 +1658,33 @@ export default function JourneysScreen({
     );
 
     try {
-      await AsyncStorage
+      await _accountSession.run(async () => (AsyncStorage
         .setItem(
           "favoriteJourneys",
 
           JSON.stringify(
             updated
           )
-        );
+        )));
 
       setFavoriteError(
         ""
       );
-    } catch {
+    } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
       setFavoriteError(
         t(
           "unableSaveFavorites"
         )
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // TOTAL
@@ -1672,6 +1701,8 @@ export default function JourneysScreen({
   const featuredJourney =
     useMemo(
       () => {
+  
+
         if (
           journeysWithRewards
             .length ===
@@ -1703,6 +1734,8 @@ export default function JourneysScreen({
   const filteredJourneys =
     useMemo(
       () => {
+  
+
         let data = [
           ...journeysWithRewards,
         ];
@@ -1718,9 +1751,13 @@ export default function JourneysScreen({
           data =
             data.filter(
               item =>
-                favorites.includes(
+                {
+  
+
+return (favorites.includes(
                   item.id
-                )
+                ));
+}
             );
         } else if (
           activeFilter ===
@@ -1729,7 +1766,11 @@ export default function JourneysScreen({
           data =
             data.filter(
               item =>
-                item.premium
+                {
+  
+
+return (item.premium);
+}
             );
         } else if (
           activeFilter !==
@@ -1738,8 +1779,12 @@ export default function JourneysScreen({
           data =
             data.filter(
               item =>
-                item.category ===
-                activeFilter
+                {
+  
+
+return (item.category ===
+                activeFilter);
+}
             );
         }
 
@@ -1757,7 +1802,10 @@ export default function JourneysScreen({
           data =
             data.filter(
               item =>
-                item.title
+                {
+  
+
+return (item.title
                   ?.toLowerCase()
                   .includes(
                     q
@@ -1779,7 +1827,8 @@ export default function JourneysScreen({
                   ?.toLowerCase()
                   .includes(
                     q
-                  )
+                  ));
+}
             );
         }
 
@@ -1796,14 +1845,18 @@ export default function JourneysScreen({
               a,
               b
             ) =>
-              Number(
+              {
+  
+
+return (Number(
                 b.progress ||
                   0
               ) -
               Number(
                 a.progress ||
                   0
-              )
+              ));
+}
           );
         }
 
@@ -1816,14 +1869,18 @@ export default function JourneysScreen({
               a,
               b
             ) =>
-              Number(
+              {
+  
+
+return (Number(
                 b.steps ||
                   0
               ) -
               Number(
                 a.steps ||
                   0
-              )
+              ));
+}
           );
         }
 
@@ -1836,14 +1893,18 @@ export default function JourneysScreen({
               a,
               b
             ) =>
-              Number(
+              {
+  
+
+return (Number(
                 b.reward ||
                   0
               ) -
               Number(
                 a.reward ||
                   0
-              )
+              ));
+}
           );
         }
 
@@ -1866,11 +1927,15 @@ export default function JourneysScreen({
   const popularJourneys =
     useMemo(
       () =>
-        journeysWithRewards
+        {
+  
+
+return (journeysWithRewards
           .slice(
             0,
             6
-          ),
+          ));
+},
 
       [
         journeysWithRewards,
@@ -1884,11 +1949,15 @@ export default function JourneysScreen({
   const newJourneys =
     useMemo(
       () =>
-        journeysWithRewards
+        {
+  
+
+return (journeysWithRewards
           .slice(
             -6
           )
-          .reverse(),
+          .reverse());
+},
 
       [
         journeysWithRewards,
@@ -2080,9 +2149,13 @@ export default function JourneysScreen({
                 styles.continueCard
               }
               onPress={() =>
-                startJourney(
+                {
+  
+
+return (startJourney(
                   continueJourney
-                )
+                ));
+}
               }
               activeOpacity={
                 0.85
@@ -2202,9 +2275,13 @@ export default function JourneysScreen({
                   styles.featuredButton
                 }
                 onPress={() =>
-                  openDetail(
+                  {
+  
+
+return (openDetail(
                     featuredJourney
-                  )
+                  ));
+}
                 }
                 activeOpacity={
                   0.85
@@ -2237,7 +2314,10 @@ export default function JourneysScreen({
             }
           >
             {SORTS.map(
-              item => (
+              item => {
+  
+
+return ((
                 <TouchableOpacity
                   key={
                     item
@@ -2250,9 +2330,13 @@ export default function JourneysScreen({
                       styles.sortActive,
                   ]}
                   onPress={() =>
-                    setSortBy(
+                    {
+  
+
+return (setSortBy(
                       item
-                    )
+                    ));
+}
                   }
                   activeOpacity={
                     0.8
@@ -2272,7 +2356,8 @@ export default function JourneysScreen({
                     )}
                   </Text>
                 </TouchableOpacity>
-              )
+              ));
+}
             )}
           </ScrollView>
 
@@ -2290,7 +2375,10 @@ export default function JourneysScreen({
             }
           >
             {CATEGORIES.map(
-              item => (
+              item => {
+  
+
+return ((
                 <TouchableOpacity
                   key={
                     item
@@ -2303,9 +2391,13 @@ export default function JourneysScreen({
                       styles.filterActive,
                   ]}
                   onPress={() =>
-                    setActiveFilter(
+                    {
+  
+
+return (setActiveFilter(
                       item
-                    )
+                    ));
+}
                   }
                   activeOpacity={
                     0.8
@@ -2325,7 +2417,8 @@ export default function JourneysScreen({
                     )}
                   </Text>
                 </TouchableOpacity>
-              )
+              ));
+}
             )}
           </ScrollView>
 
@@ -2358,7 +2451,10 @@ export default function JourneysScreen({
     JOURNEY CARDS
 ========================================================== */}
 
-{filteredJourneys.map((journey) => (
+{filteredJourneys.map((journey) => {
+  
+
+return ((
   <JourneyCard
     key={journey.id}
 
@@ -2385,17 +2481,29 @@ export default function JourneysScreen({
     }
 
     goDetail={() =>
-      openDetail(journey)
+      {
+  
+
+return (openDetail(journey));
+}
     }
 
     goHome={() =>
-      startJourney(journey)
+      {
+  
+
+return (startJourney(journey));
+}
     }
 
     goPaywall={() =>
-      goToSubscription?.(
+      {
+  
+
+return (goToSubscription?.(
         journey
-      )
+      ));
+}
     }
 
     isFavorite={
@@ -2405,12 +2513,17 @@ export default function JourneysScreen({
     }
 
     onToggleFavorite={() =>
-      toggleFavorite(
+      {
+  
+
+return (toggleFavorite(
         journey.id
-      )
+      ));
+}
     }
   />
-))}
+));
+})}
 
           {/* ==================================================
               EMPTY
@@ -2539,7 +2652,11 @@ export default function JourneysScreen({
                 value={
                   journeys.filter(
                     journey =>
-                      journey.premium
+                      {
+  
+
+return (journey.premium);
+}
                   ).length
                 }
               />
@@ -2598,7 +2715,10 @@ export default function JourneysScreen({
           }
         >
           {data.map(
-            item => (
+            item => {
+  
+
+return ((
               <TouchableOpacity
                 key={
                   item.id
@@ -2607,9 +2727,13 @@ export default function JourneysScreen({
                   styles.miniCard
                 }
                 onPress={() =>
-                  openDetail(
+                  {
+  
+
+return (openDetail(
                     item
-                  )
+                  ));
+}
                 }
                 activeOpacity={
                   0.85
@@ -2650,7 +2774,8 @@ export default function JourneysScreen({
                   )}
                 </Text>
               </TouchableOpacity>
-            )
+            ));
+}
           )}
         </ScrollView>
       </View>

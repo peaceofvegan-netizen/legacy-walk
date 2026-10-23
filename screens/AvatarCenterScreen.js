@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/AvatarCenterScreen.js
 
 import React from "react";
@@ -13,7 +14,7 @@ import {
   Platform,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import { avatarOptions } from "../data/avatarOptions";
 
@@ -1143,6 +1144,9 @@ export default function AvatarCenterScreen({
   subscriptionTier,
   membershipTier,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   // ==========================================================
   // TRANSLATION
   // ==========================================================
@@ -1157,6 +1161,8 @@ export default function AvatarCenterScreen({
 
   const t = React.useCallback(
     (key, values = {}) => {
+  
+
       const local =
         AVATAR_TRANSLATIONS?.[activeLanguage]?.[
           key
@@ -1270,6 +1276,9 @@ export default function AvatarCenterScreen({
       async (
         avatar = selectedAvatar
       ) => {
+  try {
+    _accountSession.assertCurrent();
+
         if (!avatar?.id) {
           setResolvedAvatarImage(
             avatar?.image || null
@@ -1284,9 +1293,9 @@ export default function AvatarCenterScreen({
           setLoadingVisual(true);
 
           const visual =
-            await getCurrentAvatarVisual(
+            await _accountSession.run(async () => (getCurrentAvatarVisual(
               avatar.id
-            );
+            )));
 
           setAvatarVisual(visual);
 
@@ -1296,6 +1305,8 @@ export default function AvatarCenterScreen({
               null
           );
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Refresh avatar visual error:",
             error
@@ -1307,7 +1318,12 @@ export default function AvatarCenterScreen({
         } finally {
           setLoadingVisual(false);
         }
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
       [selectedAvatar]
     );
 
@@ -1319,11 +1335,14 @@ export default function AvatarCenterScreen({
   const loadAvatarCenter =
     React.useCallback(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const [
             savedSteps,
             savedProfile,
-          ] = await Promise.all([
+          ] = await _accountSession.run(async () => (Promise.all([
             AsyncStorage.getItem(
               "lifetimeSteps"
             ),
@@ -1335,7 +1354,7 @@ export default function AvatarCenterScreen({
             // Keep this call so existing wardrobe
             // storage is initialized/read.
             getAvatarWardrobeState(),
-          ]);
+          ])));
 
           // --------------------------------------------------
           // JOURNEY LIFETIME STEPS
@@ -1367,9 +1386,9 @@ export default function AvatarCenterScreen({
           }
 
           const validatedWardrobe =
-            await syncAvatarSuitFromLifetimeSteps(
+            await _accountSession.run(async () => (syncAvatarSuitFromLifetimeSteps(
               checkedSteps
-            );
+            )));
 
           if (
             !validatedWardrobe.saved
@@ -1418,21 +1437,25 @@ export default function AvatarCenterScreen({
                 savedName ===
                   "Legacy Walker"
               ) {
-                await AsyncStorage.setItem(
+                await _accountSession.run(async () => (AsyncStorage.setItem(
                   "avatarProfile",
                   JSON.stringify({
                     ...profile,
                     name:
                       "Legathon Walker",
                   })
-                );
+                )));
               }
 
               const foundAvatar =
                 avatarOptions.find(
                   (option) =>
-                    option.id ===
-                    profile?.avatarId
+                    {
+  
+
+return (option.id ===
+                    profile?.avatarId);
+}
                 );
 
               if (foundAvatar) {
@@ -1440,6 +1463,8 @@ export default function AvatarCenterScreen({
                   foundAvatar;
               }
             } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
               console.log(
                 "Avatar profile parse error:",
                 error
@@ -1455,9 +1480,9 @@ export default function AvatarCenterScreen({
 
           if (avatar?.id) {
             const visual =
-              await getCurrentAvatarVisual(
+              await _accountSession.run(async () => (getCurrentAvatarVisual(
                 avatar.id
-              );
+              )));
 
             setAvatarVisual(visual);
 
@@ -1470,6 +1495,8 @@ export default function AvatarCenterScreen({
 
           setScreenReady(true);
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Avatar Center Load Error:",
             error
@@ -1477,7 +1504,12 @@ export default function AvatarCenterScreen({
 
           setScreenReady(true);
         }
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
       []
     );
 
@@ -1487,6 +1519,8 @@ export default function AvatarCenterScreen({
   // ==========================================================
 
   React.useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadAvatarCenter();
   }, [loadAvatarCenter]);
 
@@ -1496,19 +1530,24 @@ export default function AvatarCenterScreen({
   // ==========================================================
 
   React.useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const timer =
       setInterval(
         async () => {
+  try {
+    _accountSession.assertCurrent();
+
           try {
             const [
               savedSteps,
-            ] = await Promise.all([
+            ] = await _accountSession.run(async () => (Promise.all([
               AsyncStorage.getItem(
                 "lifetimeSteps"
               ),
 
               getCurrentAvatarSuit(),
-            ]);
+            ])));
 
             setLifetimeSteps(
               safeNumber(savedSteps)
@@ -1533,9 +1572,9 @@ export default function AvatarCenterScreen({
             }
 
             const validatedWardrobe =
-              await syncAvatarSuitFromLifetimeSteps(
+              await _accountSession.run(async () => (syncAvatarSuitFromLifetimeSteps(
                 checkedSteps
-              );
+              )));
 
             if (
               !validatedWardrobe.saved
@@ -1549,12 +1588,19 @@ export default function AvatarCenterScreen({
               validatedWardrobe.currentSuit
             );
           } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
             console.log(
               "Avatar Center refresh error:",
               error
             );
           }
-        },
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
         3000
       );
 
@@ -1568,6 +1614,8 @@ export default function AvatarCenterScreen({
   // ==========================================================
 
   React.useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     if (
       !screenReady ||
       !selectedAvatar?.id
@@ -1593,6 +1641,9 @@ export default function AvatarCenterScreen({
   async function selectAvatar(
     avatar
   ) {
+  try {
+    _accountSession.assertCurrent();
+
     if (!avatar?.id) {
       return;
     }
@@ -1603,17 +1654,17 @@ export default function AvatarCenterScreen({
         avatarId: avatar.id,
       };
 
-      await AsyncStorage.setItem(
+      await _accountSession.run(async () => (AsyncStorage.setItem(
         "avatarProfile",
         JSON.stringify(profile)
-      );
+      )));
 
       setSelectedAvatar(avatar);
 
       const visual =
-        await getCurrentAvatarVisual(
+        await _accountSession.run(async () => (getCurrentAvatarVisual(
           avatar.id
-        );
+        )));
 
       setAvatarVisual(visual);
 
@@ -1623,12 +1674,19 @@ export default function AvatarCenterScreen({
           null
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Select avatar error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1636,6 +1694,9 @@ export default function AvatarCenterScreen({
   // ==========================================================
 
   async function equipSuit(suit) {
+  try {
+    _accountSession.assertCurrent();
+
     if (!suit?.id) {
       return;
     }
@@ -1719,10 +1780,10 @@ export default function AvatarCenterScreen({
 
     try {
       const result =
-        await setCurrentAvatarSuit(
+        await _accountSession.run(async () => (setCurrentAvatarSuit(
           suit.id,
           suit.level
-        );
+        )));
 
       if (!result?.success) {
         throw new Error(
@@ -1753,9 +1814,9 @@ export default function AvatarCenterScreen({
             preview
           );
         } else {
-          await refreshAvatarVisual(
+          await _accountSession.run(async () => (refreshAvatarVisual(
             selectedAvatar
-          );
+          )));
         }
       }
 
@@ -1767,6 +1828,8 @@ export default function AvatarCenterScreen({
         })
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Equip tracksuit error:",
         error
@@ -1779,7 +1842,12 @@ export default function AvatarCenterScreen({
         )
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1787,11 +1855,14 @@ export default function AvatarCenterScreen({
   // ==========================================================
 
   async function wearDefaultOutfit() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      await setCurrentAvatarSuit(
+      await _accountSession.run(async () => (setCurrentAvatarSuit(
         "default",
         0
-      );
+      )));
 
       setEquippedSuit(
         "default"
@@ -1803,17 +1874,24 @@ export default function AvatarCenterScreen({
             null
         );
 
-        await refreshAvatarVisual(
+        await _accountSession.run(async () => (refreshAvatarVisual(
           selectedAvatar
-        );
+        )));
       }
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Wear default outfit error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1835,6 +1913,9 @@ export default function AvatarCenterScreen({
       t("enterNewName"),
 
       async (text) => {
+  try {
+    _accountSession.assertCurrent();
+
         const newName =
           String(text || "").trim();
 
@@ -1851,19 +1932,26 @@ export default function AvatarCenterScreen({
               getDefaultAvatar()?.id,
           };
 
-          await AsyncStorage.setItem(
+          await _accountSession.run(async () => (AsyncStorage.setItem(
             "avatarProfile",
             JSON.stringify(profile)
-          );
+          )));
 
           setAvatarName(newName);
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Edit avatar name error:",
             error
           );
         }
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -1882,10 +1970,14 @@ export default function AvatarCenterScreen({
   const nextSuit =
     TRACKSUIT_TIERS.find(
       (suit) =>
-        !getTracksuitProgress(
+        {
+  
+
+return (!getTracksuitProgress(
           lifetimeSteps,
           suit
-        ).unlocked
+        ).unlocked);
+}
     ) || null;
 
   const nextProgress =
@@ -1899,7 +1991,11 @@ export default function AvatarCenterScreen({
   const currentSuit =
     TRACKSUIT_TIERS.find(
       (suit) =>
-        suit.id === equippedSuit
+        {
+  
+
+return (suit.id === equippedSuit);
+}
     ) || null;
 
 
@@ -2309,6 +2405,8 @@ export default function AvatarCenterScreen({
       >
         {avatarOptions.map(
           (avatar, index) => {
+  
+
             const active =
               avatar.id ===
               selectedAvatar?.id;
@@ -2323,9 +2421,13 @@ export default function AvatarCenterScreen({
                     styles.avatarCardActive,
                 ]}
                 onPress={() =>
-                  selectAvatar(
+                  {
+  
+
+return (selectAvatar(
                     avatar
-                  )
+                  ));
+}
                 }
                 activeOpacity={0.82}
               >
@@ -2421,6 +2523,8 @@ export default function AvatarCenterScreen({
 
       {TRACKSUIT_TIERS.map(
         (suit) => {
+  
+
           const progress =
             getTracksuitProgress(
               lifetimeSteps,
@@ -2580,7 +2684,11 @@ export default function AvatarCenterScreen({
                   ]}
                   disabled={equipped}
                   onPress={() =>
-                    equipSuit(suit)
+                    {
+  
+
+return (equipSuit(suit));
+}
                   }
                   activeOpacity={0.82}
                 >

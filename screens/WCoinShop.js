@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/WCoinShop.js
 
 import React from "react";
@@ -19,14 +20,24 @@ const COIN_PACKS = [
 ];
 
 export default function WCoinShop({ setActiveTab }) {
+  const _accountSession = captureAccountSession();
+
   const buyPack = async (pack) => {
-    await addWCoins(pack.coins);
+  try {
+    _accountSession.assertCurrent();
+
+    await _accountSession.run(async () => (addWCoins(pack.coins)));
 
     Alert.alert(
       "W Coins Added",
       `+${pack.coins} W Coins added.`
     );
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -36,20 +47,32 @@ export default function WCoinShop({ setActiveTab }) {
         Buy W Coins to refill lives and boosters.
       </Text>
 
-      {COIN_PACKS.map((pack) => (
+      {COIN_PACKS.map((pack) => {
+  
+
+return ((
         <TouchableOpacity
           key={pack.id}
           style={styles.card}
-          onPress={() => buyPack(pack)}
+          onPress={() => {
+  
+
+return (buyPack(pack));
+}}
         >
           <Text style={styles.coins}>🪙 {pack.coins} W Coins</Text>
           <Text style={styles.price}>{pack.price}</Text>
         </TouchableOpacity>
-      ))}
+      ));
+})}
 
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => setActiveTab("legathon")}
+        onPress={() => {
+  
+
+return (setActiveTab("legathon"));
+}}
       >
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>

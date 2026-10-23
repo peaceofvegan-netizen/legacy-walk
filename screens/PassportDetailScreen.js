@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
  // screens/PassportDetailScreen.js
 
@@ -20,7 +21,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import JOURNEY_CATALOG from "../data/journeyCatalog";
 import passportImages from "../data/passportImages";
@@ -484,21 +485,36 @@ export default function PassportDetailScreen({
   goBack,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const t = useCallback(
-    key => tFor(language, key),
+    key => {
+  
+
+return (tFor(language, key));
+},
     [language]
   );
 
   const journey = useMemo(
-    () => resolveJourney(passportId),
+    () => {
+  
+
+return (resolveJourney(passportId));
+},
     [passportId]
   );
 
   const localized = useMemo(
     () =>
-      journey
+      {
+  
+
+return (journey
         ? getJourneyTranslation(journey, language) || journey
-        : null,
+        : null);
+},
     [journey, language]
   );
 
@@ -506,13 +522,16 @@ export default function PassportDetailScreen({
   const [loading, setLoading] = useState(true);
 
   const loadProgress = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     setLoading(true);
 
     try {
-      const values = await AsyncStorage.multiGet([
+      const values = await _accountSession.run(async () => (AsyncStorage.multiGet([
         PROGRESS_KEY,
         ACTIVE_KEY,
-      ]);
+      ])));
 
       const map = buildMap(safeParse(values[0]?.[1], []));
       const active = safeParse(values[1]?.[1], null);
@@ -534,20 +553,33 @@ export default function PassportDetailScreen({
 
       setProgressMap(map);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Passport Detail load error:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, []);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadProgress();
   }, [loadProgress]);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const subscription = AppState.addEventListener(
       "change",
       state => {
+  if (!_accountSession.isCurrent()) return;
+
         if (state === "active") loadProgress();
       }
     );
@@ -766,6 +798,8 @@ export default function PassportDetailScreen({
 
                   <View style={styles.checkpointRow}>
                     {[1, 2, 3, 4, 5].map(number => {
+  
+
                       const earned =
                         number <= checkpointCount(progress);
 

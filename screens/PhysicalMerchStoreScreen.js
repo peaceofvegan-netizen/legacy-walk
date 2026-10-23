@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/PhysicalMerchStoreScreen.js
 
 import React, {
@@ -571,6 +572,8 @@ export default function PhysicalMerchStoreScreen({
 
   spendWCoins,
 }) {
+  const _accountSession = captureAccountSession();
+
 
   const languageCode =
     normalizeLanguage(
@@ -581,10 +584,14 @@ export default function PhysicalMerchStoreScreen({
   const t =
     useCallback(
       key =>
-        getText(
+        {
+  
+
+return (getText(
           languageCode,
           key
-        ),
+        ));
+},
       [
         languageCode,
       ]
@@ -641,9 +648,12 @@ export default function PhysicalMerchStoreScreen({
   const refreshWCoinBalance =
     useCallback(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const storedBalance =
-            await getWCoins();
+            await _accountSession.run(async () => (getWCoins()));
 
 
           const latestBalance =
@@ -667,6 +677,8 @@ export default function PhysicalMerchStoreScreen({
           );
 
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.error(
             "STORE BALANCE REFRESH ERROR:",
             error
@@ -680,7 +692,12 @@ export default function PhysicalMerchStoreScreen({
             )
           );
         }
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
       [
         incomingBalance,
       ]
@@ -688,6 +705,8 @@ export default function PhysicalMerchStoreScreen({
 
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     refreshWCoinBalance();
   }, [
     refreshWCoinBalance,
@@ -699,6 +718,8 @@ export default function PhysicalMerchStoreScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const latest =
       safeNumber(
         incomingBalance,
@@ -708,6 +729,8 @@ export default function PhysicalMerchStoreScreen({
 
     setWCoinBalance(
       current => {
+  
+
         if (
           latest !== current &&
           latest >= 0
@@ -730,6 +753,8 @@ export default function PhysicalMerchStoreScreen({
   const filteredItems =
     useMemo(
       () => {
+  
+
 
         if (
           activeCategory ===
@@ -737,8 +762,12 @@ export default function PhysicalMerchStoreScreen({
         ) {
           return APPAREL_CATALOG.filter(
             item =>
-              item.gender ===
-              "Men"
+              {
+  
+
+return (item.gender ===
+              "Men");
+}
           );
         }
 
@@ -749,8 +778,12 @@ export default function PhysicalMerchStoreScreen({
         ) {
           return APPAREL_CATALOG.filter(
             item =>
-              item.gender ===
-              "Women"
+              {
+  
+
+return (item.gender ===
+              "Women");
+}
           );
         }
 
@@ -761,8 +794,12 @@ export default function PhysicalMerchStoreScreen({
         ) {
           return APPAREL_CATALOG.filter(
             item =>
-              item.category ===
-              "Accessories"
+              {
+  
+
+return (item.category ===
+              "Accessories");
+}
           );
         }
 
@@ -803,6 +840,8 @@ export default function PhysicalMerchStoreScreen({
     item,
     unlocked
   ) => {
+  
+
 
     if (!unlocked) {
       return;
@@ -1115,6 +1154,8 @@ export default function PhysicalMerchStoreScreen({
 
           {MAIN_CATEGORIES.map(
             category => {
+  
+
 
               const active =
                 category ===
@@ -1133,9 +1174,13 @@ export default function PhysicalMerchStoreScreen({
                       styles.categoryPillActive,
                   ]}
                   onPress={() =>
-                    setActiveCategory(
+                    {
+  
+
+return (setActiveCategory(
                       category
-                    )
+                    ));
+}
                   }
                   activeOpacity={
                     0.85
@@ -1197,6 +1242,8 @@ export default function PhysicalMerchStoreScreen({
 
           {filteredItems.map(
             item => {
+  
+
 
               const unlockSteps =
                 Math.max(
@@ -1506,10 +1553,14 @@ export default function PhysicalMerchStoreScreen({
                       !unlocked
                     }
                     onPress={() =>
-                      handleProductPress(
+                      {
+  
+
+return (handleProductPress(
                         item,
                         unlocked
-                      )
+                      ));
+}
                     }
                     activeOpacity={
                       0.85

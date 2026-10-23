@@ -1,6 +1,7 @@
+import { captureAccountSession, isAccountSessionEnded } from "../../utils/accountStorage";
 import {
   supabase,
-} from "../lib/supabase";
+} from "../../lib/supabase";
 
 
 // ============================================================
@@ -10,6 +11,11 @@ import {
 export async function creditCommunityChallengeSteps(
   stepDelta = 0
 ) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
   const steps =
     Math.max(
       0,
@@ -34,7 +40,7 @@ export async function creditCommunityChallengeSteps(
       data: userData,
       error: userError,
     } =
-      await supabase.auth.getUser();
+      await _accountSession.run(async () => (supabase.auth.getUser()));
 
 
     if (userError) {
@@ -60,12 +66,12 @@ export async function creditCommunityChallengeSteps(
     const {
       error,
     } =
-      await supabase.rpc(
+      await _accountSession.run(async () => (supabase.rpc(
         "credit_my_community_challenges",
         {
           p_steps: steps,
         }
-      );
+      )));
 
 
     if (error) {
@@ -79,6 +85,8 @@ export async function creditCommunityChallengeSteps(
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Community challenge step credit error:",
@@ -92,10 +100,20 @@ export async function creditCommunityChallengeSteps(
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 export async function claimCommunityChallengeReward(
   challengeId
 ) {
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
   if (!challengeId) {
     return {
       claimed: false,
@@ -110,7 +128,7 @@ export async function claimCommunityChallengeReward(
       data: userData,
       error: userError,
     } =
-      await supabase.auth.getUser();
+      await _accountSession2.run(async () => (supabase.auth.getUser()));
 
     if (userError) {
       throw userError;
@@ -129,13 +147,13 @@ export async function claimCommunityChallengeReward(
       data,
       error,
     } =
-      await supabase.rpc(
+      await _accountSession2.run(async () => (supabase.rpc(
         "claim_my_community_challenge",
         {
           p_challenge_id:
             challengeId,
         }
-      );
+      )));
 
     if (error) {
       throw error;
@@ -172,6 +190,8 @@ export async function claimCommunityChallengeReward(
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Community challenge claim error:",
       error
@@ -184,5 +204,10 @@ export async function claimCommunityChallengeReward(
       reason: "claim-error",
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }

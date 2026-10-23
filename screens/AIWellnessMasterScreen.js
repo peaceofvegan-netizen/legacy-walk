@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/AIWellnessMasterScreen.js
 
 import React, {
@@ -26,8 +27,7 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   STEP_STATS_KEY,
@@ -1124,8 +1124,14 @@ function calculateGreeting(language) {
 }
 
 async function getFirstStoredValue(keys) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   for (const key of keys) {
-    const value = await AsyncStorage.getItem(key);
+    const value = await _accountSession.run(async () => (AsyncStorage.getItem(key)));
 
     if (value !== null) {
       return value;
@@ -1133,6 +1139,11 @@ async function getFirstStoredValue(keys) {
   }
 
   return null;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -1191,6 +1202,12 @@ async function readWellnessSnapshot(
   language,
   activeJourneyProp
 ) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   const [
     savedProfile,
     savedStats,
@@ -1199,7 +1216,7 @@ async function readWellnessSnapshot(
     savedSleep,
     savedRecovery,
     savedStreak,
-  ] = await Promise.all([
+  ] = await _accountSession2.run(async () => (Promise.all([
     getFirstStoredValue([
       "userProfile",
       "profile",
@@ -1232,7 +1249,7 @@ async function readWellnessSnapshot(
       "walkingStreak",
       "currentStreak",
     ]),
-  ]);
+  ])));
 
   const profile = asObject(
     parseJSON(savedProfile, {})
@@ -1271,6 +1288,8 @@ async function readWellnessSnapshot(
   try {
     steps = readDailySteps(savedStats);
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     stepError = true;
   }
 
@@ -1398,6 +1417,11 @@ async function readWellnessSnapshot(
     stepError,
     loadError: false,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -1433,6 +1457,8 @@ export default function AIWellnessMasterScreen({
 
   userPlan = "free",
 }) {
+  const _accountSession3 = captureAccountSession();
+
   const currentLanguage =
     normalizeLanguage(language);
 
@@ -1440,7 +1466,11 @@ export default function AIWellnessMasterScreen({
 
   const t = useCallback(
     (key, variables = {}) =>
-      getText(currentLanguage, key, variables),
+      {
+  
+
+return (getText(currentLanguage, key, variables));
+},
     [currentLanguage]
   );
 
@@ -1468,6 +1498,8 @@ export default function AIWellnessMasterScreen({
 
   const runAction = useCallback(
     (callback, screenName, params) => {
+  
+
       if (typeof callback === "function") {
         callback(params);
         return;
@@ -1488,6 +1520,8 @@ export default function AIWellnessMasterScreen({
   );
 
   const handleBack = () => {
+  
+
     if (typeof goBack === "function") {
       goBack();
       return;
@@ -1502,6 +1536,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleNotifications = () => {
+  
+
     runAction(
       goToNotifications,
       "NotificationSettings"
@@ -1509,6 +1545,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleTextCoach = () => {
+  
+
     runAction(
       goToAIConversation,
       "aiConversation"
@@ -1516,6 +1554,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleHydration = () => {
+  
+
     runAction(
       goToHydration,
       "HydrationCoach"
@@ -1523,6 +1563,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleRecovery = () => {
+  
+
     runAction(
       goToRecovery,
       "RecoveryCoach"
@@ -1530,6 +1572,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleSleep = () => {
+  
+
     runAction(
       goToSleep,
       "SleepCoach"
@@ -1537,6 +1581,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleBreathing = () => {
+  
+
     runAction(
       goToBreathing,
       "StressBreathingCoach"
@@ -1544,6 +1590,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleMealPlanner = () => {
+  
+
     runAction(
       goToMealPlanner,
       "MealPlanner"
@@ -1551,6 +1599,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleWalkingAnalytics = () => {
+  
+
     runAction(
       goToWalkingAnalytics,
       "WalkingAnalytics"
@@ -1558,6 +1608,8 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleGoals = () => {
+  
+
     runAction(
       goToGoals,
       "WellnessGoals"
@@ -1565,6 +1617,9 @@ export default function AIWellnessMasterScreen({
   };
 
   const handleStartWalk = async () => {
+  try {
+    _accountSession3.assertCurrent();
+
     try {
       let journey =
         wellness.activeJourney ||
@@ -1572,10 +1627,10 @@ export default function AIWellnessMasterScreen({
         null;
 
       if (!journey) {
-        const raw = await getFirstStoredValue([
+        const raw = await _accountSession3.run(async () => (getFirstStoredValue([
           "activeJourney",
           "currentJourney",
-        ]);
+        ])));
 
         const stored = parseJSON(raw, null);
 
@@ -1603,6 +1658,8 @@ export default function AIWellnessMasterScreen({
         "Journeys"
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "AI Wellness journey navigation error:",
         error
@@ -1613,13 +1670,20 @@ export default function AIWellnessMasterScreen({
         "Journeys"
       );
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // ANIMATIONS
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession3.isCurrent()) return;
+
     const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -1679,6 +1743,8 @@ export default function AIWellnessMasterScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession3.isCurrent()) return;
+
     let disposed = false;
     let refreshing = false;
     let refreshAgain = false;
@@ -1688,6 +1754,9 @@ export default function AIWellnessMasterScreen({
       AppState.currentState !== "inactive";
 
     async function refresh() {
+  try {
+    _accountSession3.assertCurrent();
+
       if (disposed || !foreground) {
         return;
       }
@@ -1701,22 +1770,27 @@ export default function AIWellnessMasterScreen({
 
       try {
         const snapshot =
-          await readWellnessSnapshot(
+          await _accountSession3.run(async () => (readWellnessSnapshot(
             currentLanguage,
             activeJourneyProp
-          );
+          )));
 
         if (!disposed) {
           setWellness(snapshot);
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "AI Wellness refresh error:",
           error
         );
 
         if (!disposed) {
-          setWellness((current) => ({
+          setWellness((current) => {
+  
+
+return (({
             ...current,
 
             greeting:
@@ -1729,6 +1803,7 @@ export default function AIWellnessMasterScreen({
             stepError: true,
             loadError: true,
           }));
+});
         }
       } finally {
         refreshing = false;
@@ -1746,11 +1821,18 @@ export default function AIWellnessMasterScreen({
           void refresh();
         }
       }
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
     void refresh();
 
     const timer = setInterval(() => {
+  if (!_accountSession3.isCurrent()) return;
+
       void refresh();
     }, REFRESH_INTERVAL_MS);
 
@@ -1758,6 +1840,8 @@ export default function AIWellnessMasterScreen({
       AppState.addEventListener(
         "change",
         (nextState) => {
+  if (!_accountSession3.isCurrent()) return;
+
           foreground = nextState === "active";
 
           if (foreground) {
@@ -1770,6 +1854,8 @@ export default function AIWellnessMasterScreen({
       navigation?.addListener?.(
         "focus",
         () => {
+  
+
           void refresh();
         }
       );
@@ -1876,6 +1962,8 @@ export default function AIWellnessMasterScreen({
     : t("goalMessageComplete");
 
   const insightMessage = useMemo(() => {
+  
+
     if (isLoading) {
       return t("loading");
     }
@@ -1909,6 +1997,8 @@ export default function AIWellnessMasterScreen({
 
   // Preserves the original data-availability calculation.
   const aiConfidence = useMemo(() => {
+  
+
     let score = 0;
 
     if (
@@ -1945,6 +2035,8 @@ export default function AIWellnessMasterScreen({
   ]);
 
   const recoveryTrend = useMemo(() => {
+  
+
     if (wellness.recovery === null) {
       return t("recoveryNotRecorded");
     }
@@ -2328,7 +2420,10 @@ export default function AIWellnessMasterScreen({
             )}
 
           <View style={styles.quickStatsGrid}>
-            {stats.map((stat) => (
+            {stats.map((stat) => {
+  
+
+return ((
               <QuickStatCard
                 key={stat.key}
                 icon={stat.icon}
@@ -2339,7 +2434,8 @@ export default function AIWellnessMasterScreen({
                 onPress={stat.onPress}
                 isRTL={isRTL}
               />
-            ))}
+            ));
+})}
           </View>
 
           {/* AI INSIGHT */}

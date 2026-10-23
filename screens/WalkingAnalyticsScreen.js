@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/WalkingAnalyticsScreen.js
 
 import React, {
@@ -19,8 +20,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   getJourneyLifetimeSteps,
@@ -1316,6 +1316,9 @@ export default function WalkingAnalyticsScreen({
   language = "en",
   goBack,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   function t(
     key,
     variables = {}
@@ -1414,6 +1417,9 @@ export default function WalkingAnalyticsScreen({
       async ({
         pullRefresh = false,
       } = {}) => {
+  try {
+    _accountSession.assertCurrent();
+
         if (
           pullRefresh
         ) {
@@ -1432,7 +1438,7 @@ export default function WalkingAnalyticsScreen({
             stepStats,
             journeyLifetimeSteps,
           ] =
-            await Promise.all([
+            await _accountSession.run(async () => (Promise.all([
               AsyncStorage.multiGet([
                 STORAGE_KEYS.WEEK,
                 STORAGE_KEYS.JOURNEYS,
@@ -1444,7 +1450,7 @@ export default function WalkingAnalyticsScreen({
               loadStepStats(),
 
               getJourneyLifetimeSteps(),
-            ]);
+            ])));
 
           const stored =
             Object.fromEntries(
@@ -1577,12 +1583,12 @@ export default function WalkingAnalyticsScreen({
             normalizedWeek.days
           );
 
-          await AsyncStorage.setItem(
+          await _accountSession.run(async () => (AsyncStorage.setItem(
             STORAGE_KEYS.WEEK,
             JSON.stringify(
               normalizedWeek
             )
-          );
+          )));
 
           setJourneys(
             normalizeJourneys(
@@ -1592,6 +1598,8 @@ export default function WalkingAnalyticsScreen({
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Walking analytics load error:",
             error
@@ -1609,7 +1617,12 @@ export default function WalkingAnalyticsScreen({
             false
           );
         }
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
 
       []
     );
@@ -1620,6 +1633,8 @@ export default function WalkingAnalyticsScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       loadAnalytics();
     },
 
@@ -1634,11 +1649,15 @@ export default function WalkingAnalyticsScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       const subscription =
         AppState.addEventListener(
           "change",
 
           nextState => {
+  if (!_accountSession.isCurrent()) return;
+
             if (
               nextState ===
               "active"
@@ -1664,18 +1683,26 @@ export default function WalkingAnalyticsScreen({
   const weeklySteps =
     useMemo(
       () =>
-        weeklyData.reduce(
+        {
+  
+
+return (weeklyData.reduce(
           (
             total,
             day
           ) =>
-            total +
+            {
+  
+
+return (total +
             safeInteger(
               day.steps
-            ),
+            ));
+},
 
           0
-        ),
+        ));
+},
 
       [
         weeklyData,
@@ -1689,7 +1716,10 @@ export default function WalkingAnalyticsScreen({
   const goalProgress =
     useMemo(
       () =>
-        weeklyGoal >
+        {
+  
+
+return (weeklyGoal >
         0
           ? Math.min(
               100,
@@ -1702,7 +1732,8 @@ export default function WalkingAnalyticsScreen({
                   100
               )
             )
-          : 0,
+          : 0);
+},
 
       [
         weeklyGoal,
@@ -1725,9 +1756,13 @@ export default function WalkingAnalyticsScreen({
     Math.max(
       ...weeklyData.map(
         day =>
-          safeInteger(
+          {
+  
+
+return (safeInteger(
             day.steps
-          )
+          ));
+}
       ),
 
       0
@@ -1749,17 +1784,25 @@ export default function WalkingAnalyticsScreen({
   const completedJourneys =
     journeys.filter(
       journey =>
-        journey.progress >=
-        100
+        {
+  
+
+return (journey.progress >=
+        100);
+}
     ).length;
 
   const highestJourneyProgress =
     Math.max(
       ...journeys.map(
         journey =>
-          clampPercent(
+          {
+  
+
+return (clampPercent(
             journey.progress
-          )
+          ));
+}
       ),
 
       0
@@ -1842,10 +1885,14 @@ export default function WalkingAnalyticsScreen({
               refreshing
             }
             onRefresh={() =>
-              loadAnalytics({
+              {
+  
+
+return (loadAnalytics({
                 pullRefresh:
                   true,
-              })
+              }));
+}
             }
             tintColor="#F5C542"
             colors={[
@@ -1917,7 +1964,11 @@ export default function WalkingAnalyticsScreen({
 
             <TouchableOpacity
               onPress={() =>
-                loadAnalytics()
+                {
+  
+
+return (loadAnalytics());
+}
               }
             >
               <Text
@@ -2062,6 +2113,8 @@ export default function WalkingAnalyticsScreen({
                 item,
                 index
               ) => {
+  
+
                 const steps =
                   safeInteger(
                     item.steps

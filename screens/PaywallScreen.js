@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, { useEffect, useState } from "react";
 import {
   ScrollView,
@@ -21,38 +22,59 @@ export default function PaywallScreen({
   upgradePlan,
   userId,
 }) {
+  const _accountSession = captureAccountSession();
+
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [offerings, setOfferings] = useState(null);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     setupRevenueCat();
   }, []);
 
   async function setupRevenueCat() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       if (userId) {
-        await configureRevenueCat(userId);
+        await _accountSession.run(async () => (configureRevenueCat(userId)));
       }
 
-      const currentOffering = await loadOfferings();
+      const currentOffering = await _accountSession.run(async () => (loadOfferings()));
       setOfferings(currentOffering);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("RevenueCat setup error:", error.message);
     } finally {
       setLoading(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   function findPackage(plan) {
     if (!offerings?.availablePackages) return null;
 
     return offerings.availablePackages.find((pkg) =>
-      pkg.product.identifier.includes(plan)
+      {
+  
+
+return (pkg.product.identifier.includes(plan));
+}
     );
   }
 
   async function handlePurchase(plan) {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setPurchasing(true);
 
@@ -66,7 +88,7 @@ export default function PaywallScreen({
         return;
       }
 
-      const newPlan = await buyPackage(packageToBuy);
+      const newPlan = await _accountSession.run(async () => (buyPackage(packageToBuy)));
 
       upgradePlan && upgradePlan(newPlan);
 
@@ -75,19 +97,29 @@ export default function PaywallScreen({
         `Your ${newPlan} membership is now active.`
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       if (!error.userCancelled) {
         Alert.alert("Purchase Error", error.message);
       }
     } finally {
       setPurchasing(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   async function handleRestore() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setPurchasing(true);
 
-      const restoredPlan = await restoreRevenueCatPurchases();
+      const restoredPlan = await _accountSession.run(async () => (restoreRevenueCatPurchases()));
 
       upgradePlan && upgradePlan(restoredPlan);
 
@@ -96,11 +128,18 @@ export default function PaywallScreen({
         `Your current plan is ${restoredPlan}.`
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       Alert.alert("Restore Error", error.message);
     } finally {
       setPurchasing(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -132,7 +171,11 @@ export default function PaywallScreen({
               "Premium ambient audio",
             ]}
             buttonText="Choose Premium Walker"
-            onPress={() => handlePurchase("premium")}
+            onPress={() => {
+  
+
+return (handlePurchase("premium"));
+}}
             disabled={purchasing}
           />
 
@@ -148,7 +191,11 @@ export default function PaywallScreen({
               "Free portable bidet welcome gift",
             ]}
             buttonText="Choose Legendary Walker"
-            onPress={() => handlePurchase("legendary")}
+            onPress={() => {
+  
+
+return (handlePurchase("legendary"));
+}}
             disabled={purchasing}
             legendary
           />

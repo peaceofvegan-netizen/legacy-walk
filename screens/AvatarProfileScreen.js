@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/AvatarProfileScreen.js
 
 import React, {
@@ -16,8 +17,7 @@ import {
   StyleSheet,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   avatarOptions,
@@ -159,6 +159,9 @@ export default function AvatarProfileScreen({
   goToAvatarCenter,
   goBack,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [avatar, setAvatar] = useState(null);
   const [avatarLoading, setAvatarLoading] =
     useState(true);
@@ -187,6 +190,8 @@ export default function AvatarProfileScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     let disposed = false;
     let refreshing = false;
     let refreshAgain = false;
@@ -196,6 +201,9 @@ export default function AvatarProfileScreen({
       AppState.currentState !== "inactive";
 
     async function refresh() {
+  try {
+    _accountSession.assertCurrent();
+
       if (disposed || !foreground) {
         return;
       }
@@ -208,10 +216,10 @@ export default function AvatarProfileScreen({
       refreshing = true;
 
       try {
-        const rows = await AsyncStorage.multiGet([
+        const rows = await _accountSession.run(async () => (AsyncStorage.multiGet([
           "avatarProfile",
           STEP_STATS_KEY,
-        ]);
+        ])));
 
         if (disposed) return;
 
@@ -252,8 +260,12 @@ export default function AvatarProfileScreen({
             // default avatar supplied by the parent screen.
             const selected = avatarOptions.find(
               (item) =>
-                String(item.id) ===
-                String(profile.avatarId)
+                {
+  
+
+return (String(item.id) ===
+                String(profile.avatarId));
+}
             );
 
             if (!selected) {
@@ -263,9 +275,9 @@ export default function AvatarProfileScreen({
             }
 
             const visual =
-              await getCurrentAvatarVisual(
+              await _accountSession.run(async () => (getCurrentAvatarVisual(
                 selected.id
-              );
+              )));
 
             const source = imageSource(
               visual?.image || selected.image
@@ -297,15 +309,19 @@ export default function AvatarProfileScreen({
               suppliedId !== null
                 ? avatarOptions.find(
                     (item) =>
-                      String(item.id) ===
-                      String(suppliedId)
+                      {
+  
+
+return (String(item.id) ===
+                      String(suppliedId));
+}
                   )
                 : null;
 
             const visual = selected
-              ? await getCurrentAvatarVisual(
+              ? await _accountSession.run(async () => (getCurrentAvatarVisual(
                   selected.id
-                )
+                )))
               : null;
 
             const source = imageSource(
@@ -331,6 +347,8 @@ export default function AvatarProfileScreen({
             setAvatarError("");
           }
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           if (!disposed) {
             setAvatar(null);
             setAvatarError(
@@ -379,6 +397,8 @@ export default function AvatarProfileScreen({
             setStepError("");
           }
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           if (!disposed) {
             setJourneySteps(null);
             setStepError(
@@ -388,6 +408,8 @@ export default function AvatarProfileScreen({
           }
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         if (!disposed) {
           setAvatar(null);
           setJourneySteps(null);
@@ -416,11 +438,18 @@ export default function AvatarProfileScreen({
           void refresh();
         }
       }
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
     void refresh();
 
     const timer = setInterval(() => {
+  if (!_accountSession.isCurrent()) return;
+
       void refresh();
     }, 1500);
 
@@ -428,6 +457,8 @@ export default function AvatarProfileScreen({
       AppState.addEventListener(
         "change",
         (state) => {
+  if (!_accountSession.isCurrent()) return;
+
           foreground = state === "active";
 
           if (foreground) {

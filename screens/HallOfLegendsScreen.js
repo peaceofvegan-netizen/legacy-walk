@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/HallOfLegendsScreen.js
 //
 // LEGATHON WALK
@@ -42,8 +43,7 @@ import {
   StyleSheet,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   getJourneyLifetimeSteps,
@@ -615,13 +615,19 @@ function formatNumber(
 // ============================================================
 
 async function loadLocalRecord() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   const [
     displayName,
     avatarProfileRaw,
     completedRaw,
     lifetimeSteps,
   ] =
-    await Promise.all([
+    await _accountSession.run(async () => (Promise.all([
       AsyncStorage.getItem(
         "displayName"
       ),
@@ -635,7 +641,7 @@ async function loadLocalRecord() {
       ),
 
       getJourneyLifetimeSteps(),
-    ]);
+    ])));
 
 
   let avatarProfile = {};
@@ -647,7 +653,9 @@ async function loadLocalRecord() {
             avatarProfileRaw
           )
         : {};
-  } catch {
+  } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
     avatarProfile = {};
   }
 
@@ -668,6 +676,11 @@ async function loadLocalRecord() {
         completedRaw
       ),
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -725,6 +738,8 @@ export default function HallOfLegendsScreen({
   goBack,
   language = "en",
 }) {
+  const _accountSession2 = captureAccountSession();
+
 
   const languageCode =
     normalizeLanguage(
@@ -738,6 +753,8 @@ export default function HallOfLegendsScreen({
         key,
         values
       ) => {
+  
+
 
         const translated =
           TEXT[
@@ -808,6 +825,9 @@ export default function HallOfLegendsScreen({
   const refreshAll =
     useCallback(
       async () => {
+  try {
+    _accountSession2.assertCurrent();
+
 
         setRefreshing(
           true
@@ -820,11 +840,11 @@ export default function HallOfLegendsScreen({
             ,
             nextRecord,
           ] =
-            await Promise.all([
+            await _accountSession2.run(async () => (Promise.all([
               refresh(),
 
               loadLocalRecord(),
-            ]);
+            ])));
 
 
           setRecord(
@@ -834,6 +854,8 @@ export default function HallOfLegendsScreen({
         } catch (
           refreshError
         ) {
+    if (isAccountSessionEnded(refreshError)) throw refreshError;
+
 
           console.log(
             "Hall of Legends refresh error:",
@@ -847,7 +869,12 @@ export default function HallOfLegendsScreen({
           );
         }
 
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
       [
         refresh,
       ]
@@ -860,6 +887,8 @@ export default function HallOfLegendsScreen({
 
   useEffect(
     () => {
+  if (!_accountSession2.isCurrent()) return;
+
 
       loadLocalRecord()
         .then(
@@ -867,6 +896,8 @@ export default function HallOfLegendsScreen({
         )
         .catch(
           loadError => {
+  
+
 
             console.log(
               "Hall of Legends load error:",
@@ -903,6 +934,8 @@ export default function HallOfLegendsScreen({
   const currentRankDisplay =
     useMemo(
       () => {
+  
+
 
         const sourceRank =
           rank?.currentRank ||
@@ -930,6 +963,8 @@ export default function HallOfLegendsScreen({
   const nextRankDisplay =
     useMemo(
       () => {
+  
+
 
         const sourceRank =
           rank?.nextRank;

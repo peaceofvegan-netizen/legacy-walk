@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, { useEffect, useState } from "react";
 import {
   ScrollView,
@@ -15,6 +16,8 @@ import {
 } from "../utils/Ste";
 
 export default function StepTrackerScreen() {
+  const _accountSession = captureAccountSession();
+
   const [steps, setSteps] = useState({
     todaySteps: 0,
     totalSteps: 0,
@@ -24,18 +27,36 @@ export default function StepTrackerScreen() {
   });
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     async function load() {
-      const data = await loadStepData();
+  try {
+    _accountSession.assertCurrent();
+
+      const data = await _accountSession.run(async () => (loadStepData()));
       setSteps(data);
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
     load();
   }, []);
 
   async function addDemoSteps(amount) {
-    const updated = await addSteps(amount);
+  try {
+    _accountSession.assertCurrent();
+
+    const updated = await _accountSession.run(async () => (addSteps(amount)));
     setSteps(updated);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   const level = calculateLevelFromMiles(steps.totalMiles);
   const coinsEarnedToday = calculateWCoinsFromSteps(steps.todaySteps);
@@ -72,27 +93,43 @@ export default function StepTrackerScreen() {
       <Text style={styles.sectionTitle}>Demo Step Buttons</Text>
 
       <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={() => addDemoSteps(500)}>
+        <TouchableOpacity style={styles.button} onPress={() => {
+  
+
+return (addDemoSteps(500));
+}}>
           <Text style={styles.buttonText}>+500</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={() => addDemoSteps(1000)}>
+        <TouchableOpacity style={styles.button} onPress={() => {
+  
+
+return (addDemoSteps(1000));
+}}>
           <Text style={styles.buttonText}>+1,000</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={() => addDemoSteps(5000)}>
+        <TouchableOpacity style={styles.button} onPress={() => {
+  
+
+return (addDemoSteps(5000));
+}}>
           <Text style={styles.buttonText}>+5,000</Text>
         </TouchableOpacity>
       </View>
 
       <Text style={styles.sectionTitle}>Recent Activity</Text>
 
-      {steps.history.slice(0, 5).map((item) => (
+      {steps.history.slice(0, 5).map((item) => {
+  
+
+return ((
         <View key={item.id} style={styles.historyCard}>
           <Text style={styles.historyText}>+{item.stepsAdded} steps</Text>
           <Text style={styles.historySub}>{item.date}</Text>
         </View>
-      ))}
+      ));
+})}
 
       <View style={{ height: 140 }} />
     </ScrollView>

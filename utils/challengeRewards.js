@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const CHALLENGE_REWARDS_KEY = "LEGACY_WALK_CHALLENGE_REWARDS";
 
@@ -21,7 +22,13 @@ export const DAILY_CHALLENGE_REWARDS = {
 };
 
 export async function loadChallengeRewards() {
-  const saved = await AsyncStorage.getItem(CHALLENGE_REWARDS_KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(CHALLENGE_REWARDS_KEY)));
 
   return saved
     ? JSON.parse(saved)
@@ -32,9 +39,20 @@ export async function loadChallengeRewards() {
         completedToday: [],
         history: [],
       };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function completeDailyChallenge(challengeId) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   const reward = DAILY_CHALLENGE_REWARDS[challengeId];
 
   if (!reward) {
@@ -44,7 +62,7 @@ export async function completeDailyChallenge(challengeId) {
     };
   }
 
-  const current = await loadChallengeRewards();
+  const current = await _accountSession2.run(async () => (loadChallengeRewards()));
 
   if (current.completedToday.includes(challengeId)) {
     return {
@@ -85,10 +103,10 @@ export async function completeDailyChallenge(challengeId) {
     ],
   };
 
-  await AsyncStorage.setItem(
+  await _accountSession2.run(async () => (AsyncStorage.setItem(
     CHALLENGE_REWARDS_KEY,
     JSON.stringify(updated)
-  );
+  )));
 
   return {
     success: true,
@@ -99,20 +117,36 @@ export async function completeDailyChallenge(challengeId) {
     },
     rewards: updated,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function resetDailyChallenges() {
-  const current = await loadChallengeRewards();
+  const _accountSession3 = captureAccountSession();
+  const AsyncStorage = _accountSession3.storage;
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const current = await _accountSession3.run(async () => (loadChallengeRewards()));
 
   const updated = {
     ...current,
     completedToday: [],
   };
 
-  await AsyncStorage.setItem(
+  await _accountSession3.run(async () => (AsyncStorage.setItem(
     CHALLENGE_REWARDS_KEY,
     JSON.stringify(updated)
-  );
+  )));
 
   return updated;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // WelcomeBackScreen.js
 
 import React, { useEffect, useState } from "react";
@@ -8,13 +9,16 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 export default function WelcomeBackScreen({
   goToDashboard,
   goToJourneys,
   continueJourney,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [userName, setUserName] = useState("Legacy Walker");
   const [streak, setStreak] = useState(0);
   const [lifetimeSteps, setLifetimeSteps] = useState(0);
@@ -23,18 +27,23 @@ export default function WelcomeBackScreen({
   );
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadData();
   }, []);
 
   const loadData = async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      const savedName = await AsyncStorage.getItem("userName");
+      const savedName = await _accountSession.run(async () => (AsyncStorage.getItem("userName")));
       const savedStreak =
-        await AsyncStorage.getItem("currentStreak");
+        await _accountSession.run(async () => (AsyncStorage.getItem("currentStreak")));
       const savedSteps =
-        await AsyncStorage.getItem("lifetimeSteps");
+        await _accountSession.run(async () => (AsyncStorage.getItem("lifetimeSteps")));
       const savedJourney =
-        await AsyncStorage.getItem("activeJourneyTitle");
+        await _accountSession.run(async () => (AsyncStorage.getItem("activeJourneyTitle")));
 
       if (savedName) setUserName(savedName);
       if (savedStreak) setStreak(Number(savedStreak));
@@ -43,9 +52,16 @@ export default function WelcomeBackScreen({
       if (savedJourney)
         setActiveJourney(savedJourney);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Error loading welcome data:", error);
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   return (
     <ScrollView

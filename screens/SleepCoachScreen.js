@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/SleepCoachScreen.js
 
 import React, {
@@ -16,7 +17,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -1205,6 +1206,9 @@ export default function SleepCoachScreen({
   goToAIWellness,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode =
     normalizeLanguage(
       language
@@ -1260,12 +1264,16 @@ export default function SleepCoachScreen({
   const sleepScore =
     useMemo(
       () =>
-        calculateSleepScore(
+        {
+  
+
+return (calculateSleepScore(
           hours,
           quality,
           interruptions,
           rested
-        ),
+        ));
+},
       [
         hours,
         quality,
@@ -1278,10 +1286,14 @@ export default function SleepCoachScreen({
   const status =
     useMemo(
       () =>
-        getSleepStatus(
+        {
+  
+
+return (getSleepStatus(
           sleepScore,
           hours
-        ),
+        ));
+},
       [
         sleepScore,
         hours,
@@ -1292,10 +1304,14 @@ export default function SleepCoachScreen({
   const localizedStatus =
     useMemo(
       () =>
-        getLocalizedStatus(
+        {
+  
+
+return (getLocalizedStatus(
           status,
           t
-        ),
+        ));
+},
       [
         status,
         t,
@@ -1321,13 +1337,18 @@ export default function SleepCoachScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const loadSleep =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const saved =
-            await AsyncStorage.getItem(
+            await _accountSession.run(async () => (AsyncStorage.getItem(
               "sleepData"
-            );
+            )));
 
           const parsed =
             safelyParseJSON(
@@ -1396,12 +1417,19 @@ export default function SleepCoachScreen({
               ""
           );
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Sleep load error:",
             error
           );
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     loadSleep();
   }, []);
@@ -1414,9 +1442,14 @@ export default function SleepCoachScreen({
   const adjustHours = (
     change
   ) => {
+  
+
     setHours(
       (current) =>
-        Math.max(
+        {
+  
+
+return (Math.max(
           0,
           Math.min(
             16,
@@ -1429,7 +1462,8 @@ export default function SleepCoachScreen({
             ) /
               2
           )
-        )
+        ));
+}
     );
   };
 
@@ -1440,6 +1474,9 @@ export default function SleepCoachScreen({
 
   const saveSleep =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       if (isSaving) {
         return;
       }
@@ -1455,8 +1492,12 @@ export default function SleepCoachScreen({
         const selectedQuality =
           QUALITY_OPTIONS.find(
             (item) =>
-              item.value ===
-              quality
+              {
+  
+
+return (item.value ===
+              quality);
+}
           )?.label ||
           "Good";
 
@@ -1511,14 +1552,18 @@ export default function SleepCoachScreen({
           );
 
 
-        await AsyncStorage.multiSet(
+        await _accountSession.run(async () => (AsyncStorage.multiSet(
           SLEEP_KEYS.map(
-            (key) => [
+            (key) => {
+  
+
+return ([
               key,
               serialized,
-            ]
+            ]);
+}
           )
-        );
+        )));
 
 
         setLastUpdated(
@@ -1538,6 +1583,8 @@ export default function SleepCoachScreen({
           )
         );
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Sleep save error:",
           error
@@ -1552,7 +1599,12 @@ export default function SleepCoachScreen({
           false
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1561,6 +1613,8 @@ export default function SleepCoachScreen({
 
   const handleBack =
     () => {
+  
+
       if (
         typeof goBack ===
         "function"
@@ -1589,6 +1643,8 @@ export default function SleepCoachScreen({
   const formattedLastUpdated =
     useMemo(
       () => {
+  
+
         if (
           !lastUpdated
         ) {
@@ -1601,7 +1657,9 @@ export default function SleepCoachScreen({
           ).toLocaleString(
             languageCode
           );
-        } catch {
+        } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
           return new Date(
             lastUpdated
           ).toLocaleString();
@@ -1877,9 +1935,13 @@ export default function SleepCoachScreen({
                 styles.adjustButton
               }
               onPress={() =>
-                adjustHours(
+                {
+  
+
+return (adjustHours(
                   -0.5
-                )
+                ));
+}
               }
             >
               <Ionicons
@@ -1921,9 +1983,13 @@ export default function SleepCoachScreen({
                 styles.adjustButton
               }
               onPress={() =>
-                adjustHours(
+                {
+  
+
+return (adjustHours(
                   0.5
-                )
+                ));
+}
               }
             >
               <Ionicons
@@ -1960,6 +2026,8 @@ export default function SleepCoachScreen({
           >
             {QUALITY_OPTIONS.map(
               (option) => {
+  
+
                 const selected =
                   option.value ===
                   quality;
@@ -1976,9 +2044,13 @@ export default function SleepCoachScreen({
                         styles.qualityButtonSelected,
                     ]}
                     onPress={() =>
-                      setQuality(
+                      {
+  
+
+return (setQuality(
                         option.value
-                      )
+                      ));
+}
                     }
                     accessibilityRole="button"
                     accessibilityState={{
@@ -2068,14 +2140,22 @@ export default function SleepCoachScreen({
                   styles.counterButton
                 }
                 onPress={() =>
-                  setInterruptions(
+                  {
+  
+
+return (setInterruptions(
                     (current) =>
-                      Math.max(
+                      {
+  
+
+return (Math.max(
                         0,
                         current -
                           1
-                      )
-                  )
+                      ));
+}
+                  ));
+}
                 }
               >
                 <Ionicons
@@ -2098,14 +2178,22 @@ export default function SleepCoachScreen({
                   styles.counterButton
                 }
                 onPress={() =>
-                  setInterruptions(
+                  {
+  
+
+return (setInterruptions(
                     (current) =>
-                      Math.min(
+                      {
+  
+
+return (Math.min(
                         10,
                         current +
                           1
-                      )
-                  )
+                      ));
+}
+                  ));
+}
                 }
               >
                 <Ionicons

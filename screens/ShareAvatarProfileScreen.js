@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, { useRef } from "react";
 import {
   ScrollView,
@@ -20,10 +21,15 @@ export default function ShareAvatarProfileScreen({
   coins = 0,
   wellnessPoints = 0,
 }) {
+  const _accountSession = captureAccountSession();
+
   const cardRef = useRef(null);
 
   async function shareTextProfile() {
-    await Share.share({
+  try {
+    _accountSession.assertCurrent();
+
+    await _accountSession.run(async () => (Share.share({
       message: `Legacy Walk Profile 🚶‍♂️
 
 Rank: ${rank}
@@ -33,8 +39,13 @@ Breathing Streak: ${breathingStreak}
 Marathon Medals: ${marathonMedals}
 
 Join me on Legacy Walk.`,
-    });
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -60,7 +71,11 @@ Join me on Legacy Walk.`,
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => exportAvatarProfile(cardRef)}
+        onPress={() => {
+  
+
+return (exportAvatarProfile(cardRef));
+}}
       >
         <Text style={styles.buttonText}>Export Profile Image</Text>
       </TouchableOpacity>

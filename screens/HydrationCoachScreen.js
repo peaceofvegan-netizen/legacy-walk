@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/HydrationCoachScreen.js
 
 import React, {
@@ -16,7 +17,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -745,6 +746,9 @@ export default function HydrationCoachScreen({
   goToAIWellness,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
 
   const languageCode =
     normalizeLanguage(
@@ -812,7 +816,10 @@ export default function HydrationCoachScreen({
   const progress =
     useMemo(
       () =>
-        Math.min(
+        {
+  
+
+return (Math.min(
           100,
           Math.round(
             (
@@ -823,7 +830,8 @@ export default function HydrationCoachScreen({
               )
             ) * 100
           )
-        ),
+        ));
+},
       [
         amount,
         goal,
@@ -845,6 +853,8 @@ export default function HydrationCoachScreen({
   const status =
     useMemo(
       () => {
+  
+
 
         if (
           progress >= 100
@@ -947,16 +957,21 @@ export default function HydrationCoachScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
 
       const loadHydration =
         async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
           try {
 
             const saved =
-              await AsyncStorage.getItem(
+              await _accountSession.run(async () => (AsyncStorage.getItem(
                 "hydrationData"
-              );
+              )));
 
 
             const parsed =
@@ -1022,13 +1037,20 @@ export default function HydrationCoachScreen({
             }
 
           } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
             console.log(
               "Hydration load error:",
               error
             );
           }
-        };
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
       loadHydration();
@@ -1047,6 +1069,9 @@ export default function HydrationCoachScreen({
       nextAmount = amount,
       nextGoal = goal
     ) => {
+  try {
+    _accountSession.assertCurrent();
+
 
       if (isSaving) {
         return;
@@ -1122,14 +1147,18 @@ export default function HydrationCoachScreen({
           );
 
 
-        await AsyncStorage.multiSet(
+        await _accountSession.run(async () => (AsyncStorage.multiSet(
           HYDRATION_KEYS.map(
-            (key) => [
+            (key) => {
+  
+
+return ([
               key,
               serialized,
-            ]
+            ]);
+}
           )
-        );
+        )));
 
 
         setLastUpdated(
@@ -1137,6 +1166,8 @@ export default function HydrationCoachScreen({
         );
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
         console.log(
           "Hydration save error:",
@@ -1157,7 +1188,12 @@ export default function HydrationCoachScreen({
           false
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1168,6 +1204,9 @@ export default function HydrationCoachScreen({
     async (
       ounces
     ) => {
+  try {
+    _accountSession.assertCurrent();
+
 
       const nextAmount =
         amount +
@@ -1179,11 +1218,16 @@ export default function HydrationCoachScreen({
       );
 
 
-      await saveHydration(
+      await _accountSession.run(async () => (saveHydration(
         nextAmount,
         goal
-      );
-    };
+      )));
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1192,6 +1236,9 @@ export default function HydrationCoachScreen({
 
   const removeWater =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
       const nextAmount =
         Math.max(
@@ -1205,11 +1252,16 @@ export default function HydrationCoachScreen({
       );
 
 
-      await saveHydration(
+      await _accountSession.run(async () => (saveHydration(
         nextAmount,
         goal
-      );
-    };
+      )));
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1220,17 +1272,25 @@ export default function HydrationCoachScreen({
     async (
       nextGoal
     ) => {
+  try {
+    _accountSession.assertCurrent();
+
 
       setGoal(
         nextGoal
       );
 
 
-      await saveHydration(
+      await _accountSession.run(async () => (saveHydration(
         amount,
         nextGoal
-      );
-    };
+      )));
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1239,6 +1299,8 @@ export default function HydrationCoachScreen({
 
   const resetToday =
     () => {
+  
+
 
       Alert.alert(
         t(
@@ -1271,17 +1333,25 @@ export default function HydrationCoachScreen({
 
             onPress:
               async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
                 setAmount(
                   0
                 );
 
 
-                await saveHydration(
+                await _accountSession.run(async () => (saveHydration(
                   0,
                   goal
-                );
-              },
+                )));
+              
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
           },
         ]
       );
@@ -1294,6 +1364,8 @@ export default function HydrationCoachScreen({
 
   const handleBack =
     () => {
+  
+
 
       if (
         typeof goBack ===
@@ -1649,7 +1721,10 @@ export default function HydrationCoachScreen({
             {ADD_AMOUNTS.map(
               (
                 ounces
-              ) => (
+              ) => {
+  
+
+return ((
                 <TouchableOpacity
                   key={
                     ounces
@@ -1658,9 +1733,13 @@ export default function HydrationCoachScreen({
                     styles.amountButton
                   }
                   onPress={() =>
-                    addWater(
+                    {
+  
+
+return (addWater(
                       ounces
-                    )
+                    ));
+}
                   }
                   disabled={
                     isSaving
@@ -1684,7 +1763,8 @@ export default function HydrationCoachScreen({
                     +{ounces} oz
                   </Text>
                 </TouchableOpacity>
-              )
+              ));
+}
             )}
           </View>
 
@@ -1750,6 +1830,8 @@ export default function HydrationCoachScreen({
               (
                 option
               ) => {
+  
+
 
                 const selected =
                   option ===
@@ -1768,9 +1850,13 @@ export default function HydrationCoachScreen({
                         styles.goalButtonSelected,
                     ]}
                     onPress={() =>
-                      changeGoal(
+                      {
+  
+
+return (changeGoal(
                         option
-                      )
+                      ));
+}
                     }
                     disabled={
                       isSaving

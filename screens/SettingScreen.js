@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/SettingsScreen.js
 
 import React, {
@@ -20,8 +21,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 const COLLAGE_BG = require(
   "../assets/collage-background.png"
@@ -1628,6 +1628,9 @@ export default function SettingsScreen({
   onLogout,
   onSettingsChanged,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode =
     normalizeLanguage(language);
 
@@ -1635,11 +1638,15 @@ export default function SettingsScreen({
     languageCode === "ar";
 
   const t = key =>
-    TEXT?.[languageCode]?.[
+    {
+  
+
+return (TEXT?.[languageCode]?.[
       key
     ] ||
     TEXT?.en?.[key] ||
-    key;
+    key);
+};
 
   const [
     settings,
@@ -1664,6 +1671,8 @@ export default function SettingsScreen({
 
   const colors =
     useMemo(() => {
+  
+
       if (
         settings.darkMode
       ) {
@@ -1696,9 +1705,13 @@ export default function SettingsScreen({
   const styles =
     useMemo(
       () =>
-        createStyles(
+        {
+  
+
+return (createStyles(
           colors
-        ),
+        ));
+},
       [colors]
     );
 
@@ -1712,14 +1725,19 @@ export default function SettingsScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     let mounted = true;
 
     async function loadSettings() {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const saved =
-          await AsyncStorage.getItem(
+          await _accountSession.run(async () => (AsyncStorage.getItem(
             LEGATHON_SETTINGS_KEY
-          );
+          )));
 
         if (!mounted) {
           return;
@@ -1735,6 +1753,8 @@ export default function SettingsScreen({
           );
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Settings load error:",
           error
@@ -1744,7 +1764,12 @@ export default function SettingsScreen({
           setLoading(false);
         }
       }
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
     loadSettings();
 
@@ -1760,10 +1785,13 @@ export default function SettingsScreen({
   async function persistSettings(
     nextSettings
   ) {
+  try {
+    _accountSession.assertCurrent();
+
     setSaving(true);
 
     try {
-      await AsyncStorage.multiSet([
+      await _accountSession.run(async () => (AsyncStorage.multiSet([
         [
           LEGATHON_SETTINGS_KEY,
           JSON.stringify(
@@ -1807,7 +1835,7 @@ export default function SettingsScreen({
           "LEGATHON_THEME",
           nextSettings.theme,
         ],
-      ]);
+      ])));
 
       if (
         typeof onSettingsChanged ===
@@ -1818,6 +1846,8 @@ export default function SettingsScreen({
         );
       }
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Settings save error:",
         error
@@ -1832,7 +1862,12 @@ export default function SettingsScreen({
     } finally {
       setSaving(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // UPDATE SETTING
@@ -1897,9 +1932,14 @@ export default function SettingsScreen({
 
           onPress:
             async () => {
+  try {
+    _accountSession.assertCurrent();
+
               try {
-                await Linking.openSettings();
-              } catch {
+                await _accountSession.run(async () => (Linking.openSettings()));
+              } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
                 Alert.alert(
                   t(
                     "unableOpenSettings"
@@ -1910,7 +1950,12 @@ export default function SettingsScreen({
                   )
                 );
               }
-            },
+            
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
         },
       ]
     );
@@ -1942,6 +1987,9 @@ export default function SettingsScreen({
 
           onPress:
             async () => {
+  try {
+    _accountSession.assertCurrent();
+
               if (
                 typeof onLogout ===
                 "function"
@@ -1960,7 +2008,12 @@ export default function SettingsScreen({
                   "logoutNotConnectedMessage"
                 )
               );
-            },
+            
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
         },
       ]
     );
@@ -2204,10 +2257,14 @@ export default function SettingsScreen({
                   settings.stepTracking
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "stepTracking",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2229,11 +2286,15 @@ export default function SettingsScreen({
                   "healthPermissionsSub"
                 )}
                 onPress={() =>
-                  openDeviceSettings(
+                  {
+  
+
+return (openDeviceSettings(
                     t(
                       "healthPermissions"
                     )
-                  )
+                  ));
+}
                 }
                 styles={
                   styles
@@ -2252,11 +2313,15 @@ export default function SettingsScreen({
                   "devicePermissionsSub"
                 )}
                 onPress={() =>
-                  openDeviceSettings(
+                  {
+  
+
+return (openDeviceSettings(
                     t(
                       "devicePermissions"
                     )
-                  )
+                  ));
+}
                 }
                 styles={
                   styles
@@ -2295,10 +2360,14 @@ export default function SettingsScreen({
                   settings.notifications
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "notifications",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2326,10 +2395,14 @@ export default function SettingsScreen({
                   !settings.notifications
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "streakAlerts",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2357,10 +2430,14 @@ export default function SettingsScreen({
                   !settings.notifications
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "rewardAlerts",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2402,10 +2479,14 @@ export default function SettingsScreen({
                   settings.privateProfile
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "privateProfile",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2485,10 +2566,14 @@ export default function SettingsScreen({
                   settings.darkMode
                 }
                 onValueChange={value =>
-                  updateSetting(
+                  {
+  
+
+return (updateSetting(
                     "darkMode",
                     value
-                  )
+                  ));
+}
                 }
                 colors={
                   colors
@@ -2527,7 +2612,10 @@ export default function SettingsScreen({
                   ([
                     themeId,
                     theme,
-                  ]) => (
+                  ]) => {
+  
+
+return ((
                     <ThemePill
                       key={
                         themeId
@@ -2543,10 +2631,14 @@ export default function SettingsScreen({
                         themeId
                       }
                       onPress={() =>
-                        updateSetting(
+                        {
+  
+
+return (updateSetting(
                           "theme",
                           themeId
-                        )
+                        ));
+}
                       }
                       styles={
                         styles
@@ -2555,7 +2647,8 @@ export default function SettingsScreen({
                         isRTL
                       }
                     />
-                  )
+                  ));
+}
                 )}
               </View>
             </Section>

@@ -1,6 +1,7 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 // utils/legathonRoutingState.js
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 
 // ============================================================
@@ -104,13 +105,19 @@ function safeNumber(value) {
 // ============================================================
 
 export async function getLegathonRoutingState() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
 
   try {
 
     const raw =
-      await AsyncStorage.getItem(
+      await _accountSession.run(async () => (AsyncStorage.getItem(
         LEGATHON_SESSION_KEY
-      );
+      )));
 
 
     if (!raw) {
@@ -129,6 +136,8 @@ export async function getLegathonRoutingState() {
         JSON.parse(raw);
 
     } catch (parseError) {
+    if (isAccountSessionEnded(parseError)) throw parseError;
+
 
       console.log(
         "Legathon routing session parse error:",
@@ -202,6 +211,8 @@ export async function getLegathonRoutingState() {
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Get Legathon routing state error:",
@@ -215,6 +226,11 @@ export async function getLegathonRoutingState() {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -223,9 +239,14 @@ export async function getLegathonRoutingState() {
 // ============================================================
 
 export async function isLegathonRoutingActive() {
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
 
   const routing =
-    await getLegathonRoutingState();
+    await _accountSession2.run(async () => (getLegathonRoutingState()));
 
 
   return (
@@ -235,6 +256,11 @@ export async function isLegathonRoutingActive() {
       routing?.marathonId
     )
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -243,9 +269,14 @@ export async function isLegathonRoutingActive() {
 // ============================================================
 
 export async function getRoutingMarathonId() {
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
 
   const routing =
-    await getLegathonRoutingState();
+    await _accountSession3.run(async () => (getLegathonRoutingState()));
 
 
   if (
@@ -260,6 +291,11 @@ export async function getRoutingMarathonId() {
     routing?.marathonId ||
     null
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 

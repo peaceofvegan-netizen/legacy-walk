@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useCallback,
   useEffect,
@@ -19,7 +20,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
 
 import {
@@ -2209,6 +2210,9 @@ export default function AIConversationScreen({
   goToSleep,
   goToBreathing,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode =
     normalizeLanguage(language);
 
@@ -2218,14 +2222,20 @@ export default function AIConversationScreen({
   const conversationKey =
     useMemo(
       () =>
-        getConversationStorageKey(
+        {
+  
+
+return (getConversationStorageKey(
           languageCode
-        ),
+        ));
+},
       [languageCode]
     );
 
   const t = useCallback(
     (key) => {
+  
+
       const localValue =
         getText(
           languageCode,
@@ -2249,9 +2259,13 @@ export default function AIConversationScreen({
   const quickPrompts =
     useMemo(
       () =>
-        getQuickPrompts(
+        {
+  
+
+return (getQuickPrompts(
           languageCode
-        ),
+        ));
+},
       [languageCode]
     );
 
@@ -2259,9 +2273,13 @@ export default function AIConversationScreen({
     messages,
     setMessages,
   ] = useState(() =>
-    getStarterMessages(
+    {
+  
+
+return (getStarterMessages(
       languageCode
-    )
+    ));
+}
   );
 
   const [
@@ -2311,6 +2329,8 @@ export default function AIConversationScreen({
 
   const canSend =
     useMemo(() => {
+  
+
       return (
         draft.trim().length >
           0 &&
@@ -2320,6 +2340,8 @@ export default function AIConversationScreen({
 
   const mergedWellness =
     useMemo(() => {
+  
+
       return {
         steps:
           safeNumber(
@@ -2385,8 +2407,12 @@ export default function AIConversationScreen({
 
   const scrollToBottom =
     useCallback(() => {
+  
+
       requestAnimationFrame(
         () => {
+  if (!_accountSession.isCurrent()) return;
+
           scrollRef.current
             ?.scrollToEnd?.({
               animated: true,
@@ -2400,6 +2426,8 @@ export default function AIConversationScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     mountedRef.current =
       true;
 
@@ -2419,11 +2447,14 @@ export default function AIConversationScreen({
       memoryContext,
       history
     ) => {
+  try {
+    _accountSession.assertCurrent();
+
       const {
         data,
         error,
       } =
-        await supabase.functions.invoke(
+        await _accountSession.run(async () => (supabase.functions.invoke(
           "legathon-ai-coach",
           {
             body: {
@@ -2457,17 +2488,21 @@ export default function AIConversationScreen({
                 history
                   .slice(-12)
                   .map(
-                    (item) => ({
+                    (item) => {
+  
+
+return (({
                       sender:
                         item.sender,
 
                       text:
                         item.text,
-                    })
+                    }));
+}
                   ),
             },
           }
-        );
+        )));
 
       if (error) {
         throw new Error(
@@ -2488,17 +2523,27 @@ export default function AIConversationScreen({
       return String(
         data.reply
       );
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // LOAD CONVERSATION WHEN LANGUAGE CHANGES
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     let active = true;
 
     const loadConversation =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         setConversationLoaded(
           false
         );
@@ -2509,9 +2554,9 @@ export default function AIConversationScreen({
 
         try {
           const savedMessages =
-            await AsyncStorage.getItem(
+            await _accountSession.run(async () => (AsyncStorage.getItem(
               conversationKey
-            );
+            )));
 
           const parsed =
             safelyParseJSON(
@@ -2540,6 +2585,8 @@ export default function AIConversationScreen({
             );
           }
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Coach conversation load error:",
             error
@@ -2559,7 +2606,12 @@ export default function AIConversationScreen({
             );
           }
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     loadConversation();
 
@@ -2576,13 +2628,18 @@ export default function AIConversationScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const loadMemory =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const savedMemory =
-            await AsyncStorage.getItem(
+            await _accountSession.run(async () => (AsyncStorage.getItem(
               COACH_MEMORY_KEY
-            );
+            )));
 
           const parsed =
             safelyParseJSON(
@@ -2610,12 +2667,19 @@ export default function AIConversationScreen({
             );
           }
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Coach memory load error:",
             error
           );
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     loadMemory();
   }, []);
@@ -2625,6 +2689,8 @@ export default function AIConversationScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     if (
       !conversationLoaded
     ) {
@@ -2633,20 +2699,30 @@ export default function AIConversationScreen({
 
     const saveConversation =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
-          await AsyncStorage.setItem(
+          await _accountSession.run(async () => (AsyncStorage.setItem(
             conversationKey,
             JSON.stringify(
               messages
             )
-          );
+          )));
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Coach conversation save error:",
             error
           );
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     saveConversation();
   }, [
@@ -2660,6 +2736,8 @@ export default function AIConversationScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     scrollToBottom();
   }, [
     messages,
@@ -2673,6 +2751,9 @@ export default function AIConversationScreen({
 
   const saveCoachMemory =
     async (updates) => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const nextMemory = {
           ...coachMemory,
@@ -2683,15 +2764,17 @@ export default function AIConversationScreen({
           nextMemory
         );
 
-        await AsyncStorage.setItem(
+        await _accountSession.run(async () => (AsyncStorage.setItem(
           COACH_MEMORY_KEY,
           JSON.stringify(
             nextMemory
           )
-        );
+        )));
 
         return nextMemory;
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Coach memory save error:",
           error
@@ -2702,11 +2785,19 @@ export default function AIConversationScreen({
           ...updates,
         };
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const saveMemoryPanel =
     async () => {
-      await saveCoachMemory({
+  try {
+    _accountSession.assertCurrent();
+
+      await _accountSession.run(async () => (saveCoachMemory({
         preferredWalkTime:
           memoryDraft
             .preferredWalkTime
@@ -2721,12 +2812,17 @@ export default function AIConversationScreen({
           memoryDraft
             .favoriteBreathing
             .trim(),
-      });
+      })));
 
       setShowMemoryPanel(
         false
       );
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // CLEAR MEMORY
@@ -2734,6 +2830,8 @@ export default function AIConversationScreen({
 
   const clearCoachMemory =
     () => {
+  
+
       Alert.alert(
         t(
           "clearMemoryTitle"
@@ -2756,10 +2854,13 @@ export default function AIConversationScreen({
 
             onPress:
               async () => {
+  try {
+    _accountSession.assertCurrent();
+
                 try {
-                  await AsyncStorage.removeItem(
+                  await _accountSession.run(async () => (AsyncStorage.removeItem(
                     COACH_MEMORY_KEY
-                  );
+                  )));
 
                   setCoachMemory({
                     ...INITIAL_MEMORY,
@@ -2773,12 +2874,19 @@ export default function AIConversationScreen({
                     false
                   );
                 } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
                   console.log(
                     "Clear coach memory error:",
                     error
                   );
                 }
-              },
+              
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
           },
         ]
       );
@@ -2790,6 +2898,8 @@ export default function AIConversationScreen({
 
   const clearConversation =
     () => {
+  
+
       Alert.alert(
         t(
           "newConversationTitle"
@@ -2812,10 +2922,13 @@ export default function AIConversationScreen({
 
             onPress:
               async () => {
+  try {
+    _accountSession.assertCurrent();
+
                 try {
-                  await AsyncStorage.removeItem(
+                  await _accountSession.run(async () => (AsyncStorage.removeItem(
                     conversationKey
-                  );
+                  )));
 
                   setMessages(
                     getStarterMessages(
@@ -2831,12 +2944,19 @@ export default function AIConversationScreen({
                     null
                   );
                 } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
                   console.log(
                     "Clear conversation error:",
                     error
                   );
                 }
-              },
+              
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
           },
         ]
       );
@@ -2848,6 +2968,8 @@ export default function AIConversationScreen({
 
   const openDetectedScreen =
     (intent) => {
+  
+
       switch (intent) {
         case "meal":
           goToMealPlanner?.();
@@ -2891,6 +3013,9 @@ export default function AIConversationScreen({
       text = draft,
       detectionText = null
     ) => {
+  try {
+    _accountSession.assertCurrent();
+
       const cleaned =
         String(
           text || ""
@@ -2919,9 +3044,9 @@ export default function AIConversationScreen({
 
       if (memoryUpdate) {
         activeMemory =
-          await saveCoachMemory(
+          await _accountSession.run(async () => (saveCoachMemory(
             memoryUpdate
-          );
+          )));
       }
 
       const contextForMessage =
@@ -2958,10 +3083,14 @@ export default function AIConversationScreen({
         ];
 
       setMessages(
-        (current) => [
+        (current) => {
+  
+
+return ([
           ...current,
           userMessage,
-        ]
+        ]);
+}
       );
 
       setDraft("");
@@ -2972,14 +3101,16 @@ export default function AIConversationScreen({
 
         try {
           replyText =
-            await requestCoachReply(
+            await _accountSession.run(async () => (requestCoachReply(
               cleaned,
               activeMemory,
               historyForRequest
-            );
+            )));
         } catch (
           remoteError
         ) {
+    if (isAccountSessionEnded(remoteError)) throw remoteError;
+
           console.log(
             "Remote AI unavailable. Using local multilingual coach:",
             remoteError
@@ -3015,10 +3146,14 @@ export default function AIConversationScreen({
           };
 
         setMessages(
-          (current) => [
+          (current) => {
+  
+
+return ([
             ...current,
             coachMessage,
-          ]
+          ]);
+}
         );
 
         if (
@@ -3029,6 +3164,8 @@ export default function AIConversationScreen({
           );
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Coach response error:",
           error
@@ -3038,7 +3175,10 @@ export default function AIConversationScreen({
           mountedRef.current
         ) {
           setMessages(
-            (current) => [
+            (current) => {
+  
+
+return ([
               ...current,
 
               {
@@ -3056,7 +3196,8 @@ export default function AIConversationScreen({
                 actionIntent:
                   null,
               },
-            ]
+            ]);
+}
           );
         }
       } finally {
@@ -3066,7 +3207,12 @@ export default function AIConversationScreen({
           setIsTyping(false);
         }
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // QUICK PROMPT
@@ -3074,6 +3220,8 @@ export default function AIConversationScreen({
 
   const handleQuickPrompt =
     (prompt) => {
+  
+
       if (isTyping) {
         return;
       }
@@ -3093,6 +3241,8 @@ export default function AIConversationScreen({
 
   const openMemoryPanel =
     () => {
+  
+
       setMemoryDraft({
         preferredWalkTime:
           coachMemory
@@ -3160,7 +3310,11 @@ export default function AIConversationScreen({
                 styles.headerButton
               }
               onPress={() =>
-                goBack?.()
+                {
+  
+
+return (goBack?.());
+}
               }
               activeOpacity={0.8}
             >
@@ -3290,9 +3444,13 @@ export default function AIConversationScreen({
                       styles.memoryCloseButton
                     }
                     onPress={() =>
-                      setShowMemoryPanel(
+                      {
+  
+
+return (setShowMemoryPanel(
                         false
-                      )
+                      ));
+}
                     }
                   >
                     <Ionicons
@@ -3319,16 +3477,24 @@ export default function AIConversationScreen({
                   onChangeText={(
                     value
                   ) =>
-                    setMemoryDraft(
+                    {
+  
+
+return (setMemoryDraft(
                       (
                         current
-                      ) => ({
+                      ) => {
+  
+
+return (({
                         ...current,
 
                         preferredWalkTime:
                           value,
-                      })
-                    )
+                      }));
+}
+                    ));
+}
                   }
                 />
 
@@ -3348,16 +3514,24 @@ export default function AIConversationScreen({
                   onChangeText={(
                     value
                   ) =>
-                    setMemoryDraft(
+                    {
+  
+
+return (setMemoryDraft(
                       (
                         current
-                      ) => ({
+                      ) => {
+  
+
+return (({
                         ...current,
 
                         mealPreference:
                           value,
-                      })
-                    )
+                      }));
+}
+                    ));
+}
                   }
                 />
 
@@ -3377,16 +3551,24 @@ export default function AIConversationScreen({
                   onChangeText={(
                     value
                   ) =>
-                    setMemoryDraft(
+                    {
+  
+
+return (setMemoryDraft(
                       (
                         current
-                      ) => ({
+                      ) => {
+  
+
+return (({
                         ...current,
 
                         favoriteBreathing:
                           value,
-                      })
-                    )
+                      }));
+}
+                    ));
+}
                   }
                 />
 
@@ -3534,6 +3716,8 @@ export default function AIConversationScreen({
             >
               {messages.map(
                 (message) => {
+  
+
                   const isUser =
                     message.sender ===
                     "user";
@@ -3617,9 +3801,13 @@ export default function AIConversationScreen({
                                   styles.rowReverse,
                               ]}
                               onPress={() =>
-                                openDetectedScreen(
+                                {
+  
+
+return (openDetectedScreen(
                                   message.actionIntent
-                                )
+                                ));
+}
                               }
                             >
                               <Text
@@ -3712,9 +3900,13 @@ export default function AIConversationScreen({
                     styles.rowReverse,
                 ]}
                 onPress={() =>
-                  openDetectedScreen(
+                  {
+  
+
+return (openDetectedScreen(
                     pendingAction
-                  )
+                  ));
+}
                 }
               >
                 <Text
@@ -3765,7 +3957,10 @@ export default function AIConversationScreen({
               }
             >
               {quickPrompts.map(
-                (prompt) => (
+                (prompt) => {
+  
+
+return ((
                   <TouchableOpacity
                     key={
                       prompt.id
@@ -3776,9 +3971,13 @@ export default function AIConversationScreen({
                         styles.rowReverse,
                     ]}
                     onPress={() =>
-                      handleQuickPrompt(
+                      {
+  
+
+return (handleQuickPrompt(
                         prompt
-                      )
+                      ));
+}
                     }
                     disabled={
                       isTyping
@@ -3807,7 +4006,8 @@ export default function AIConversationScreen({
                       }
                     </Text>
                   </TouchableOpacity>
-                )
+                ));
+}
               )}
             </ScrollView>
 
@@ -3865,6 +4065,8 @@ export default function AIConversationScreen({
                 returnKeyType="send"
                 blurOnSubmit
                 onSubmitEditing={() => {
+  
+
                   if (canSend) {
                     sendMessage();
                   }
@@ -3879,7 +4081,11 @@ export default function AIConversationScreen({
                     styles.sendButtonDisabled,
                 ]}
                 onPress={() =>
-                  sendMessage()
+                  {
+  
+
+return (sendMessage());
+}
                 }
                 disabled={!canSend}
               >

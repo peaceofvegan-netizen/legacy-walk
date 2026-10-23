@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/MealPlannerScreen.js
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -19,7 +20,7 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 
 // ============================================================
@@ -1534,6 +1535,9 @@ export default function MealPlannerScreen({
   goToSubscription,
   userPlan = "free",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode =
     normalizeLanguage(language);
 
@@ -1570,8 +1574,12 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   const totals = useMemo(() => {
+  
+
     return meals.reduce(
       (result, meal) => {
+  
+
         result.calories +=
           Number(meal.calories || 0);
 
@@ -1618,10 +1626,18 @@ export default function MealPlannerScreen({
   const completedMeals =
     useMemo(
       () =>
-        meals.filter(
+        {
+  
+
+return (meals.filter(
           (meal) =>
-            meal.completed
-        ).length,
+            {
+  
+
+return (meal.completed);
+}
+        ).length);
+},
       [meals]
     );
 
@@ -1641,6 +1657,8 @@ export default function MealPlannerScreen({
 
   const localizedMeals =
     useMemo(() => {
+  
+
       const mapping = {
         breakfast: {
           defaultName:
@@ -1724,6 +1742,8 @@ export default function MealPlannerScreen({
       };
 
       return meals.map((meal) => {
+  
+
         const config =
           mapping[meal.id];
 
@@ -1786,6 +1806,8 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadPlanner();
   }, []);
 
@@ -1795,6 +1817,8 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     if (!isLoaded) {
       return;
     }
@@ -1810,11 +1834,14 @@ export default function MealPlannerScreen({
 
   const loadPlanner =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const saved =
-          await AsyncStorage.getItem(
+          await _accountSession.run(async () => (AsyncStorage.getItem(
             STORAGE_KEY
-          );
+          )));
 
         if (saved) {
           const parsed =
@@ -1841,6 +1868,8 @@ export default function MealPlannerScreen({
           );
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Meal planner load error:",
           error
@@ -1848,13 +1877,21 @@ export default function MealPlannerScreen({
       } finally {
         setIsLoaded(true);
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   const savePlanner =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
-        await AsyncStorage.setItem(
+        await _accountSession.run(async () => (AsyncStorage.setItem(
           STORAGE_KEY,
 
           JSON.stringify({
@@ -1866,14 +1903,21 @@ export default function MealPlannerScreen({
               new Date()
                 .toISOString(),
           })
-        );
+        )));
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Meal planner save error:",
           error
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1881,6 +1925,8 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   const handleBack = () => {
+  
+
     if (
       typeof goBack ===
       "function"
@@ -1896,18 +1942,28 @@ export default function MealPlannerScreen({
 
   const toggleMeal =
     (mealId) => {
+  
+
       setMeals(
         (currentMeals) =>
-          currentMeals.map(
+          {
+  
+
+return (currentMeals.map(
             (meal) =>
-              meal.id === mealId
+              {
+  
+
+return (meal.id === mealId
                 ? {
                     ...meal,
                     completed:
                       !meal.completed,
                   }
-                : meal
-          )
+                : meal);
+}
+          ));
+}
       );
     };
 
@@ -1918,6 +1974,8 @@ export default function MealPlannerScreen({
 
   const editMeal =
     (displayMeal) => {
+  
+
       Alert.alert(
         displayMeal.name,
         t("mealEditMessage"),
@@ -1937,9 +1995,13 @@ export default function MealPlannerScreen({
               ),
 
             onPress: () =>
-              replaceMeal(
+              {
+  
+
+return (replaceMeal(
                 displayMeal.id
-              ),
+              ));
+},
           },
         ]
       );
@@ -1952,6 +2014,8 @@ export default function MealPlannerScreen({
 
   const replaceMeal =
     (mealId) => {
+  
+
       const replacements = {
         breakfast: {
           name:
@@ -2008,9 +2072,15 @@ export default function MealPlannerScreen({
 
       setMeals(
         (currentMeals) =>
-          currentMeals.map(
+          {
+  
+
+return (currentMeals.map(
             (meal) =>
-              meal.id === mealId
+              {
+  
+
+return (meal.id === mealId
                 ? {
                     ...meal,
                     ...(
@@ -2022,8 +2092,10 @@ export default function MealPlannerScreen({
                     completed:
                       false,
                   }
-                : meal
-          )
+                : meal);
+}
+          ));
+}
       );
     };
 
@@ -2034,6 +2106,8 @@ export default function MealPlannerScreen({
 
   const generateNewPlan =
     () => {
+  
+
       if (
         userPlan === "free" &&
         typeof goToSubscription ===
@@ -2072,12 +2146,20 @@ export default function MealPlannerScreen({
 
       setMeals(
         (currentMeals) =>
-          currentMeals.map(
-            (meal) => ({
+          {
+  
+
+return (currentMeals.map(
+            (meal) => {
+  
+
+return (({
               ...meal,
               completed: false,
-            })
-          )
+            }));
+}
+          ));
+}
       );
 
       setWater(0);
@@ -2105,6 +2187,8 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   const resetDay = () => {
+  
+
     Alert.alert(
       t("resetToday"),
 
@@ -2129,17 +2213,27 @@ export default function MealPlannerScreen({
             "destructive",
 
           onPress: () => {
+  
+
             setMeals(
               (
                 currentMeals
               ) =>
-                currentMeals.map(
-                  (meal) => ({
+                {
+  
+
+return (currentMeals.map(
+                  (meal) => {
+  
+
+return (({
                     ...meal,
                     completed:
                       false,
-                  })
-                )
+                  }));
+}
+                ));
+}
             );
 
             setWater(0);
@@ -2155,26 +2249,38 @@ export default function MealPlannerScreen({
   // ==========================================================
 
   const addWater = () => {
+  
+
     setWater(
       (current) =>
-        Math.min(
+        {
+  
+
+return (Math.min(
           current + 8,
           Number(
             profile.waterGoal ||
               100
           )
-        )
+        ));
+}
     );
   };
 
 
   const removeWater = () => {
+  
+
     setWater(
       (current) =>
-        Math.max(
+        {
+  
+
+return (Math.max(
           current - 8,
           0
-        )
+        ));
+}
     );
   };
 
@@ -2185,6 +2291,8 @@ export default function MealPlannerScreen({
 
   const updateGoal =
     (field, value) => {
+  
+
       const numericValue =
         Number(
           String(value)
@@ -2195,7 +2303,10 @@ export default function MealPlannerScreen({
         );
 
       setProfile(
-        (current) => ({
+        (current) => {
+  
+
+return (({
           ...current,
 
           [field]:
@@ -2204,7 +2315,8 @@ export default function MealPlannerScreen({
             )
               ? numericValue
               : 0,
-        })
+        }));
+}
       );
     };
 
@@ -2285,10 +2397,18 @@ export default function MealPlannerScreen({
                 styles.headerButton
               }
               onPress={() =>
-                setShowGoals(
+                {
+  
+
+return (setShowGoals(
                   (current) =>
-                    !current
-                )
+                    {
+  
+
+return (!current);
+}
+                ));
+}
               }
             >
               <Ionicons
@@ -2546,9 +2666,13 @@ export default function MealPlannerScreen({
                     styles.closeButton
                   }
                   onPress={() =>
-                    setShowGoals(
+                    {
+  
+
+return (setShowGoals(
                       false
-                    )
+                    ));
+}
                   }
                 >
                   <Ionicons
@@ -2580,6 +2704,8 @@ export default function MealPlannerScreen({
               >
                 {PREFERENCE_OPTIONS.map(
                   (option) => {
+  
+
                     const selected =
                       profile.preference ===
                       option;
@@ -2594,16 +2720,24 @@ export default function MealPlannerScreen({
                             styles.preferenceButtonActive,
                         ]}
                         onPress={() =>
-                          setProfile(
+                          {
+  
+
+return (setProfile(
                             (
                               current
-                            ) => ({
+                            ) => {
+  
+
+return (({
                               ...current,
 
                               preference:
                                 option,
-                            })
-                          )
+                            }));
+}
+                          ));
+}
                         }
                       >
                         <Text
@@ -2641,10 +2775,14 @@ export default function MealPlannerScreen({
                   onChangeText={(
                     value
                   ) =>
-                    updateGoal(
+                    {
+  
+
+return (updateGoal(
                       "dailyCalories",
                       value
-                    )
+                    ));
+}
                   }
                 />
 
@@ -2658,10 +2796,14 @@ export default function MealPlannerScreen({
                   onChangeText={(
                     value
                   ) =>
-                    updateGoal(
+                    {
+  
+
+return (updateGoal(
                       "proteinGoal",
                       value
-                    )
+                    ));
+}
                   }
                 />
 
@@ -2675,10 +2817,14 @@ export default function MealPlannerScreen({
                   onChangeText={(
                     value
                   ) =>
-                    updateGoal(
+                    {
+  
+
+return (updateGoal(
                       "carbGoal",
                       value
-                    )
+                    ));
+}
                   }
                 />
 
@@ -2692,10 +2838,14 @@ export default function MealPlannerScreen({
                   onChangeText={(
                     value
                   ) =>
-                    updateGoal(
+                    {
+  
+
+return (updateGoal(
                       "waterGoal",
                       value
-                    )
+                    ));
+}
                   }
                 />
               </View>
@@ -2849,7 +2999,10 @@ export default function MealPlannerScreen({
           </View>
 
           {localizedMeals.map(
-            (meal) => (
+            (meal) => {
+  
+
+return ((
               <MealCard
                 key={meal.id}
                 meal={meal}
@@ -2861,7 +3014,8 @@ export default function MealPlannerScreen({
                 }
                 t={t}
               />
-            )
+            ));
+}
           )}
 
 

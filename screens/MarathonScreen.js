@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
 // screens/MarathonScreen.js
 
@@ -47,6 +48,8 @@ import {
 import {
   getCurrentStepOwner,
   syncTodaySteps,
+  requestStepVerificationPermissions,
+  getStepVerificationStatus,
 } from "../utils/stepTrackingEngine";
 
 // ============================================================
@@ -1436,6 +1439,8 @@ export default function MarathonScreen({
   goBack,
   goToWorldMarathonDetail,
 }) {
+  const _accountSession = captureAccountSession();
+
   const languageCode =
     normalizeLanguage(language);
 
@@ -1444,6 +1449,8 @@ export default function MarathonScreen({
 
   const t = useCallback(
     (key, variables = {}) => {
+  
+
       const value =
         TEXT[languageCode]?.[key] ??
         TEXT.en?.[key] ??
@@ -1456,12 +1463,15 @@ export default function MarathonScreen({
 
   const requirePedometer = useCallback(
     async (requestPermission = false) => {
+  try {
+    _accountSession.assertCurrent();
+
       if (Platform.OS !== "ios") {
         throw new Error(t("iphoneOnly"));
       }
 
       let permission =
-        await Pedometer.getPermissionsAsync();
+        await _accountSession.run(async () => (Pedometer.getPermissionsAsync()));
 
       if (
         !permission.granted &&
@@ -1469,7 +1479,7 @@ export default function MarathonScreen({
         permission.canAskAgain
       ) {
         permission =
-          await Pedometer.requestPermissionsAsync();
+          await _accountSession.run(async () => (Pedometer.requestPermissionsAsync()));
       }
 
       if (!permission.granted) {
@@ -1477,12 +1487,21 @@ export default function MarathonScreen({
       }
 
       const available =
-        await Pedometer.isAvailableAsync();
+        await _accountSession.run(async () => (Pedometer.isAvailableAsync()));
 
       if (!available) {
         throw new Error(t("unavailable"));
       }
-    },
+      if (requestPermission && !(await _accountSession.run(() => requestStepVerificationPermissions()))) {
+        throw new Error("Motion and precise location access are required to verify outdoor walking.");
+      }
+
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     [t]
   );
 
@@ -1540,6 +1559,8 @@ export default function MarathonScreen({
 
   const runOperation = useCallback(
     (operation, showErrorAlert = false) => {
+  
+
       if (
         !showErrorAlert &&
         pendingOperationsRef.current > 0
@@ -1556,17 +1577,22 @@ export default function MarathonScreen({
       const queuedOperation =
         operationQueueRef.current.then(
           async () => {
+  try {
+    _accountSession.assertCurrent();
+
             if (!mountedRef.current) {
               return;
             }
 
             try {
-              await operation();
+              await _accountSession.run(async () => (operation()));
 
               if (mountedRef.current) {
                 setErrorMessage("");
               }
             } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
               const message =
                 error?.message ||
                 String(error);
@@ -1591,13 +1617,22 @@ export default function MarathonScreen({
                 setLoading(false);
               }
             }
-          }
+          
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
         );
 
       operationQueueRef.current =
-        queuedOperation.catch(() => {});
+        queuedOperation.catch(() => {
+  
+});
 
       return queuedOperation.finally(() => {
+  
+
         pendingOperationsRef.current =
           Math.max(
             0,
@@ -1620,17 +1655,24 @@ export default function MarathonScreen({
 
   const refreshLegathonState = useCallback(
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       const progressMap =
-        await loadMarathonProgressMap();
+        await _accountSession.run(async () => (loadMarathonProgressMap()));
 
       let session =
-        await loadLegathonSession();
+        await _accountSession.run(async () => (loadLegathonSession()));
 
       const sessionLegathon =
         MARATHON_CATALOG.find(
           (legathon) =>
-            legathon.id ===
-            session?.marathonId
+            {
+  
+
+return (legathon.id ===
+            session?.marathonId);
+}
         );
 
       if (
@@ -1642,9 +1684,9 @@ export default function MarathonScreen({
         ).completed
       ) {
         const result =
-          await completeLegathonSession(
+          await _accountSession.run(async () => (completeLegathonSession(
             sessionLegathon.id
-          );
+          )));
 
         if (result?.completed !== true) {
           throw createResultError(
@@ -1654,14 +1696,14 @@ export default function MarathonScreen({
         }
 
         session =
-          await loadLegathonSession();
+          await _accountSession.run(async () => (loadLegathonSession()));
       }
 
       const activeLegathon =
-        await getActiveMarathon();
+        await _accountSession.run(async () => (getActiveMarathon()));
 
       const owner =
-        await getCurrentStepOwner();
+        await _accountSession.run(async () => (getCurrentStepOwner()));
 
       if (owner?.error) {
         throw createResultError(
@@ -1687,7 +1729,12 @@ export default function MarathonScreen({
       }
 
       return nextState;
-    },
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     [t]
   );
 
@@ -1697,12 +1744,15 @@ export default function MarathonScreen({
 
   const syncWalkingProgress = useCallback(
     async () => {
-      await refreshLegathonState();
+  try {
+    _accountSession.assertCurrent();
 
-      await requirePedometer();
+      await _accountSession.run(async () => (refreshLegathonState()));
+
+      await _accountSession.run(async () => (requirePedometer()));
 
       const result =
-        await syncTodaySteps();
+        await _accountSession.run(async () => (syncTodaySteps()));
 
       const routingFailed =
         safeNumber(result?.delta) > 0 &&
@@ -1725,10 +1775,11 @@ export default function MarathonScreen({
       }
 
       const nextState =
-        await refreshLegathonState();
+        await _accountSession.run(async () => (refreshLegathonState()));
 
       if (mountedRef.current) {
         setLastSync(new Date());
+        setErrorMessage(getStepVerificationStatus() === "Walking verified" ? "" : getStepVerificationStatus());
       }
 
       if (result.completedNow === true) {
@@ -1739,7 +1790,11 @@ export default function MarathonScreen({
         const completedLegathon =
           MARATHON_CATALOG.find(
             (legathon) =>
-              legathon.id === completedId
+              {
+  
+
+return (legathon.id === completedId);
+}
           );
 
         if (
@@ -1767,7 +1822,12 @@ export default function MarathonScreen({
       }
 
       return nextState;
-    },
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     [
       refreshLegathonState,
       requirePedometer,
@@ -1782,6 +1842,8 @@ export default function MarathonScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     mountedRef.current = true;
 
     appStateRef.current =
@@ -1791,6 +1853,8 @@ export default function MarathonScreen({
     void runOperation(
       refreshLegathonState
     ).then(() => {
+  if (!_accountSession.isCurrent()) return;
+
       if (mountedRef.current) {
         void runOperation(
           syncWalkingProgress
@@ -1799,6 +1863,8 @@ export default function MarathonScreen({
     });
 
     const interval = setInterval(() => {
+  if (!_accountSession.isCurrent()) return;
+
       if (
         appStateRef.current === "active"
       ) {
@@ -1812,6 +1878,8 @@ export default function MarathonScreen({
       AppState.addEventListener(
         "change",
         (nextAppState) => {
+  if (!_accountSession.isCurrent()) return;
+
           const previousAppState =
             appStateRef.current;
 
@@ -1848,6 +1916,8 @@ export default function MarathonScreen({
 
   const openLegathonDetails = useCallback(
     (legathonId) => {
+  
+
       if (
         typeof goToWorldMarathonDetail ===
         "function"
@@ -1866,10 +1936,15 @@ export default function MarathonScreen({
 
   const handleOpenLegathon = useCallback(
     (legathon) => {
+  
+
       void runOperation(
         async () => {
+  try {
+    _accountSession.assertCurrent();
+
           const currentState =
-            await refreshLegathonState();
+            await _accountSession.run(async () => (refreshLegathonState()));
 
           const progress = getProgress(
             legathon,
@@ -1900,7 +1975,7 @@ export default function MarathonScreen({
             );
           }
 
-          await requirePedometer(true);
+          await _accountSession.run(async () => (requirePedometer(true)));
 
           if (
             !isLegathonActive(
@@ -1917,10 +1992,10 @@ export default function MarathonScreen({
                 "paused";
 
             const result = shouldResume
-              ? await resumeLegathon()
-              : await startLegathon(
+              ? await _accountSession.run(async () => (resumeLegathon()))
+              : await _accountSession.run(async () => (startLegathon(
                   legathon.id
-                );
+                )));
 
             const succeeded = shouldResume
               ? result?.resumed
@@ -1934,7 +2009,7 @@ export default function MarathonScreen({
             }
 
             const updatedState =
-              await syncWalkingProgress();
+              await _accountSession.run(async () => (syncWalkingProgress()));
 
             if (
               !isLegathonActive(
@@ -1947,7 +2022,7 @@ export default function MarathonScreen({
               );
             }
           } else {
-            await syncWalkingProgress();
+            await _accountSession.run(async () => (syncWalkingProgress()));
           }
 
           if (mountedRef.current) {
@@ -1955,7 +2030,12 @@ export default function MarathonScreen({
               legathon.id
             );
           }
-        },
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
         true
       );
     },
@@ -1976,10 +2056,15 @@ export default function MarathonScreen({
 
   const handleSessionAction = useCallback(
     (action) => {
+  
+
       void runOperation(
         async () => {
+  try {
+    _accountSession.assertCurrent();
+
           const currentState =
-            await syncWalkingProgress();
+            await _accountSession.run(async () => (syncWalkingProgress()));
 
           if (
             currentState.session?.status ===
@@ -1990,8 +2075,8 @@ export default function MarathonScreen({
 
           const result =
             action === "pause"
-              ? await pauseLegathon()
-              : await exitLegathon();
+              ? await _accountSession.run(async () => (pauseLegathon()))
+              : await _accountSession.run(async () => (exitLegathon()));
 
           const succeeded =
             action === "pause"
@@ -2005,8 +2090,13 @@ export default function MarathonScreen({
             );
           }
 
-          await syncWalkingProgress();
-        },
+          await _accountSession.run(async () => (syncWalkingProgress()));
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
         true
       );
     },
@@ -2023,29 +2113,45 @@ export default function MarathonScreen({
 
   const legathonRows = useMemo(
     () =>
-      MARATHON_CATALOG.map(
-        (legathon) => ({
+      {
+  
+
+return (MARATHON_CATALOG.map(
+        (legathon) => {
+  
+
+return (({
           legathon,
 
           progress: getProgress(
             legathon,
             screenState.progressMap
           ),
-        })
-      ),
+        }));
+}
+      ));
+},
     [screenState.progressMap]
   );
 
   const selectedLegathon =
     legathonRows.find(
       (row) =>
-        row.legathon.id ===
-        screenState.activeId
+        {
+  
+
+return (row.legathon.id ===
+        screenState.activeId);
+}
     ) ||
     legathonRows.find(
       (row) =>
-        row.progress.unlocked &&
-        !row.progress.completed
+        {
+  
+
+return (row.progress.unlocked &&
+        !row.progress.completed);
+}
     );
 
   const modeActive = selectedLegathon
@@ -2065,37 +2171,57 @@ export default function MarathonScreen({
 
   const completedCount =
     legathonRows.filter(
-      (row) => row.progress.completed
+      (row) => {
+  
+
+return (row.progress.completed);
+}
     ).length;
 
   const unlockedCount =
     legathonRows.filter(
-      (row) => row.progress.unlocked
+      (row) => {
+  
+
+return (row.progress.unlocked);
+}
     ).length;
 
   const claimedLegathons =
     legathonRows.filter(
       (row) =>
-        row.progress.rewardClaimed === true
+        {
+  
+
+return (row.progress.rewardClaimed === true);
+}
     );
 
   const claimedCoins =
     claimedLegathons.reduce(
       (total, row) =>
-        total +
+        {
+  
+
+return (total +
         safeNumber(
           row.legathon.rewardCoins
-        ),
+        ));
+},
       0
     );
 
   const claimedPoints =
     claimedLegathons.reduce(
       (total, row) =>
-        total +
+        {
+  
+
+return (total +
         safeNumber(
           row.legathon.rewardPoints
-        ),
+        ));
+},
       0
     );
 
@@ -2204,6 +2330,8 @@ export default function MarathonScreen({
               label={t("retrySync")}
               disabled={busy}
               onPress={() => {
+  
+
                 void runOperation(
                   syncWalkingProgress,
                   true
@@ -2478,9 +2606,13 @@ export default function MarathonScreen({
                   : t("activateLegathon")
               }
               onPress={() =>
-                handleOpenLegathon(
+                {
+  
+
+return (handleOpenLegathon(
                   selectedLegathon.legathon
-                )
+                ));
+}
               }
             />
 
@@ -2488,6 +2620,8 @@ export default function MarathonScreen({
               disabled={busy}
               label={t("syncProgress")}
               onPress={() => {
+  
+
                 void runOperation(
                   syncWalkingProgress,
                   true
@@ -2500,7 +2634,11 @@ export default function MarathonScreen({
                 disabled={busy}
                 label={t("pauseLegathon")}
                 onPress={() =>
-                  handleSessionAction("pause")
+                  {
+  
+
+return (handleSessionAction("pause"));
+}
                 }
               />
             )}
@@ -2510,7 +2648,11 @@ export default function MarathonScreen({
                 disabled={busy}
                 label={t("returnJourney")}
                 onPress={() =>
-                  handleSessionAction("exit")
+                  {
+  
+
+return (handleSessionAction("exit"));
+}
                 }
               />
             )}
@@ -2630,6 +2772,8 @@ export default function MarathonScreen({
 
         {legathonRows.map(
           ({ legathon, progress }) => {
+  
+
             const isRunning =
               isLegathonActive(
                 screenState,
@@ -2664,9 +2808,13 @@ export default function MarathonScreen({
                   busy || !progress.unlocked
                 }
                 onPress={() =>
-                  handleOpenLegathon(
+                  {
+  
+
+return (handleOpenLegathon(
                     legathon
-                  )
+                  ));
+}
                 }
                 activeOpacity={0.85}
                 style={[

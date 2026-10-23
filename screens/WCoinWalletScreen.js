@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/WCoinWalletScreen.js
 
 import React, {
@@ -544,6 +545,8 @@ export default function WCoinWalletScreen({
   spentThisWeek,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+
   const languageCode =
     normalizeLanguage(language);
 
@@ -552,18 +555,26 @@ export default function WCoinWalletScreen({
 
   const t = useCallback(
     key =>
-      getText(
+      {
+  
+
+return (getText(
         languageCode,
         key
-      ),
+      ));
+},
     [languageCode]
   );
 
   const [balance, setBalance] =
     useState(() =>
-      validAmount(
+      {
+  
+
+return (validAmount(
         incomingBalance
-      )
+      ));
+}
     );
 
   const [
@@ -603,6 +614,9 @@ export default function WCoinWalletScreen({
 
   const refreshBalance =
     useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
       const requestId =
         ++requestRef.current;
 
@@ -615,7 +629,7 @@ export default function WCoinWalletScreen({
       try {
         const latest =
           validAmount(
-            await getWCoins()
+            await _accountSession.run(async () => (getWCoins()))
           );
 
         if (
@@ -642,6 +656,8 @@ export default function WCoinWalletScreen({
 
         setError("");
       } catch (caught) {
+    if (isAccountSessionEnded(caught)) throw caught;
+
         console.error(
           "WCoin wallet refresh failed:",
           caught
@@ -665,19 +681,28 @@ export default function WCoinWalletScreen({
           setRefreshing(false);
         }
       }
-    }, [t]);
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [t]);
 
   // ==========================================================
   // FOREGROUND REFRESH AND CLEANUP
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     mountedRef.current = true;
 
     const subscription =
       AppState.addEventListener(
         "change",
         nextState => {
+  if (!_accountSession.isCurrent()) return;
+
           if (
             nextState ===
             "active"
@@ -702,6 +727,8 @@ export default function WCoinWalletScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     void refreshBalance();
   }, [
     incomingBalance,
@@ -738,7 +765,9 @@ export default function WCoinWalletScreen({
             minute: "2-digit",
           }
         );
-    } catch {
+    } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
       timeText =
         updatedAt.toLocaleTimeString(
           [],

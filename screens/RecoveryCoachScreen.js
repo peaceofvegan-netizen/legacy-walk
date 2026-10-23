@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/RecoveryCoachScreen.js
 
 import React, {
@@ -16,7 +17,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -1295,6 +1296,9 @@ export default function RecoveryCoachScreen({
   goToSleep,
   goToWalkingAnalytics,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const currentLanguage =
     normalizeLanguage(language);
 
@@ -1305,6 +1309,8 @@ export default function RecoveryCoachScreen({
     key,
     replacements = {}
   ) => {
+  
+
     const value =
       TEXT[currentLanguage]?.[key] ??
       TEXT.en?.[key] ??
@@ -1329,9 +1335,13 @@ export default function RecoveryCoachScreen({
 
   const score = useMemo(
     () =>
-      calculateRecoveryScore(
+      {
+  
+
+return (calculateRecoveryScore(
         checkIn
-      ),
+      ));
+},
     [checkIn]
   );
 
@@ -1345,13 +1355,18 @@ export default function RecoveryCoachScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const loadSavedRecovery =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const saved =
-            await AsyncStorage.getItem(
+            await _accountSession.run(async () => (AsyncStorage.getItem(
               "recoveryData"
-            );
+            )));
 
           const parsed =
             safelyParseJSON(
@@ -1372,12 +1387,19 @@ export default function RecoveryCoachScreen({
             );
           }
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Recovery load error:",
             error
           );
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     loadSavedRecovery();
   }, []);
@@ -1387,6 +1409,8 @@ export default function RecoveryCoachScreen({
   // ==========================================================
 
   const handleBack = () => {
+  
+
     if (
       typeof goBack === "function"
     ) {
@@ -1414,10 +1438,16 @@ export default function RecoveryCoachScreen({
     key,
     rating
   ) => {
-    setCheckIn((current) => ({
+  
+
+    setCheckIn((current) => {
+  
+
+return (({
       ...current,
       [key]: rating,
     }));
+});
   };
 
   // ==========================================================
@@ -1425,6 +1455,9 @@ export default function RecoveryCoachScreen({
   // ==========================================================
 
   const saveRecovery = async () => {
+  try {
+    _accountSession.assertCurrent();
+
     if (isSaving) {
       return;
     }
@@ -1468,14 +1501,18 @@ export default function RecoveryCoachScreen({
           recoveryRecord
         );
 
-      await AsyncStorage.multiSet(
+      await _accountSession.run(async () => (AsyncStorage.multiSet(
         RECOVERY_KEYS.map(
-          (key) => [
+          (key) => {
+  
+
+return ([
             key,
             serialized,
-          ]
+          ]);
+}
         )
-      );
+      )));
 
       setLastRecorded(timestamp);
 
@@ -1486,6 +1523,8 @@ export default function RecoveryCoachScreen({
         })
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Recovery save error:",
         error
@@ -1498,7 +1537,12 @@ export default function RecoveryCoachScreen({
     } finally {
       setIsSaving(false);
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // LOCALIZED DATE/TIME
@@ -1773,7 +1817,10 @@ export default function RecoveryCoachScreen({
           </Text>
 
           {CHECK_IN_ITEMS.map(
-            (item) => (
+            (item) => {
+  
+
+return ((
               <RatingSelector
                 key={item.key}
                 item={item}
@@ -1781,15 +1828,20 @@ export default function RecoveryCoachScreen({
                   checkIn[item.key]
                 }
                 onChange={(rating) =>
-                  updateRating(
+                  {
+  
+
+return (updateRating(
                     item.key,
                     rating
-                  )
+                  ));
+}
                 }
                 t={t}
                 isRTL={isRTL}
               />
-            )
+            ));
+}
           )}
 
           {/* SAVE */}

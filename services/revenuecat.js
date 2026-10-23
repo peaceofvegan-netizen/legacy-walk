@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // services/revenuecat.js
 
 import {
@@ -96,6 +97,11 @@ function getRevenueCatApiKey() {
 // ============================================================
 
 async function getCurrentSupabaseUser() {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
 
   try {
 
@@ -103,9 +109,9 @@ async function getCurrentSupabaseUser() {
       data,
       error,
     } =
-      await supabase
+      await _accountSession.run(async () => (supabase
         .auth
-        .getUser();
+        .getUser()));
 
 
     if (
@@ -130,6 +136,8 @@ async function getCurrentSupabaseUser() {
   } catch (
     error
   ) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Supabase user lookup error:",
@@ -138,6 +146,11 @@ async function getCurrentSupabaseUser() {
 
 
     return null;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -158,9 +171,14 @@ async function getCurrentSupabaseUser() {
 // ============================================================
 
 export async function getLegathonRevenueCatUserId() {
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
 
   const user =
-    await getCurrentSupabaseUser();
+    await _accountSession2.run(async () => (getCurrentSupabaseUser()));
 
 
   if (
@@ -174,6 +192,11 @@ export async function getLegathonRevenueCatUserId() {
   return String(
     user.id
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -277,6 +300,11 @@ function getActiveEntitlement(
 export async function configureRevenueCat(
   suppliedUserId = null
 ) {
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
 
   const apiKey =
     getRevenueCatApiKey();
@@ -331,7 +359,7 @@ export async function configureRevenueCat(
   ) {
 
     desiredUserId =
-      await getLegathonRevenueCatUserId();
+      await _accountSession3.run(async () => (getLegathonRevenueCatUserId()));
   }
 
 
@@ -408,10 +436,10 @@ export async function configureRevenueCat(
   ) {
 
     const loginResult =
-      await Purchases
+      await _accountSession3.run(async () => (Purchases
         .logIn(
           desiredUserId
-        );
+        )));
 
 
     configuredUserId =
@@ -433,6 +461,11 @@ export async function configureRevenueCat(
 
 
   return true;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -441,8 +474,18 @@ export async function configureRevenueCat(
 // ============================================================
 
 async function ensureRevenueCatConfigured() {
+  const _accountSession4 = captureAccountSession();
 
-  await configureRevenueCat();
+  try {
+    _accountSession4.assertCurrent();
+
+
+  await _accountSession4.run(async () => (configureRevenueCat()));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -462,11 +505,16 @@ async function ensureRevenueCatConfigured() {
 // ============================================================
 
 export async function syncRevenueCatMembership() {
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
 
   try {
 
     const user =
-      await getCurrentSupabaseUser();
+      await _accountSession5.run(async () => (getCurrentSupabaseUser()));
 
 
     if (
@@ -495,14 +543,14 @@ export async function syncRevenueCatMembership() {
       data,
       error,
     } =
-      await supabase
+      await _accountSession5.run(async () => (supabase
         .functions
         .invoke(
           "sync-revenuecat-membership",
           {
             body: {},
           }
-        );
+        )));
 
 
     if (
@@ -543,6 +591,8 @@ export async function syncRevenueCatMembership() {
   } catch (
     error
   ) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "RevenueCat membership sync error:",
@@ -560,6 +610,11 @@ export async function syncRevenueCatMembership() {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -568,13 +623,18 @@ export async function syncRevenueCatMembership() {
 // ============================================================
 
 export async function getRevenueCatPlan() {
+  const _accountSession6 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession6.assertCurrent();
+
+
+  await _accountSession6.run(async () => (ensureRevenueCatConfigured()));
 
 
   const customerInfo =
-    await Purchases
-      .getCustomerInfo();
+    await _accountSession6.run(async () => (Purchases
+      .getCustomerInfo()));
 
 
   const plan =
@@ -584,6 +644,11 @@ export async function getRevenueCatPlan() {
 
 
   return plan;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -592,13 +657,18 @@ export async function getRevenueCatPlan() {
 // ============================================================
 
 export async function getRevenueCatMembershipStatus() {
+  const _accountSession7 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession7.assertCurrent();
+
+
+  await _accountSession7.run(async () => (ensureRevenueCatConfigured()));
 
 
   const customerInfo =
-    await Purchases
-      .getCustomerInfo();
+    await _accountSession7.run(async () => (Purchases
+      .getCustomerInfo()));
 
 
   const plan =
@@ -640,6 +710,11 @@ export async function getRevenueCatMembershipStatus() {
     customerInfo,
 
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -648,13 +723,18 @@ export async function getRevenueCatMembershipStatus() {
 // ============================================================
 
 export async function loadOfferings() {
+  const _accountSession8 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession8.assertCurrent();
+
+
+  await _accountSession8.run(async () => (ensureRevenueCatConfigured()));
 
 
   const offerings =
-    await Purchases
-      .getOfferings();
+    await _accountSession8.run(async () => (Purchases
+      .getOfferings()));
 
 
   return (
@@ -662,6 +742,11 @@ export async function loadOfferings() {
       ?.current ||
     null
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -672,8 +757,13 @@ export async function loadOfferings() {
 export async function buyPackage(
   packageToBuy
 ) {
+  const _accountSession9 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession9.assertCurrent();
+
+
+  await _accountSession9.run(async () => (ensureRevenueCatConfigured()));
 
 
   if (
@@ -687,10 +777,10 @@ export async function buyPackage(
 
 
   const result =
-    await Purchases
+    await _accountSession9.run(async () => (Purchases
       .purchasePackage(
         packageToBuy
-      );
+      )));
 
 
   const plan =
@@ -716,11 +806,16 @@ export async function buyPackage(
       "elite"
   ) {
 
-    await syncRevenueCatMembership();
+    await _accountSession9.run(async () => (syncRevenueCatMembership()));
   }
 
 
   return plan;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -729,8 +824,13 @@ export async function buyPackage(
 // ============================================================
 
 export async function restoreRevenueCatPurchases() {
+  const _accountSession0 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession0.assertCurrent();
+
+
+  await _accountSession0.run(async () => (ensureRevenueCatConfigured()));
 
 
   console.log(
@@ -739,8 +839,8 @@ export async function restoreRevenueCatPurchases() {
 
 
   const customerInfo =
-    await Purchases
-      .restorePurchases();
+    await _accountSession0.run(async () => (Purchases
+      .restorePurchases()));
 
 
   const restoredPlan =
@@ -759,10 +859,15 @@ export async function restoreRevenueCatPurchases() {
   // Synchronize restored subscription with Supabase.
   // ----------------------------------------------------------
 
-  await syncRevenueCatMembership();
+  await _accountSession0.run(async () => (syncRevenueCatMembership()));
 
 
   return restoredPlan;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -771,13 +876,18 @@ export async function restoreRevenueCatPurchases() {
 // ============================================================
 
 export async function refreshRevenueCatMembership() {
+  const _accountSession1 = captureAccountSession();
 
-  await ensureRevenueCatConfigured();
+  try {
+    _accountSession1.assertCurrent();
+
+
+  await _accountSession1.run(async () => (ensureRevenueCatConfigured()));
 
 
   const customerInfo =
-    await Purchases
-      .getCustomerInfo();
+    await _accountSession1.run(async () => (Purchases
+      .getCustomerInfo()));
 
 
   const plan =
@@ -787,7 +897,7 @@ export async function refreshRevenueCatMembership() {
 
 
   const serverSync =
-    await syncRevenueCatMembership();
+    await _accountSession1.run(async () => (syncRevenueCatMembership()));
 
 
   return {
@@ -799,6 +909,11 @@ export async function refreshRevenueCatMembership() {
     serverSync,
 
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 

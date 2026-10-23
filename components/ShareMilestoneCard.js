@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React from "react";
 import {
   View,
@@ -11,11 +12,21 @@ export default function ShareMilestoneCard({
   title = "Legacy Walk Milestone",
   message = "I’m building my legathon legacy one step at a time.",
 }) {
+  const _accountSession = captureAccountSession();
+
   async function shareMilestone() {
-    await Share.share({
+  try {
+    _accountSession.assertCurrent();
+
+    await _accountSession.run(async () => (Share.share({
       message: `${title}\n\n${message}\n\nWalk real stories. Unlock real history.`,
-    });
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return (
     <View style={styles.card}>

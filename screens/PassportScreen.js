@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
 import React, {
   useCallback,
@@ -18,7 +19,7 @@ import {
   AppState,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import passportImages from "../data/passportImages";
 import JOURNEY_CATALOG from "../data/journeyCatalog";
@@ -712,8 +713,15 @@ export default function PassportScreen({
   userName = "Explorer",
   activeJourney = null,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const t = useCallback(
-    key => getText(language, key),
+    key => {
+  
+
+return (getText(language, key));
+},
     [language]
   );
 
@@ -727,13 +735,16 @@ export default function PassportScreen({
   // ==========================================================
 
   const loadPassportProgress = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setLoading(true);
 
-      const values = await AsyncStorage.multiGet([
+      const values = await _accountSession.run(async () => (AsyncStorage.multiGet([
         PROGRESS_STORAGE_KEY,
         ACTIVE_JOURNEY_KEY,
-      ]);
+      ])));
 
       const savedProgress = safeParse(
         values[0]?.[1],
@@ -750,6 +761,8 @@ export default function PassportScreen({
       // Merge active Journey progress, but never use
       // a selected passport as an unlock trigger.
       [savedActive, activeJourney].forEach(record => {
+  
+
         const id = getJourneyId(record);
 
         if (!id) return;
@@ -770,6 +783,8 @@ export default function PassportScreen({
 
       setProgressMap(nextMap);
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Passport progress load error:",
         error
@@ -777,9 +792,16 @@ export default function PassportScreen({
     } finally {
       setLoading(false);
     }
-  }, [activeJourney]);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [activeJourney]);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadPassportProgress();
   }, [loadPassportProgress]);
 
@@ -788,9 +810,13 @@ export default function PassportScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const subscription = AppState.addEventListener(
       "change",
       state => {
+  if (!_accountSession.isCurrent()) return;
+
         if (state === "active") {
           loadPassportProgress();
         }
@@ -807,11 +833,15 @@ export default function PassportScreen({
   // ==========================================================
 
   const passports = useMemo(() => {
+  
+
     const catalog = Array.isArray(JOURNEY_CATALOG)
       ? JOURNEY_CATALOG
       : [];
 
     return catalog.map((journey, index) => {
+  
+
       const id =
         getJourneyId(journey) ||
         `journey-${index}`;
@@ -868,24 +898,38 @@ export default function PassportScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     if (!passports.length) {
       setSelectedPassportId(null);
       return;
     }
 
     const exists = passports.some(
-      passport => passport.id === selectedPassportId
+      passport => {
+  
+
+return (passport.id === selectedPassportId);
+}
     );
 
     if (!exists) {
       const preferred =
         passports.find(
           item =>
-            item.progress > 0 &&
-            item.progress < 100
+            {
+  
+
+return (item.progress > 0 &&
+            item.progress < 100);
+}
         ) ||
         passports.find(
-          item => item.progress >= 100
+          item => {
+  
+
+return (item.progress >= 100);
+}
         ) ||
         passports[0];
 
@@ -898,9 +942,15 @@ export default function PassportScreen({
   // ==========================================================
 
   const selectedPassport = useMemo(() => {
+  
+
     return (
       passports.find(
-        passport => passport.id === selectedPassportId
+        passport => {
+  
+
+return (passport.id === selectedPassportId);
+}
       ) ||
       passports[0] ||
       null
@@ -912,15 +962,27 @@ export default function PassportScreen({
   // ==========================================================
 
   const completedJourneys = useMemo(() => {
+  
+
     return passports.filter(
-      passport => isPassportUnlocked(passport)
+      passport => {
+  
+
+return (isPassportUnlocked(passport));
+}
     ).length;
   }, [passports]);
 
   const earnedStamps = useMemo(() => {
+  
+
     return passports.reduce(
       (total, passport) =>
-        total + getUnlockedStampCount(passport.progress),
+        {
+  
+
+return (total + getUnlockedStampCount(passport.progress));
+},
       0
     );
   }, [passports]);
@@ -941,6 +1003,8 @@ export default function PassportScreen({
 
   const getStatusLabel = useCallback(
     passport => {
+  
+
       const status = getPassportStatus(
         passport?.progress
       );
@@ -1162,6 +1226,8 @@ export default function PassportScreen({
                   <View style={styles.stampList}>
                     {selectedPassport.stamps.map(
                       (stamp, index) => {
+  
+
                         const unlocked =
                           selectedPassport.progress > 0 &&
                           index < selectedStampCount;
@@ -1260,6 +1326,8 @@ export default function PassportScreen({
 
                 <View style={styles.shelfGrid}>
                   {passports.map(passport => {
+  
+
                     const selected =
                       passport.id === selectedPassport.id;
 
@@ -1284,6 +1352,8 @@ export default function PassportScreen({
                         ]}
                         activeOpacity={0.88}
                         onPress={() => {
+  
+
                           // Selection ONLY.
                           // This does not award or unlock a passport.
                           setSelectedPassportId(passport.id);

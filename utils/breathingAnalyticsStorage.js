@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const BREATHING_ANALYTICS_KEY = "LEGACY_WALK_BREATHING_ANALYTICS";
 
@@ -12,30 +13,61 @@ const DEFAULT_ANALYTICS = {
 };
 
 export async function loadBreathingAnalytics() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   try {
-    const saved = await AsyncStorage.getItem(BREATHING_ANALYTICS_KEY);
+    _accountSession.assertCurrent();
+
+  try {
+    const saved = await _accountSession.run(async () => (AsyncStorage.getItem(BREATHING_ANALYTICS_KEY)));
     return saved ? JSON.parse(saved) : DEFAULT_ANALYTICS;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("loadBreathingAnalytics error:", error);
     return DEFAULT_ANALYTICS;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
 export async function saveBreathingAnalytics(data) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
   try {
-    await AsyncStorage.setItem(
+    _accountSession2.assertCurrent();
+
+  try {
+    await _accountSession2.run(async () => (AsyncStorage.setItem(
       BREATHING_ANALYTICS_KEY,
       JSON.stringify(data)
-    );
+    )));
     return data;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("saveBreathingAnalytics error:", error);
     return data;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
 export async function recordBreathingSession(session) {
-  const analytics = await loadBreathingAnalytics();
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const analytics = await _accountSession3.run(async () => (loadBreathingAnalytics()));
 
   const minutes = Number(session.minutes || 0);
   const reward = Number(session.reward || 0);
@@ -62,11 +94,26 @@ export async function recordBreathingSession(session) {
     history: [newEntry, ...(analytics.history || [])].slice(0, 50),
   };
 
-  await saveBreathingAnalytics(updated);
+  await _accountSession3.run(async () => (saveBreathingAnalytics(updated)));
   return updated;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function resetBreathingAnalytics() {
-  await saveBreathingAnalytics(DEFAULT_ANALYTICS);
+  const _accountSession4 = captureAccountSession();
+
+  try {
+    _accountSession4.assertCurrent();
+
+  await _accountSession4.run(async () => (saveBreathingAnalytics(DEFAULT_ANALYTICS)));
   return DEFAULT_ANALYTICS;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

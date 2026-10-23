@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 import { loadUserStats } from "./userStatsStorage";
 import { addWCoins } from "./wCoinStorage";
@@ -67,17 +68,44 @@ const DEFAULT_PROGRESS = {
 };
 
 export async function loadUnlockedAchievements() {
-  const saved = await AsyncStorage.getItem(ACHIEVEMENTS_KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(ACHIEVEMENTS_KEY)));
   return saved ? JSON.parse(saved) : [];
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function saveUnlockedAchievements(ids) {
-  await AsyncStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(ids));
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  await _accountSession2.run(async () => (AsyncStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(ids))));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function checkAchievements(extraProgress = {}) {
-  const stats = await loadUserStats();
-  const unlocked = await loadUnlockedAchievements();
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const stats = await _accountSession3.run(async () => (loadUserStats()));
+  const unlocked = await _accountSession3.run(async () => (loadUnlockedAchievements()));
 
   const progress = {
     ...DEFAULT_PROGRESS,
@@ -90,7 +118,11 @@ export async function checkAchievements(extraProgress = {}) {
     if (!condition) return;
     if (unlocked.includes(achievementId)) return;
 
-    const achievement = ACHIEVEMENTS.find((item) => item.id === achievementId);
+    const achievement = ACHIEVEMENTS.find((item) => {
+  
+
+return (item.id === achievementId);
+});
     if (!achievement) return;
 
     unlocked.push(achievementId);
@@ -105,24 +137,40 @@ export async function checkAchievements(extraProgress = {}) {
   unlockIf(progress.completedJourneys >= 50, "legendary-walker");
   unlockIf(progress.completedBlackLegacyCollection, "black-legacy-member");
 
-  await saveUnlockedAchievements(unlocked);
+  await _accountSession3.run(async () => (saveUnlockedAchievements(unlocked)));
 
   for (const achievement of newlyUnlocked) {
-    await addWCoins(achievement.rewardCoins);
+    await _accountSession3.run(async () => (addWCoins(achievement.rewardCoins)));
 
-    await addWCoinTransaction({
+    await _accountSession3.run(async () => (addWCoinTransaction({
       type: "earned",
       amount: achievement.rewardCoins,
       title: `Achievement unlocked: ${achievement.title}`,
-    });
+    })));
   }
 
   return {
     unlocked,
     newlyUnlocked,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function resetAchievements() {
-  await AsyncStorage.removeItem(ACHIEVEMENTS_KEY);
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
+  await _accountSession4.run(async () => (AsyncStorage.removeItem(ACHIEVEMENTS_KEY)));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

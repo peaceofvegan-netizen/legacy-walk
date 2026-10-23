@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 import MARATHON_CATALOG, {
   MARATHON_TOTAL_STEPS,
@@ -71,8 +72,18 @@ function mutate(operation, flag = "saved") {
 }
 
 async function settledRead(operation) {
-  await writeQueue;
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
+  await _accountSession.run(async () => (writeQueue));
   return operation();
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -80,7 +91,13 @@ async function settledRead(operation) {
 // ============================================================
 
 async function readJSON(key, fallback) {
-  const raw = await AsyncStorage.getItem(key);
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  const raw = await _accountSession2.run(async () => (AsyncStorage.getItem(key)));
 
   if (raw === null) {
     return fallback;
@@ -88,16 +105,28 @@ async function readJSON(key, fallback) {
 
   try {
     return JSON.parse(raw);
-  } catch {
+  } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
     // Do not overwrite unreadable progress with an empty map.
     throw new Error(
       `Saved marathon data could not be read: ${key}`
     );
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 async function readMap(key) {
-  const value = await readJSON(key, {});
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const value = await _accountSession3.run(async () => (readJSON(key, {})));
 
   if (!isObject(value)) {
     throw new Error(
@@ -106,13 +135,29 @@ async function readMap(key) {
   }
 
   return value;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 async function writeJSON(key, value) {
-  await AsyncStorage.setItem(
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
+  await _accountSession4.run(async () => (AsyncStorage.setItem(
     key,
     JSON.stringify(value)
-  );
+  )));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -263,13 +308,23 @@ function normalizeMap(stored, rewards = {}) {
 }
 
 async function readProgressMap() {
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
   const stored =
-    await readMap(PROGRESS_KEY);
+    await _accountSession5.run(async () => (readMap(PROGRESS_KEY)));
 
   const rewards =
-    await readMap(REWARDS_KEY);
+    await _accountSession5.run(async () => (readMap(REWARDS_KEY)));
 
   return normalizeMap(stored, rewards);
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -277,8 +332,13 @@ async function readProgressMap() {
 // ============================================================
 
 async function readActiveRecord() {
+  const _accountSession6 = captureAccountSession();
+
+  try {
+    _accountSession6.assertCurrent();
+
   const value =
-    await readJSON(ACTIVE_KEY, null);
+    await _accountSession6.run(async () => (readJSON(ACTIVE_KEY, null)));
 
   if (value === null) {
     return null;
@@ -297,6 +357,11 @@ async function readActiveRecord() {
   }
 
   return value;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 function activeFrom(record, map) {
@@ -329,13 +394,26 @@ function activeFrom(record, map) {
 }
 
 async function removeCompletedActive() {
+  const _accountSession7 = captureAccountSession();
+  const AsyncStorage = _accountSession7.storage;
+
   try {
-    await AsyncStorage.removeItem(ACTIVE_KEY);
+    _accountSession7.assertCurrent();
+
+  try {
+    await _accountSession7.run(async () => (AsyncStorage.removeItem(ACTIVE_KEY)));
     return null;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     // Progress has already committed.
     // Do not report the step credit as failed.
     return error.message || String(error);
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -350,7 +428,12 @@ export function loadMarathonProgressMap() {
 export function saveMarathonProgressMap(
   progressMap
 ) {
+  const _accountSession8 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession8.assertCurrent();
+
     if (!isObject(progressMap)) {
       return {
         saved: false,
@@ -359,10 +442,10 @@ export function saveMarathonProgressMap(
     }
 
     const current =
-      await readProgressMap();
+      await _accountSession8.run(async () => (readProgressMap()));
 
     const rewards =
-      await readMap(REWARDS_KEY);
+      await _accountSession8.run(async () => (readMap(REWARDS_KEY)));
 
     const updated = normalizeMap(
       {
@@ -372,22 +455,32 @@ export function saveMarathonProgressMap(
       rewards
     );
 
-    await writeJSON(
+    await _accountSession8.run(async () => (writeJSON(
       PROGRESS_KEY,
       updated
-    );
+    )));
 
     return {
       saved: true,
       progressMap: updated,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 export function getMarathonProgress(
   marathonId
 ) {
+  const _accountSession9 = captureAccountSession();
+
   return settledRead(async () => {
+  try {
+    _accountSession9.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -395,26 +488,50 @@ export function getMarathonProgress(
       return null;
     }
 
-    const map = await readProgressMap();
+    const map = await _accountSession9.run(async () => (readProgressMap()));
 
     return map[marathon.id];
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 export function getCompletedMarathonCount() {
+  const _accountSession0 = captureAccountSession();
+
   return settledRead(async () => {
-    const map = await readProgressMap();
+  try {
+    _accountSession0.assertCurrent();
+
+    const map = await _accountSession0.run(async () => (readProgressMap()));
 
     return MARATHON_CATALOG.filter(
-      item => map[item.id].completed
+      item => {
+  
+
+return (map[item.id].completed);
+}
     ).length;
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 export function isMarathonUnlocked(
   marathonId
 ) {
+  const _accountSession1 = captureAccountSession();
+
   return settledRead(async () => {
+  try {
+    _accountSession1.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -422,10 +539,15 @@ export function isMarathonUnlocked(
       return false;
     }
 
-    const map = await readProgressMap();
+    const map = await _accountSession1.run(async () => (readProgressMap()));
 
     return map[marathon.id].unlocked;
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -433,15 +555,25 @@ export function isMarathonUnlocked(
 // ============================================================
 
 export function getActiveMarathon() {
+  const _accountSession10 = captureAccountSession();
+
   return settledRead(async () => {
+  try {
+    _accountSession10.assertCurrent();
+
     const record =
-      await readActiveRecord();
+      await _accountSession10.run(async () => (readActiveRecord()));
 
     const map =
-      await readProgressMap();
+      await _accountSession10.run(async () => (readProgressMap()));
 
     return activeFrom(record, map);
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -451,7 +583,12 @@ export function getActiveMarathon() {
 export function setActiveMarathon(
   marathonId
 ) {
+  const _accountSession11 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession11.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -463,7 +600,7 @@ export function setActiveMarathon(
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession11.run(async () => (readProgressMap()));
 
     const progress =
       map[marathon.id];
@@ -485,7 +622,7 @@ export function setActiveMarathon(
     }
 
     const existing = activeFrom(
-      await readActiveRecord(),
+      await _accountSession11.run(async () => (readActiveRecord())),
       map
     );
 
@@ -514,10 +651,10 @@ export function setActiveMarathon(
       lastUpdated: now,
     };
 
-    await writeJSON(PROGRESS_KEY, {
+    await _accountSession11.run(async () => (writeJSON(PROGRESS_KEY, {
       ...map,
       [marathon.id]: updated,
-    });
+    })));
 
     const active = {
       id: marathon.id,
@@ -526,7 +663,7 @@ export function setActiveMarathon(
       activatedAt: now,
     };
 
-    await writeJSON(ACTIVE_KEY, active);
+    await _accountSession11.run(async () => (writeJSON(ACTIVE_KEY, active)));
 
     return {
       saved: true,
@@ -534,7 +671,12 @@ export function setActiveMarathon(
       progress: updated,
       active,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 export function startMarathon(marathonId) {
@@ -542,13 +684,24 @@ export function startMarathon(marathonId) {
 }
 
 export function clearActiveMarathon() {
+  const _accountSession12 = captureAccountSession();
+  const AsyncStorage = _accountSession12.storage;
+
   return mutate(async () => {
-    await AsyncStorage.removeItem(ACTIVE_KEY);
+  try {
+    _accountSession12.assertCurrent();
+
+    await _accountSession12.run(async () => (AsyncStorage.removeItem(ACTIVE_KEY)));
 
     return {
       cleared: true,
     };
-  }, "cleared");
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, "cleared");
 }
 
 // ============================================================
@@ -558,7 +711,12 @@ export function clearActiveMarathon() {
 export function unlockNextMarathon(
   completedMarathonId
 ) {
+  const _accountSession13 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession13.assertCurrent();
+
     const marathon =
       getMarathonById(completedMarathonId);
 
@@ -570,7 +728,7 @@ export function unlockNextMarathon(
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession13.run(async () => (readProgressMap()));
 
     if (!map[marathon.id].completed) {
       return null;
@@ -582,13 +740,22 @@ export function unlockNextMarathon(
       lastUpdated: nowISO(),
     };
 
-    await writeJSON(PROGRESS_KEY, map);
+    await _accountSession13.run(async () => (writeJSON(PROGRESS_KEY, map)));
 
     return next;
-  }).then(result =>
-    result?.saved === false
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}).then(result =>
+    {
+  if (!_accountSession13.isCurrent()) return;
+
+return (result?.saved === false
       ? null
-      : result
+      : result);
+}
   );
 }
 
@@ -599,8 +766,13 @@ export function unlockNextMarathon(
 // Never pass today's total or a live sensor total directly.
 // ============================================================
 
-export function addMarathonSteps(stepDelta) {
+export function addMarathonSteps(stepDelta, options = {}) {
+  const _accountSession14 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession14.assertCurrent();
+
     const incoming = integer(stepDelta);
 
     if (!incoming) {
@@ -614,10 +786,21 @@ export function addMarathonSteps(stepDelta) {
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession14.run(async () => (readProgressMap()));
+
+    // The engine journals a credit ID before calling us. Save its receipt in
+    // the same JSON object as progress, so a retry after a crash is idempotent.
+    const requestedId = options.marathonId && normalizeMarathonId(options.marathonId);
+    const receipt = requestedId && map[requestedId]?.lastStepCredit;
+    if (options.creditId && receipt?.id === options.creditId) {
+      return { saved: true, added: receipt.added, completedNow: receipt.completedNow,
+        overflow: incoming - receipt.added, marathonId: requestedId,
+        marathon: getMarathonById(requestedId), progress: map[requestedId], duplicate: true };
+    }
+
 
     const active = activeFrom(
-      await readActiveRecord(),
+      await _accountSession14.run(async () => (readActiveRecord())),
       map
     );
 
@@ -632,6 +815,9 @@ export function addMarathonSteps(stepDelta) {
     }
 
     const marathon = active.marathon;
+    if (requestedId && requestedId !== marathon.id) {
+      return { saved: false, added: 0, reason: "marathon-owner-changed" };
+    }
     const current = map[marathon.id];
 
     const added = Math.min(
@@ -664,6 +850,9 @@ export function addMarathonSteps(stepDelta) {
       lastUpdated: now,
     };
 
+    if (options.creditId) {
+      progress.lastStepCredit = { id: options.creditId, added, completedNow };
+    }
     map[marathon.id] = progress;
 
     const next = completedNow
@@ -679,10 +868,10 @@ export function addMarathonSteps(stepDelta) {
     }
 
     // Save progress and the next unlock in one write.
-    await writeJSON(PROGRESS_KEY, map);
+    await _accountSession14.run(async () => (writeJSON(PROGRESS_KEY, map)));
 
     const cleanupWarning = completedNow
-      ? await removeCompletedActive()
+      ? await _accountSession14.run(async () => (removeCompletedActive()))
       : null;
 
     return {
@@ -698,7 +887,12 @@ export function addMarathonSteps(stepDelta) {
       nextMarathonUnlocked: next,
       cleanupWarning,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -709,9 +903,14 @@ export function addMarathonSteps(stepDelta) {
 // ============================================================
 
 export function completeActiveMarathon() {
+  const _accountSession15 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession15.assertCurrent();
+
     const record =
-      await readActiveRecord();
+      await _accountSession15.run(async () => (readActiveRecord()));
 
     const marathon = getMarathonById(
       record?.marathonId || record?.id
@@ -725,7 +924,7 @@ export function completeActiveMarathon() {
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession15.run(async () => (readProgressMap()));
 
     const current =
       map[marathon.id];
@@ -766,10 +965,10 @@ export function completeActiveMarathon() {
       };
     }
 
-    await writeJSON(PROGRESS_KEY, map);
+    await _accountSession15.run(async () => (writeJSON(PROGRESS_KEY, map)));
 
     const cleanupWarning =
-      await removeCompletedActive();
+      await _accountSession15.run(async () => (removeCompletedActive()));
 
     return {
       saved: true,
@@ -781,7 +980,12 @@ export function completeActiveMarathon() {
       nextMarathonUnlocked: next,
       cleanupWarning,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -791,7 +995,12 @@ export function completeActiveMarathon() {
 export function hasShownMarathonCompletionAlert(
   marathonId
 ) {
+  const _accountSession16 = captureAccountSession();
+
   return settledRead(async () => {
+  try {
+    _accountSession16.assertCurrent();
+
     const id =
       normalizeMarathonId(marathonId);
 
@@ -799,16 +1008,26 @@ export function hasShownMarathonCompletionAlert(
       return false;
     }
 
-    const map = await readMap(ALERTS_KEY);
+    const map = await _accountSession16.run(async () => (readMap(ALERTS_KEY)));
 
     return map[id] === true;
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 export function markMarathonCompletionAlertShown(
   marathonId
 ) {
+  const _accountSession17 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession17.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -817,15 +1036,24 @@ export function markMarathonCompletionAlertShown(
     }
 
     const map =
-      await readMap(ALERTS_KEY);
+      await _accountSession17.run(async () => (readMap(ALERTS_KEY)));
 
-    await writeJSON(ALERTS_KEY, {
+    await _accountSession17.run(async () => (writeJSON(ALERTS_KEY, {
       ...map,
       [marathon.id]: true,
-    });
+    })));
 
     return true;
-  }).then(result => result === true);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}).then(result => {
+  if (!_accountSession17.isCurrent()) return;
+
+return (result === true);
+});
 }
 
 // ============================================================
@@ -845,7 +1073,12 @@ export function saveMarathonRewardRecord(
   marathonId,
   rewardData
 ) {
+  const _accountSession18 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession18.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -857,7 +1090,7 @@ export function saveMarathonRewardRecord(
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession18.run(async () => (readProgressMap()));
 
     if (!map[marathon.id].completed) {
       return {
@@ -874,7 +1107,7 @@ export function saveMarathonRewardRecord(
     }
 
     const rewards =
-      await readMap(REWARDS_KEY);
+      await _accountSession18.run(async () => (readMap(REWARDS_KEY)));
 
     const existing =
       rewards[marathon.id];
@@ -895,16 +1128,21 @@ export function saveMarathonRewardRecord(
       savedAt: nowISO(),
     };
 
-    await writeJSON(REWARDS_KEY, {
+    await _accountSession18.run(async () => (writeJSON(REWARDS_KEY, {
       ...rewards,
       [marathon.id]: record,
-    });
+    })));
 
     return {
       saved: true,
       record,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -917,7 +1155,12 @@ export function saveMarathonRewardRecord(
 export function markMarathonRewardClaimed(
   marathonId
 ) {
+  const _accountSession19 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession19.assertCurrent();
+
     const marathon =
       getMarathonById(marathonId);
 
@@ -929,7 +1172,7 @@ export function markMarathonRewardClaimed(
     }
 
     const map =
-      await readProgressMap();
+      await _accountSession19.run(async () => (readProgressMap()));
 
     const current =
       map[marathon.id];
@@ -942,7 +1185,7 @@ export function markMarathonRewardClaimed(
     }
 
     const rewards =
-      await readMap(REWARDS_KEY);
+      await _accountSession19.run(async () => (readMap(REWARDS_KEY)));
 
     const now = nowISO();
 
@@ -972,10 +1215,10 @@ export function markMarathonRewardClaimed(
 
     // The ledger remains authoritative if the progress
     // mirror cannot be written afterward.
-    await writeJSON(REWARDS_KEY, {
+    await _accountSession19.run(async () => (writeJSON(REWARDS_KEY, {
       ...rewards,
       [marathon.id]: record,
-    });
+    })));
 
     const progress = {
       ...current,
@@ -986,11 +1229,13 @@ export function markMarathonRewardClaimed(
     let progressWarning = null;
 
     try {
-      await writeJSON(PROGRESS_KEY, {
+      await _accountSession19.run(async () => (writeJSON(PROGRESS_KEY, {
         ...map,
         [marathon.id]: progress,
-      });
+      })));
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       progressWarning =
         error.message || String(error);
     }
@@ -1005,7 +1250,12 @@ export function markMarathonRewardClaimed(
 
       progressWarning,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -1017,7 +1267,12 @@ function saveDocumentMap(
   field,
   value
 ) {
+  const _accountSession20 = captureAccountSession();
+
   return mutate(async () => {
+  try {
+    _accountSession20.assertCurrent();
+
     if (!isObject(value)) {
       return {
         saved: false,
@@ -1026,20 +1281,25 @@ function saveDocumentMap(
     }
 
     const current =
-      await readMap(key);
+      await _accountSession20.run(async () => (readMap(key)));
 
     const updated = {
       ...current,
       ...value,
     };
 
-    await writeJSON(key, updated);
+    await _accountSession20.run(async () => (writeJSON(key, updated)));
 
     return {
       saved: true,
       [field]: updated,
     };
-  });
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+});
 }
 
 // ============================================================
@@ -1085,8 +1345,13 @@ export function saveMarathonCertificates(
 // ============================================================
 
 export async function getMarathonModeState() {
+  const _accountSession21 = captureAccountSession();
+
+  try {
+    _accountSession21.assertCurrent();
+
   const active =
-    await getActiveMarathon();
+    await _accountSession21.run(async () => (getActiveMarathon()));
 
   // This describes the selected marathon.
   // The session and engine determine whether walking is active.
@@ -1102,6 +1367,11 @@ export async function getMarathonModeState() {
     progress:
       active?.progress || null,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 // ============================================================
@@ -1112,18 +1382,29 @@ export async function getMarathonModeState() {
 // ============================================================
 
 export function resetAllMarathonData() {
+  const _accountSession22 = captureAccountSession();
+  const AsyncStorage = _accountSession22.storage;
+
   return mutate(async () => {
-    await AsyncStorage.multiRemove([
+  try {
+    _accountSession22.assertCurrent();
+
+    await _accountSession22.run(async () => (AsyncStorage.multiRemove([
       PROGRESS_KEY,
       ACTIVE_KEY,
       REWARDS_KEY,
       ALERTS_KEY,
       PASSPORT_KEY,
       CERTIFICATES_KEY,
-    ]);
+    ])));
 
     return {
       reset: true,
     };
-  }, "reset");
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, "reset");
 }

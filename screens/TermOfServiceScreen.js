@@ -1,4 +1,3 @@
-import React from "react";
 // screens/TermsOfServiceScreen.js
 
 import React from "react";

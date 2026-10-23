@@ -1,6 +1,7 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 // utils/livesManager.js
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 export const MAX_LIVES = 5;
 export const LIFE_RESTORE_TIME = 30 * 60 * 1000;
@@ -8,7 +9,13 @@ export const LIFE_RESTORE_TIME = 30 * 60 * 1000;
 const KEY = "LEGATHON_LIVES";
 
 export async function getLives() {
-  const saved = await AsyncStorage.getItem(KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(KEY)));
 
   if (!saved) {
     const initial = {
@@ -16,7 +23,7 @@ export async function getLives() {
       lastUpdated: Date.now(),
     };
 
-    await AsyncStorage.setItem(KEY, JSON.stringify(initial));
+    await _accountSession.run(async () => (AsyncStorage.setItem(KEY, JSON.stringify(initial))));
     return initial;
   }
 
@@ -31,15 +38,26 @@ export async function getLives() {
       lastUpdated: now,
     };
 
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
+    await _accountSession.run(async () => (AsyncStorage.setItem(KEY, JSON.stringify(next))));
     return next;
   }
 
   return data;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function loseLife() {
-  const data = await getLives();
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  const data = await _accountSession2.run(async () => (getLives()));
 
   const next = {
     ...data,
@@ -47,24 +65,45 @@ export async function loseLife() {
     lastUpdated: Date.now(),
   };
 
-  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  await _accountSession2.run(async () => (AsyncStorage.setItem(KEY, JSON.stringify(next))));
   return next;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function addLife() {
-  const data = await getLives();
+  const _accountSession3 = captureAccountSession();
+  const AsyncStorage = _accountSession3.storage;
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const data = await _accountSession3.run(async () => (getLives()));
 
   const next = {
     ...data,
     lives: Math.min(MAX_LIVES, data.lives + 1),
   };
 
-  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  await _accountSession3.run(async () => (AsyncStorage.setItem(KEY, JSON.stringify(next))));
   return next;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function getNextLifeTime() {
-  const data = await getLives();
+  const _accountSession4 = captureAccountSession();
+
+  try {
+    _accountSession4.assertCurrent();
+
+  const data = await _accountSession4.run(async () => (getLives()));
 
   if (data.lives >= MAX_LIVES) {
     return {
@@ -79,4 +118,9 @@ export async function getNextLifeTime() {
     full: false,
     millisecondsLeft: Math.max(0, nextLifeAt - Date.now()),
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

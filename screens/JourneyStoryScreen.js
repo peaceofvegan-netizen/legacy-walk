@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useEffect,
   useMemo,
@@ -15,8 +16,7 @@ import {
   Share,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   Ionicons,
@@ -423,6 +423,9 @@ export default function JourneyStoryScreen({
   lifetimeSteps = 0,
   subscriptionPlan = "free",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const activeLanguage =
     route?.params?.language ||
     language ||
@@ -481,6 +484,8 @@ export default function JourneyStoryScreen({
   const localizedJourney =
     useMemo(
       () => {
+  
+
         const source = {
           ...(storyData ||
             {}),
@@ -549,6 +554,8 @@ export default function JourneyStoryScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       loadReadChapters();
       loadStoryXP();
     },
@@ -558,15 +565,20 @@ export default function JourneyStoryScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       let mounted =
         true;
 
       async function loadProgress() {
+  try {
+    _accountSession.assertCurrent();
+
         try {
           const savedProgress =
-            await getJourneyProgress(
+            await _accountSession.run(async () => (getJourneyProgress(
               selectedJourneyId
-            );
+            )));
 
           if (
             mounted
@@ -578,12 +590,19 @@ export default function JourneyStoryScreen({
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Journey progress load error:",
             error
           );
         }
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
       if (
         selectedJourneyId
@@ -607,14 +626,17 @@ export default function JourneyStoryScreen({
   // ==========================================================
 
   async function loadReadChapters() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       // Keep the existing storage key so previous
       // Story XP / completed chapters are not lost.
       const saved =
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .getItem(
             "listenedJourneyChapters"
-          );
+          )));
 
       const parsed =
         saved
@@ -633,24 +655,34 @@ export default function JourneyStoryScreen({
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Load story chapters error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // LOAD STORY XP
   // ==========================================================
 
   async function loadStoryXP() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       const saved =
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .getItem(
             "storyXP"
-          );
+          )));
 
       setStoryXP(
         Number(
@@ -661,12 +693,19 @@ export default function JourneyStoryScreen({
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Load story XP error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // CHECKPOINTS
@@ -675,6 +714,8 @@ export default function JourneyStoryScreen({
   const checkpoints =
     useMemo(
       () => {
+  
+
         const chapters =
           storyData?.chapters ||
           storyData?.checkpoints ||
@@ -803,6 +844,8 @@ export default function JourneyStoryScreen({
             chapter,
             index
           ) => {
+  
+
             const checkpointNumber =
               index +
               1;
@@ -940,11 +983,15 @@ export default function JourneyStoryScreen({
   const currentChapter =
     checkpoints.find(
       checkpoint =>
-        Number(
+        {
+  
+
+return (Number(
           checkpoint
             ?.checkpoint
         ) ===
-        requestedCheckpoint
+        requestedCheckpoint);
+}
     ) ||
     checkpoints[
       requestedCheckpoint -
@@ -1062,6 +1109,9 @@ export default function JourneyStoryScreen({
   // ==========================================================
 
   async function markChapterRead() {
+  try {
+    _accountSession.assertCurrent();
+
     if (
       !currentChapter?.id ||
       currentChapterRead
@@ -1080,14 +1130,14 @@ export default function JourneyStoryScreen({
       updatedChapters
     );
 
-    await AsyncStorage
+    await _accountSession.run(async () => (AsyncStorage
       .setItem(
         "listenedJourneyChapters",
 
         JSON.stringify(
           updatedChapters
         )
-      );
+      )));
 
     const xpAmount =
       Number(
@@ -1104,14 +1154,14 @@ export default function JourneyStoryScreen({
       updatedXP
     );
 
-    await AsyncStorage
+    await _accountSession.run(async () => (AsyncStorage
       .setItem(
         "storyXP",
 
         String(
           updatedXP
         )
-      );
+      )));
 
     setShowXPReward(
       true
@@ -1119,6 +1169,8 @@ export default function JourneyStoryScreen({
 
     setTimeout(
       () => {
+  if (!_accountSession.isCurrent()) return;
+
         setShowXPReward(
           false
         );
@@ -1126,15 +1178,23 @@ export default function JourneyStoryScreen({
 
       2500
     );
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // SHARE
   // ==========================================================
 
   async function shareChapter() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      await Share.share({
+      await _accountSession.run(async () => (Share.share({
         message:
           t(
             "shareMessage",
@@ -1146,16 +1206,23 @@ export default function JourneyStoryScreen({
                 chapterStory,
             }
           ),
-      });
+      })));
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Share chapter error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // BACK
@@ -1620,6 +1687,8 @@ export default function JourneyStoryScreen({
                   checkpoint,
                   index
                 ) => {
+  
+
                   const checkpointNumber =
                     Number(
                       checkpoint

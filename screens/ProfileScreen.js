@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
  // screens/ProfileScreen.js
 
@@ -20,8 +21,9 @@ import {
   AppState,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import DeleteAccountSection from
+  "../components/DeleteAccountSection";
 import { avatarOptions } from "../data/avatarOptions";
 
 import {
@@ -798,9 +800,16 @@ export default function ProfileScreen({
   goBack,
   openPassport,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const t = useCallback(
     (key, variables = {}) =>
-      getText(language, key, variables),
+      {
+  
+
+return (getText(language, key, variables));
+},
     [language]
   );
 
@@ -842,6 +851,9 @@ export default function ProfileScreen({
   // ==========================================================
 
   const loadProfile = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setLoading(true);
 
@@ -851,13 +863,13 @@ export default function ProfileScreen({
         savedActive,
         savedProfile,
         savedStreak,
-      ] = await AsyncStorage.multiGet([
+      ] = await _accountSession.run(async () => (AsyncStorage.multiGet([
         "lifetimeSteps",
         PROGRESS_KEY,
         ACTIVE_JOURNEY_KEY,
         "avatarProfile",
         "walkingStreak",
-      ]);
+      ])));
 
       // Walking data
 
@@ -918,7 +930,11 @@ export default function ProfileScreen({
 
       const baseAvatar =
         avatarOptions.find(
-          item => item.id === avatarId
+          item => {
+  
+
+return (item.id === avatarId);
+}
         ) ||
         avatarOptions?.[0] ||
         null;
@@ -926,7 +942,7 @@ export default function ProfileScreen({
       if (avatarId) {
         try {
           const visual =
-            await getCurrentAvatarVisual(avatarId);
+            await _accountSession.run(async () => (getCurrentAvatarVisual(avatarId)));
 
           setAvatarImage(
             visual?.image ||
@@ -934,6 +950,8 @@ export default function ProfileScreen({
             null
           );
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
           setAvatarImage(
             baseAvatar?.image || null
           );
@@ -946,12 +964,14 @@ export default function ProfileScreen({
 
       // Track suit
 
-      const suit = await getCurrentAvatarSuit();
+      const suit = await _accountSession.run(async () => (getCurrentAvatarSuit()));
 
       setEquippedSuit(
         suit || "default"
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Profile loading error:",
         error
@@ -959,13 +979,20 @@ export default function ProfileScreen({
     } finally {
       setLoading(false);
     }
-  }, []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, []);
 
   // ==========================================================
   // INITIAL LOAD
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadProfile();
   }, [loadProfile]);
 
@@ -974,9 +1001,13 @@ export default function ProfileScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const subscription = AppState.addEventListener(
       "change",
       state => {
+  if (!_accountSession.isCurrent()) return;
+
         if (state === "active") {
           loadProfile();
         }
@@ -991,11 +1022,15 @@ export default function ProfileScreen({
   // ==========================================================
 
   const journeys = useMemo(() => {
+  
+
     const catalog = Array.isArray(JOURNEY_CATALOG)
       ? JOURNEY_CATALOG
       : [];
 
     return catalog.map((journey, index) => {
+  
+
       const id =
         getJourneyId(journey) ||
         `journey-${index}`;
@@ -1032,14 +1067,26 @@ export default function ProfileScreen({
 
   const completedJourneys = useMemo(
     () =>
-      journeys.filter(
-        journey => journey.progress >= 100
-      ),
+      {
+  
+
+return (journeys.filter(
+        journey => {
+  
+
+return (journey.progress >= 100);
+}
+      ));
+},
     [journeys]
   );
 
   const startedJourneys = journeys.filter(
-    journey => journey.progress > 0
+    journey => {
+  
+
+return (journey.progress > 0);
+}
   );
 
   const completedCount =
@@ -1047,7 +1094,11 @@ export default function ProfileScreen({
 
   const totalStamps = journeys.reduce(
     (total, journey) =>
-      total + getStampCount(journey.progress),
+      {
+  
+
+return (total + getStampCount(journey.progress));
+},
     0
   );
 
@@ -1362,7 +1413,10 @@ export default function ProfileScreen({
                 </View>
               ) : (
                 completedJourneys.map(
-                  (journey, index) => (
+                  (journey, index) => {
+  
+
+return ((
                     <Timeline
                       key={journey.id}
                       title={journey.title}
@@ -1377,7 +1431,8 @@ export default function ProfileScreen({
                         completedJourneys.length - 1
                       }
                     />
-                  )
+                  ));
+}
                 )
               )}
             </View>
@@ -1403,6 +1458,8 @@ export default function ProfileScreen({
 
               <View style={styles.rankList}>
                 {rankOrder.map(rankName => {
+  
+
                   const active =
                     rankName === currentRank;
 
@@ -1484,7 +1541,7 @@ export default function ProfileScreen({
                 }
               />
             </View>
-
+            <DeleteAccountSection />
             {/* FOOTER */}
 
             <View style={styles.bottomCard}>

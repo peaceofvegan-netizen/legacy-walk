@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useMemo,
 } from "react";
@@ -21,8 +22,7 @@ import {
   LinearGradient,
 } from "expo-linear-gradient";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   calculateJourneySteps,
@@ -2402,6 +2402,9 @@ export default function JourneyDetailScreen({
 
   goToStory,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   // ==========================================================
   // TRANSLATION
   // ==========================================================
@@ -2449,6 +2452,8 @@ export default function JourneyDetailScreen({
   const journey =
     useMemo(
       () => {
+  
+
         if (
           routeJourney
         ) {
@@ -2749,6 +2754,8 @@ export default function JourneyDetailScreen({
 
   const handleBack =
     () => {
+  
+
       if (
         typeof goBack ===
         "function"
@@ -2773,6 +2780,8 @@ export default function JourneyDetailScreen({
 
   const handleOpenStory =
     () => {
+  
+
       if (
         typeof goToStory ===
         "function"
@@ -2811,6 +2820,8 @@ export default function JourneyDetailScreen({
 
   const handleSubscription =
     () => {
+  
+
       if (
         typeof goToSubscription ===
         "function"
@@ -2854,6 +2865,9 @@ export default function JourneyDetailScreen({
 
   const handleStartJourney =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       if (
         !userCanStart
       ) {
@@ -2877,14 +2891,14 @@ export default function JourneyDetailScreen({
         navigation
           ?.navigate
       ) {
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .setItem(
             "activeJourney",
 
             JSON.stringify(
               journey
             )
-          );
+          )));
 
         navigation
           .navigate(
@@ -2901,7 +2915,12 @@ export default function JourneyDetailScreen({
             }
           );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // EMPTY STATE
@@ -3061,7 +3080,9 @@ export default function JourneyDetailScreen({
             <HeaderButton
               icon=
                 "bookmark-outline"
-              onPress={() => {}}
+              onPress={() => {
+  
+}}
             />
           </View>
 

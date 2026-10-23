@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/SubscriptionScreen.js
 
 import React, {
@@ -1982,12 +1983,18 @@ export default function SubscriptionScreen({
 
   goToTermsOfService,
 }) {
+  const _accountSession = captureAccountSession();
+
   const languageCode =
     useMemo(
       () =>
-        normalizeLanguage(
+        {
+  
+
+return (normalizeLanguage(
           language
-        ),
+        ));
+},
       [language]
     );
 
@@ -1997,9 +2004,13 @@ export default function SubscriptionScreen({
 
 
   const t = (key) =>
-    TEXT?.[languageCode]?.[key] ||
+    {
+  
+
+return (TEXT?.[languageCode]?.[key] ||
     TEXT.en[key] ||
-    key;
+    key);
+};
 
 
   // ==========================================================
@@ -2032,8 +2043,12 @@ export default function SubscriptionScreen({
   const currentPlan =
     SUBSCRIPTION_CARDS.find(
       (plan) =>
-        plan.id ===
-        normalizedCurrentPlan
+        {
+  
+
+return (plan.id ===
+        normalizedCurrentPlan);
+}
     ) ||
     SUBSCRIPTION_CARDS[0];
 
@@ -2051,6 +2066,8 @@ export default function SubscriptionScreen({
 
   const animateSelection =
     () => {
+  
+
       Animated.sequence([
         Animated.timing(
           pulseAnim,
@@ -2080,6 +2097,9 @@ export default function SubscriptionScreen({
 
   const openSubscriptionSettings =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const url =
           Platform.OS === "ios"
@@ -2088,9 +2108,9 @@ export default function SubscriptionScreen({
 
 
         const supported =
-          await Linking.canOpenURL(
+          await _accountSession.run(async () => (Linking.canOpenURL(
             url
-          );
+          )));
 
 
         if (!supported) {
@@ -2102,11 +2122,13 @@ export default function SubscriptionScreen({
         }
 
 
-        await Linking.openURL(
+        await _accountSession.run(async () => (Linking.openURL(
           url
-        );
+        )));
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "OPEN SUBSCRIPTION SETTINGS ERROR:",
           error
@@ -2122,7 +2144,12 @@ export default function SubscriptionScreen({
           )
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -2131,6 +2158,8 @@ export default function SubscriptionScreen({
 
   const handlePlanSelect =
     (planId) => {
+  
+
       const nextPlan =
         String(
           planId || ""
@@ -2253,6 +2282,9 @@ export default function SubscriptionScreen({
 
   const handleRestorePurchases =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       if (
         isRestoring
       ) {
@@ -2285,7 +2317,7 @@ export default function SubscriptionScreen({
 
 
         const restoredPlan =
-          await onRestorePurchases();
+          await _accountSession.run(async () => (onRestorePurchases()));
 
 
         const normalizedRestoredPlan =
@@ -2341,6 +2373,8 @@ export default function SubscriptionScreen({
         );
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "RESTORE PURCHASE ERROR:",
           error
@@ -2363,7 +2397,12 @@ export default function SubscriptionScreen({
           false
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -2372,6 +2411,8 @@ export default function SubscriptionScreen({
 
   const handlePrivacyPolicy =
     () => {
+  
+
       if (
         typeof goToPrivacyPolicy ===
         "function"
@@ -2400,6 +2441,8 @@ export default function SubscriptionScreen({
 
   const handleTerms =
     () => {
+  
+
       if (
         typeof goToTermsOfService ===
         "function"
@@ -2428,6 +2471,8 @@ export default function SubscriptionScreen({
 
   const handleReturn =
     () => {
+  
+
       if (
         typeof goBack ===
         "function"
@@ -2453,6 +2498,8 @@ export default function SubscriptionScreen({
 
   const getPlanButtonLabel =
     (card) => {
+  
+
       if (
         normalizedCurrentPlan ===
         card.id
@@ -2732,6 +2779,8 @@ export default function SubscriptionScreen({
 
         {SUBSCRIPTION_CARDS.map(
           (card) => {
+  
+
             const isCurrent =
               normalizedCurrentPlan ===
               card.id;
@@ -2951,7 +3000,10 @@ export default function SubscriptionScreen({
                     (
                       feature,
                       index
-                    ) => (
+                    ) => {
+  
+
+return ((
                       <View
                         key={`${card.id}-${index}`}
                         style={[
@@ -2994,7 +3046,8 @@ export default function SubscriptionScreen({
                           )}
                         </Text>
                       </View>
-                    )
+                    ));
+}
                   )}
                 </View>
 
@@ -3009,9 +3062,13 @@ export default function SubscriptionScreen({
                     isCurrent
                   }
                   onPress={() =>
-                    handlePlanSelect(
+                    {
+  
+
+return (handlePlanSelect(
                       card.id
-                    )
+                    ));
+}
                   }
                   style={[
                     styles.planButton,

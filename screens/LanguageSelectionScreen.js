@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useEffect,
   useState,
@@ -25,20 +26,27 @@ export default function LanguageSelectionScreen({
   setLanguage,
   goBack,
 }) {
+  const _accountSession = captureAccountSession();
+
   const [
     selectedLanguage,
     setSelectedLanguage,
   ] = useState(language);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     setSelectedLanguage(language);
   }, [language]);
 
   async function handleContinue() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      await saveLanguage(
+      await _accountSession.run(async () => (saveLanguage(
         selectedLanguage
-      );
+      )));
 
       if (setLanguage) {
         setLanguage(
@@ -50,12 +58,19 @@ export default function LanguageSelectionScreen({
         goBack();
       }
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Language save error:",
         error
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   function handleSelectLanguage(
     languageCode
@@ -96,6 +111,8 @@ export default function LanguageSelectionScreen({
       <View style={styles.grid}>
         {LANGUAGES.map(
           (item) => {
+  
+
             const selected =
               selectedLanguage ===
               item.code;
@@ -109,9 +126,13 @@ export default function LanguageSelectionScreen({
                     styles.languageCardActive,
                 ]}
                 onPress={() =>
-                  handleSelectLanguage(
+                  {
+  
+
+return (handleSelectLanguage(
                     item.code
-                  )
+                  ));
+}
                 }
                 activeOpacity={0.8}
               >

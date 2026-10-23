@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/BreathingAnalyticsScreen.js
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -933,10 +934,14 @@ export default function BreathingAnalyticsScreen({
   goBack,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+
   const currentLanguage =
     normalizeLanguage(language);
 
   const t = (key, values = {}) => {
+  
+
     const value =
       TEXT[currentLanguage]?.[key] ??
       TEXT.en?.[key] ??
@@ -967,16 +972,21 @@ export default function BreathingAnalyticsScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadData();
   }, []);
 
 
   async function loadData() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setLoading(true);
 
       const data =
-        await loadBreathingAnalytics();
+        await _accountSession.run(async () => (loadBreathingAnalytics()));
 
       setAnalytics({
         sessionsCompleted:
@@ -1000,6 +1010,8 @@ export default function BreathingAnalyticsScreen({
             : [],
       });
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Breathing analytics load error:",
         error
@@ -1012,7 +1024,12 @@ export default function BreathingAnalyticsScreen({
     } finally {
       setLoading(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1020,9 +1037,12 @@ export default function BreathingAnalyticsScreen({
   // ==========================================================
 
   async function performReset() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       const reset =
-        await resetBreathingAnalytics();
+        await _accountSession.run(async () => (resetBreathingAnalytics()));
 
       setAnalytics({
         sessionsCompleted:
@@ -1046,6 +1066,8 @@ export default function BreathingAnalyticsScreen({
             : [],
       });
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Breathing analytics reset error:",
         error
@@ -1056,7 +1078,12 @@ export default function BreathingAnalyticsScreen({
         t("resetError")
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   function handleReset() {
@@ -1083,6 +1110,8 @@ export default function BreathingAnalyticsScreen({
   // ==========================================================
 
   const challenges = useMemo(() => {
+  
+
     try {
       return (
         getBreathingChallenges(
@@ -1090,6 +1119,8 @@ export default function BreathingAnalyticsScreen({
         ) || []
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Breathing challenge error:",
         error
@@ -1108,6 +1139,8 @@ export default function BreathingAnalyticsScreen({
   // utility may use it elsewhere now or later.
 
   const achievements = useMemo(() => {
+  
+
     try {
       return (
         getBreathingAchievements({
@@ -1122,6 +1155,8 @@ export default function BreathingAnalyticsScreen({
         }) || []
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Breathing achievement error:",
         error
@@ -1442,7 +1477,10 @@ export default function BreathingAnalyticsScreen({
           </View>
         ) : (
           analytics.history.map(
-            (item, index) => (
+            (item, index) => {
+  
+
+return ((
               <View
                 key={
                   item?.id ||
@@ -1468,7 +1506,8 @@ export default function BreathingAnalyticsScreen({
                   +{Number(item?.reward) || 0}
                 </Text>
               </View>
-            )
+            ));
+}
           )
         )}
 
@@ -1482,7 +1521,10 @@ export default function BreathingAnalyticsScreen({
         </Text>
 
         {challenges.map(
-          (item, index) => (
+          (item, index) => {
+  
+
+return ((
             <View
               key={
                 item?.id ||
@@ -1512,7 +1554,8 @@ export default function BreathingAnalyticsScreen({
                 {t("wCoinsEarned")}
               </Text>
             </View>
-          )
+          ));
+}
         )}
 
 

@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/PurchaseConfirmationScreen.js
 
 import React, {
@@ -342,6 +343,8 @@ export default function PurchaseConfirmationScreen({
   shippingCost = 0,
 
 }) {
+  const _accountSession = captureAccountSession();
+
 
   // ==========================================================
   // STRIPE
@@ -431,6 +434,8 @@ export default function PurchaseConfirmationScreen({
 
   useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
 
       if (
         typeof refreshWCoinBalance ===
@@ -814,6 +819,9 @@ export default function PurchaseConfirmationScreen({
   // ==========================================================
 
   async function createPayment() {
+  try {
+    _accountSession.assertCurrent();
+
 
     if (
       !itemId
@@ -859,7 +867,7 @@ export default function PurchaseConfirmationScreen({
       data,
       error,
     } =
-      await supabase
+      await _accountSession.run(async () => (supabase
         .functions
         .invoke(
           "create-merch-payment",
@@ -882,7 +890,7 @@ export default function PurchaseConfirmationScreen({
 
             },
           }
-        );
+        )));
 
 
     if (
@@ -976,7 +984,12 @@ export default function PurchaseConfirmationScreen({
         null,
 
     };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -986,6 +999,9 @@ export default function PurchaseConfirmationScreen({
   async function finalizePayment(
     orderId
   ) {
+  try {
+    _accountSession.assertCurrent();
+
 
     if (
       !orderId
@@ -1001,7 +1017,7 @@ export default function PurchaseConfirmationScreen({
       data,
       error,
     } =
-      await supabase
+      await _accountSession.run(async () => (supabase
         .functions
         .invoke(
           "finalize-merch-payment",
@@ -1010,7 +1026,7 @@ export default function PurchaseConfirmationScreen({
               orderId,
             },
           }
-        );
+        )));
 
 
     if (
@@ -1060,7 +1076,12 @@ export default function PurchaseConfirmationScreen({
 
 
     return data;
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1070,6 +1091,9 @@ export default function PurchaseConfirmationScreen({
   async function cancelPendingPayment(
     orderId
   ) {
+  try {
+    _accountSession.assertCurrent();
+
 
     if (
       !orderId
@@ -1085,7 +1109,7 @@ export default function PurchaseConfirmationScreen({
         data,
         error,
       } =
-        await supabase
+        await _accountSession.run(async () => (supabase
           .functions
           .invoke(
             "cancel-merch-payment",
@@ -1094,7 +1118,7 @@ export default function PurchaseConfirmationScreen({
                 orderId,
               },
             }
-          );
+          )));
 
 
       if (
@@ -1140,7 +1164,7 @@ export default function PurchaseConfirmationScreen({
         "function"
       ) {
 
-        await refreshWCoinBalance();
+        await _accountSession.run(async () => (refreshWCoinBalance()));
       }
 
 
@@ -1149,6 +1173,8 @@ export default function PurchaseConfirmationScreen({
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
       console.log(
         "CANCEL PAYMENT ERROR:",
@@ -1165,7 +1191,12 @@ export default function PurchaseConfirmationScreen({
 
       };
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1175,12 +1206,15 @@ export default function PurchaseConfirmationScreen({
   async function completeSuccessfulOrder(
     createdOrder
   ) {
+  try {
+    _accountSession.assertCurrent();
+
 
     const finalOrder =
-      await finalizePayment(
+      await _accountSession.run(async () => (finalizePayment(
         createdOrder
           ?.orderId
-      );
+      )));
 
 
     setPurchaseSummary(
@@ -1222,7 +1256,7 @@ export default function PurchaseConfirmationScreen({
       "function"
     ) {
 
-      await refreshWCoinBalance();
+      await _accountSession.run(async () => (refreshWCoinBalance()));
     }
 
 
@@ -1231,9 +1265,9 @@ export default function PurchaseConfirmationScreen({
       "function"
     ) {
 
-      await onPurchaseComplete(
+      await _accountSession.run(async () => (onPurchaseComplete(
         finalOrder
-      );
+      )));
     }
 
 
@@ -1243,7 +1277,12 @@ export default function PurchaseConfirmationScreen({
 
 
     return finalOrder;
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
 
   // ==========================================================
@@ -1252,6 +1291,9 @@ export default function PurchaseConfirmationScreen({
 
   const confirmPurchase =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
       if (
         !item
@@ -1384,7 +1426,7 @@ export default function PurchaseConfirmationScreen({
           "function"
         ) {
 
-          await refreshWCoinBalance();
+          await _accountSession.run(async () => (refreshWCoinBalance()));
         }
 
 
@@ -1393,7 +1435,7 @@ export default function PurchaseConfirmationScreen({
         // ====================================================
 
         createdOrder =
-          await createPayment();
+          await _accountSession.run(async () => (createPayment()));
 
 
         // ====================================================
@@ -1404,7 +1446,7 @@ export default function PurchaseConfirmationScreen({
           error:
             initError,
         } =
-          await initPaymentSheet({
+          await _accountSession.run(async () => (initPaymentSheet({
 
             merchantDisplayName:
               "Legathon Walk",
@@ -1422,7 +1464,7 @@ export default function PurchaseConfirmationScreen({
             style:
               "automatic",
 
-          });
+          })));
 
 
         if (
@@ -1435,10 +1477,10 @@ export default function PurchaseConfirmationScreen({
           );
 
 
-          await cancelPendingPayment(
+          await _accountSession.run(async () => (cancelPendingPayment(
             createdOrder
               ?.orderId
-          );
+          )));
 
 
           reservationReleased =
@@ -1460,7 +1502,7 @@ export default function PurchaseConfirmationScreen({
           error:
             paymentError,
         } =
-          await presentPaymentSheet();
+          await _accountSession.run(async () => (presentPaymentSheet()));
 
 
         if (
@@ -1482,10 +1524,10 @@ export default function PurchaseConfirmationScreen({
 
 
           const cancelResult =
-            await cancelPendingPayment(
+            await _accountSession.run(async () => (cancelPendingPayment(
               createdOrder
                 ?.orderId
-            );
+            )));
 
 
           reservationReleased =
@@ -1507,9 +1549,9 @@ export default function PurchaseConfirmationScreen({
               true;
 
 
-            await completeSuccessfulOrder(
+            await _accountSession.run(async () => (completeSuccessfulOrder(
               createdOrder
-            );
+            )));
 
 
             return;
@@ -1553,13 +1595,15 @@ export default function PurchaseConfirmationScreen({
 
         try {
 
-          await completeSuccessfulOrder(
+          await _accountSession.run(async () => (completeSuccessfulOrder(
             createdOrder
-          );
+          )));
 
         } catch (
           finalizeError
         ) {
+    if (isAccountSessionEnded(finalizeError)) throw finalizeError;
+
 
           console.log(
             "PAYMENT FINALIZATION ERROR:",
@@ -1579,6 +1623,8 @@ export default function PurchaseConfirmationScreen({
       } catch (
         error
       ) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
         console.log(
           "PURCHASE ERROR:",
@@ -1603,10 +1649,10 @@ export default function PurchaseConfirmationScreen({
             true
         ) {
 
-          await cancelPendingPayment(
+          await _accountSession.run(async () => (cancelPendingPayment(
             createdOrder
               .orderId
-          );
+          )));
         }
 
 
@@ -1623,7 +1669,12 @@ export default function PurchaseConfirmationScreen({
           false
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -2176,6 +2227,9 @@ export default function PurchaseConfirmationScreen({
         onSubmit={async (
           addressDetails
         ) => {
+  try {
+    _accountSession.assertCurrent();
+
 
           setShippingDetails(
             addressDetails
@@ -2185,11 +2239,18 @@ export default function PurchaseConfirmationScreen({
           setAddressSheetVisible(
             false
           );
-        }}
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}}
 
         onError={(
           error
         ) => {
+  
+
 
           console.log(
             "ADDRESS SHEET ERROR:",
@@ -2485,10 +2546,18 @@ export default function PurchaseConfirmationScreen({
                   isProcessing
                 }
                 onPress={() =>
-                  setUseWCoins(
+                  {
+  
+
+return (setUseWCoins(
                     current =>
-                      !current
-                  )
+                      {
+  
+
+return (!current);
+}
+                  ));
+}
                 }
               >
 
@@ -2709,9 +2778,13 @@ export default function PurchaseConfirmationScreen({
                   styles.shippingButton
                 }
                 onPress={() =>
-                  setAddressSheetVisible(
+                  {
+  
+
+return (setAddressSheetVisible(
                     true
-                  )
+                  ));
+}
                 }
                 disabled={
                   isProcessing
@@ -2748,9 +2821,13 @@ export default function PurchaseConfirmationScreen({
                   styles.shippingButton
                 }
                 onPress={() =>
-                  setAddressSheetVisible(
+                  {
+  
+
+return (setAddressSheetVisible(
                     true
-                  )
+                  ));
+}
                 }
                 disabled={
                   isProcessing

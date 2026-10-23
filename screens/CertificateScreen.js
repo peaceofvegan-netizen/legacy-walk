@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/CertificateScreen.js
 //
 // ============================================================
@@ -29,8 +30,7 @@ import {
   Alert,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 
 // ============================================================
@@ -523,14 +523,21 @@ export default function CertificateScreen({
   certificates: certificateProp,
   userName = "Legathon Walker",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode =
     normalizeLanguage(language);
 
   const t = useCallback(
     key =>
-      TEXT[languageCode]?.[key] ||
+      {
+  
+
+return (TEXT[languageCode]?.[key] ||
       TEXT.en[key] ||
-      key,
+      key);
+},
     [languageCode]
   );
 
@@ -590,6 +597,9 @@ export default function CertificateScreen({
 
   const loadCertificates =
     useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         setLoading(true);
         setLoadError(false);
@@ -670,9 +680,9 @@ export default function CertificateScreen({
           const key of CERTIFICATE_KEYS
         ) {
           const saved =
-            await AsyncStorage.getItem(
+            await _accountSession.run(async () => (AsyncStorage.getItem(
               key
-            );
+            )));
 
           if (!saved) {
             continue;
@@ -683,7 +693,9 @@ export default function CertificateScreen({
           try {
             parsed =
               JSON.parse(saved);
-          } catch {
+          } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
             continue;
           }
 
@@ -694,6 +706,8 @@ export default function CertificateScreen({
 
           extracted.forEach(
             certificate => {
+  
+
               const uniqueKey =
                 String(
                   certificate.id ||
@@ -720,6 +734,8 @@ export default function CertificateScreen({
         setCertificates(found);
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "CERTIFICATE LOAD ERROR:",
           error
@@ -731,7 +747,12 @@ export default function CertificateScreen({
       } finally {
         setLoading(false);
       }
-    }, [
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [
       certificateProp,
       routeCertificates,
       routeCertificate,
@@ -739,6 +760,8 @@ export default function CertificateScreen({
 
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadCertificates();
   }, [loadCertificates]);
 
@@ -749,6 +772,8 @@ export default function CertificateScreen({
 
   const handleBack =
     useCallback(() => {
+  
+
       if (
         selectedCertificate
       ) {
@@ -783,6 +808,8 @@ export default function CertificateScreen({
   const formatDate =
     useCallback(
       value => {
+  
+
         if (!value) {
           return "—";
         }
@@ -807,7 +834,9 @@ export default function CertificateScreen({
               day: "numeric",
             }
           );
-        } catch {
+        } catch (_cancelledError2) {
+    if (isAccountSessionEnded(_cancelledError2)) throw _cancelledError2;
+
           return date.toLocaleDateString();
         }
       },
@@ -822,13 +851,17 @@ export default function CertificateScreen({
   const formatNumber =
     useCallback(
       value => {
+  
+
         try {
           return safeNumber(
             value
           ).toLocaleString(
             languageCode
           );
-        } catch {
+        } catch (_cancelledError3) {
+    if (isAccountSessionEnded(_cancelledError3)) throw _cancelledError3;
+
           return safeNumber(
             value
           ).toLocaleString();
@@ -1145,9 +1178,13 @@ export default function CertificateScreen({
               styles.closeButton
             }
             onPress={() =>
-              setSelectedCertificate(
+              {
+  
+
+return (setSelectedCertificate(
                 null
-              )
+              ));
+}
             }
           >
             <Text
@@ -1410,7 +1447,10 @@ export default function CertificateScreen({
             (
               certificate,
               index
-            ) => (
+            ) => {
+  
+
+return ((
               <TouchableOpacity
                 key={
                   certificate.id ||
@@ -1420,9 +1460,13 @@ export default function CertificateScreen({
                   styles.certificateCard
                 }
                 onPress={() =>
-                  setSelectedCertificate(
+                  {
+  
+
+return (setSelectedCertificate(
                     certificate
-                  )
+                  ));
+}
                 }
                 activeOpacity={
                   0.88
@@ -1578,7 +1622,8 @@ export default function CertificateScreen({
                   </Text>
                 </View>
               </TouchableOpacity>
-            )
+            ));
+}
           )
         )}
       </ScrollView>

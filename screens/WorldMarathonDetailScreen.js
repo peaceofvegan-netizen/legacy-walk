@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useCallback,
   useEffect,
@@ -25,14 +26,23 @@ import {
 } from "../data/marathonCatalog";
 
 import {
-  claimMarathonReward,
   getMarathonProgress,
-  setActiveMarathon,
 } from "../utils/marathonStorage";
 
 import {
-  loadStepStats,
+  requestStepVerificationPermissions,
 } from "../utils/stepTrackingEngine";
+
+import { startLegathon } from "../utils/legathonSession";
+import * as MarathonStorage from "../utils/marathonStorage";
+// Some project versions do not supply a reward claim service. Never report
+// payment or mark a claim complete without that service actually succeeding.
+async function claimMarathonReward(id) {
+  if (typeof MarathonStorage.claimMarathonReward !== "function") {
+    throw new Error("Marathon reward claiming is not configured in this project.");
+  }
+  return MarathonStorage.claimMarathonReward(id);
+}
 
 const safeNumber = value => {
   const parsed = Number(value || 0);
@@ -62,6 +72,8 @@ export default function WorldMarathonDetailScreen({
   goToCertificate,
   goToPassport,
 }) {
+  const _accountSession = captureAccountSession();
+
   const marathonId =
   marathonIdProp || "nyc";
 
@@ -82,6 +94,8 @@ export default function WorldMarathonDetailScreen({
     useState(false);
 
   const navigateBack = useCallback(() => {
+  
+
   if (typeof goBack === "function") {
     goBack();
   }
@@ -90,6 +104,9 @@ export default function WorldMarathonDetailScreen({
 
   const loadProgress =
     useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         setLoading(true);
 
@@ -99,14 +116,16 @@ export default function WorldMarathonDetailScreen({
         }
 
         const savedProgress =
-          await getMarathonProgress(
+          await _accountSession.run(async () => (getMarathonProgress(
             marathon.id
-          );
+          )));
 
         setProgress(
           savedProgress || null
         );
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Load marathon detail error:",
           error
@@ -119,9 +138,16 @@ export default function WorldMarathonDetailScreen({
       } finally {
         setLoading(false);
       }
-    }, [marathon?.id]);
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [marathon?.id]);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadProgress();
   }, [loadProgress]);
 
@@ -197,6 +223,9 @@ export default function WorldMarathonDetailScreen({
       : null;
 
   async function handleStartMarathon() {
+  try {
+    _accountSession.assertCurrent();
+
     if (
       !marathon?.id ||
       !unlocked ||
@@ -208,32 +237,12 @@ export default function WorldMarathonDetailScreen({
     try {
       setStarting(true);
 
-      let lifetimeSteps = 0;
-
-      try {
-        const stepStats =
-          await loadStepStats();
-
-        lifetimeSteps =
-          safeNumber(
-            stepStats?.lifetimeSteps ??
-              stepStats?.totalSteps ??
-              stepStats?.steps
-          );
-      } catch (stepError) {
-        console.log(
-          "Load lifetime steps error:",
-          stepError
-        );
+      if (!(await _accountSession.run(() => requestStepVerificationPermissions()))) {
+        throw new Error("Motion and precise location access are required to verify outdoor walking.");
       }
+      const result = await _accountSession.run(() => startLegathon(marathon.id));
 
-      const result =
-        await setActiveMarathon(
-          marathon.id,
-          lifetimeSteps
-        );
-
-      if (!result?.saved) {
+      if (!result?.started) {
         Alert.alert(
           "Marathon",
           result?.reason ===
@@ -245,13 +254,15 @@ export default function WorldMarathonDetailScreen({
         return;
       }
 
-      await loadProgress();
+      await _accountSession.run(async () => (loadProgress()));
 
       Alert.alert(
         "Active Marathon",
-        `${marathon.title} is now your active marathon. New walking steps will count toward this challenge.`
+        `${marathon.title} is active. Keep the app open while walking outdoors so steps can be verified.`
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Start marathon error:",
         error
@@ -264,9 +275,17 @@ export default function WorldMarathonDetailScreen({
     } finally {
       setStarting(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   async function handleClaimReward() {
+  try {
+    _accountSession.assertCurrent();
+
     if (
       !marathon?.id ||
       !completed ||
@@ -280,12 +299,12 @@ export default function WorldMarathonDetailScreen({
       setClaiming(true);
 
       const result =
-        await claimMarathonReward(
+        await _accountSession.run(async () => (claimMarathonReward(
           marathon.id
-        );
+        )));
 
       if (result?.claimed) {
-        await loadProgress();
+        await _accountSession.run(async () => (loadProgress()));
 
         Alert.alert(
           "Rewards Claimed!",
@@ -305,7 +324,7 @@ export default function WorldMarathonDetailScreen({
         result?.reason ===
         "reward-already-claimed"
       ) {
-        await loadProgress();
+        await _accountSession.run(async () => (loadProgress()));
 
         Alert.alert(
           "Rewards Claimed",
@@ -320,6 +339,8 @@ export default function WorldMarathonDetailScreen({
         "The marathon rewards could not be claimed."
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Claim marathon reward error:",
         error
@@ -332,7 +353,12 @@ export default function WorldMarathonDetailScreen({
     } finally {
       setClaiming(false);
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   function handleCertificate() {
     if (!completed) return;

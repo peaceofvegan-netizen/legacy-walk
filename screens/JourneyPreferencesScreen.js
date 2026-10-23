@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/JourneyPreferencesScreen.js
 
 import React, {
@@ -14,8 +15,7 @@ import {
   Alert,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   translate,
@@ -2155,6 +2155,9 @@ export default function JourneyPreferencesScreen({
   goToJourneys,
   goToSummary,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [
     interests,
     setInterests,
@@ -2201,16 +2204,21 @@ export default function JourneyPreferencesScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadPreferences();
   }, []);
 
   const loadPreferences =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const saved =
-          await AsyncStorage.getItem(
+          await _accountSession.run(async () => (AsyncStorage.getItem(
             PREF_KEY
-          );
+          )));
 
         if (
           !saved
@@ -2250,12 +2258,19 @@ export default function JourneyPreferencesScreen({
       } catch (
         error
       ) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Load preferences error:",
           error
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // MULTI SELECT
@@ -2266,6 +2281,8 @@ export default function JourneyPreferencesScreen({
     list,
     setter
   ) => {
+  
+
     if (
       list.includes(
         value
@@ -2274,8 +2291,12 @@ export default function JourneyPreferencesScreen({
       setter(
         list.filter(
           item =>
-            item !==
-            value
+            {
+  
+
+return (item !==
+            value);
+}
         )
       );
     } else {
@@ -2292,6 +2313,9 @@ export default function JourneyPreferencesScreen({
 
   const savePreferences =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       const journeyPreferences = {
         interests,
         goals,
@@ -2304,12 +2328,12 @@ export default function JourneyPreferencesScreen({
       };
 
       try {
-        await AsyncStorage.setItem(
+        await _accountSession.run(async () => (AsyncStorage.setItem(
           PREF_KEY,
           JSON.stringify(
             journeyPreferences
           )
-        );
+        )));
 
         Alert.alert(
           t(
@@ -2329,6 +2353,8 @@ export default function JourneyPreferencesScreen({
 
               onPress:
                 () => {
+  
+
                   if (
                     typeof goToSummary ===
                     "function"
@@ -2353,6 +2379,8 @@ export default function JourneyPreferencesScreen({
       } catch (
         error
       ) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Save preferences error:",
           error
@@ -2368,7 +2396,12 @@ export default function JourneyPreferencesScreen({
           )
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // RESET
@@ -2376,10 +2409,13 @@ export default function JourneyPreferencesScreen({
 
   const resetPreferences =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
-        await AsyncStorage.removeItem(
+        await _accountSession.run(async () => (AsyncStorage.removeItem(
           PREF_KEY
-        );
+        )));
 
         setInterests(
           []
@@ -2413,6 +2449,8 @@ export default function JourneyPreferencesScreen({
       } catch (
         error
       ) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Reset preferences error:",
           error
@@ -2428,7 +2466,12 @@ export default function JourneyPreferencesScreen({
           )
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // SKIP
@@ -2436,6 +2479,8 @@ export default function JourneyPreferencesScreen({
 
   const skipScreen =
     () => {
+  
+
       if (
         fromOnboarding
       ) {
@@ -2469,6 +2514,8 @@ export default function JourneyPreferencesScreen({
     setter,
     prefix = ""
   ) => {
+  
+
     const selected =
       selectedList.includes(
         id
@@ -2491,11 +2538,15 @@ export default function JourneyPreferencesScreen({
             styles.optionSelected,
         ]}
         onPress={() =>
-          toggleArrayValue(
+          {
+  
+
+return (toggleArrayValue(
             id,
             selectedList,
             setter
-          )
+          ));
+}
         }
         activeOpacity={
           0.85
@@ -2527,6 +2578,8 @@ export default function JourneyPreferencesScreen({
 
   const renderDifficultyOption =
     id => {
+  
+
       const selected =
         difficulty ===
         id;
@@ -2543,9 +2596,13 @@ export default function JourneyPreferencesScreen({
               styles.optionSelected,
           ]}
           onPress={() =>
-            setDifficulty(
+            {
+  
+
+return (setDifficulty(
               id
-            )
+            ));
+}
           }
           activeOpacity={
             0.85
@@ -2597,6 +2654,8 @@ export default function JourneyPreferencesScreen({
 
   const renderLengthOption =
     id => {
+  
+
       const selected =
         preferredLength ===
         id;
@@ -2613,9 +2672,13 @@ export default function JourneyPreferencesScreen({
               styles.optionSelected,
           ]}
           onPress={() =>
-            setPreferredLength(
+            {
+  
+
+return (setPreferredLength(
               id
-            )
+            ));
+}
           }
           activeOpacity={
             0.85
@@ -2712,11 +2775,15 @@ export default function JourneyPreferencesScreen({
 
         {INTERESTS.map(
           id =>
-            renderMultiOption(
+            {
+  
+
+return (renderMultiOption(
               id,
               interests,
               setInterests
-            )
+            ));
+}
         )}
       </View>
 
@@ -2739,12 +2806,16 @@ export default function JourneyPreferencesScreen({
 
         {GOALS.map(
           id =>
-            renderMultiOption(
+            {
+  
+
+return (renderMultiOption(
               id,
               goals,
               setGoals,
               "goal_"
-            )
+            ));
+}
         )}
       </View>
 
@@ -2821,12 +2892,16 @@ export default function JourneyPreferencesScreen({
 
         {HIDE_CATEGORIES.map(
           id =>
-            renderMultiOption(
+            {
+  
+
+return (renderMultiOption(
               id,
               hiddenCategories,
               setHiddenCategories,
               "hide_"
-            )
+            ));
+}
         )}
       </View>
 

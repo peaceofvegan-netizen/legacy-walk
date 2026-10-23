@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/CommunityScreen.js
 //
 // LEGATHON WALK
@@ -46,7 +47,7 @@ import {
   RefreshControl,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import { supabase } from "../lib/supabase";
 
@@ -1664,11 +1665,16 @@ export default function CommunityScreen({
   goToComments,
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const languageCode = normalizeLanguage(language);
   const isRTL = languageCode === "ar";
 
   const t = useCallback(
     (key, values) => {
+  
+
       const value =
         TEXT[languageCode]?.[key] ??
         TEXT.en[key] ??
@@ -1745,10 +1751,13 @@ export default function CommunityScreen({
   // ==========================================================
 
   const loadCommunityState = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      const saved = await AsyncStorage.getItem(
+      const saved = await _accountSession.run(async () => (AsyncStorage.getItem(
         COMMUNITY_STATE_KEY
-      );
+      )));
 
       if (!saved) {
         return;
@@ -1778,9 +1787,16 @@ export default function CommunityScreen({
       setFollowing(data.following || {});
       setReadActivities(data.readActivities || {});
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("COMMUNITY LOAD ERROR:", error);
     }
-  }, []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, []);
 
   // ==========================================================
   // SAVE LOCAL STATE
@@ -1788,6 +1804,9 @@ export default function CommunityScreen({
 
   const persistCommunityState = useCallback(
     async (overrides = {}) => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         const stateToSave = {
           cheeredFriends,
@@ -1801,14 +1820,21 @@ export default function CommunityScreen({
           ...overrides,
         };
 
-        await AsyncStorage.setItem(
+        await _accountSession.run(async () => (AsyncStorage.setItem(
           COMMUNITY_STATE_KEY,
           JSON.stringify(stateToSave)
-        );
+        )));
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log("COMMUNITY SAVE ERROR:", error);
       }
-    },
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     [
       cheeredFriends,
       friendRequestStatus,
@@ -1827,6 +1853,9 @@ export default function CommunityScreen({
 
   const loadWalkingCircles = useCallback(
     async ({ showLoader = true } = {}) => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         if (showLoader) {
           setCirclesLoading(true);
@@ -1837,7 +1866,7 @@ export default function CommunityScreen({
         const {
           data: circleData,
           error: circleError,
-        } = await supabase
+        } = await _accountSession.run(async () => (supabase
           .from("walking_circles")
           .select(
             [
@@ -1853,7 +1882,7 @@ export default function CommunityScreen({
           .eq("active", true)
           .order("sort_order", {
             ascending: true,
-          });
+          })));
 
         if (circleError) {
           throw circleError;
@@ -1861,6 +1890,8 @@ export default function CommunityScreen({
 
         const formatted = (circleData || []).map(
           (circle) => {
+  
+
             const baseMembers = safeInteger(
               circle?.base_member_count
             );
@@ -1887,7 +1918,7 @@ export default function CommunityScreen({
         const {
           data: userData,
           error: userError,
-        } = await supabase.auth.getUser();
+        } = await _accountSession.run(async () => (supabase.auth.getUser()));
 
         if (userError) {
           console.log(
@@ -1906,10 +1937,10 @@ export default function CommunityScreen({
         const {
           data: membershipData,
           error: membershipError,
-        } = await supabase
+        } = await _accountSession.run(async () => (supabase
           .from("walking_circle_members")
           .select("circle_id")
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)));
 
         if (membershipError) {
           throw membershipError;
@@ -1919,6 +1950,8 @@ export default function CommunityScreen({
 
         (membershipData || []).forEach(
           (membership) => {
+  
+
             if (membership?.circle_id) {
               membershipMap[
                 membership.circle_id
@@ -1929,6 +1962,8 @@ export default function CommunityScreen({
 
         setJoinedCircles(membershipMap);
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "WALKING CIRCLES LOAD ERROR:",
           error
@@ -1942,7 +1977,12 @@ export default function CommunityScreen({
           setCirclesLoading(false);
         }
       }
-    },
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     [t]
   );
 
@@ -1951,6 +1991,8 @@ export default function CommunityScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     void loadCommunityState();
     void loadWalkingCircles();
   }, [loadCommunityState, loadWalkingCircles]);
@@ -1960,25 +2002,35 @@ export default function CommunityScreen({
   // ==========================================================
 
   const handleRefresh = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     setRefreshing(true);
 
     try {
-      await Promise.all([
+      await _accountSession.run(async () => (Promise.all([
         loadCommunityState(),
         loadWalkingCircles({
           showLoader: false,
         }),
-      ]);
+      ])));
     } finally {
       setRefreshing(false);
     }
-  }, [loadCommunityState, loadWalkingCircles]);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [loadCommunityState, loadWalkingCircles]);
 
   // ==========================================================
   // BACK
   // ==========================================================
 
   const handleBack = () => {
+  
+
     if (typeof goBack === "function") {
       goBack();
       return;
@@ -1992,6 +2044,9 @@ export default function CommunityScreen({
   // ==========================================================
 
   const handleCheer = async (friendId) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...cheeredFriends,
       [friendId]: true,
@@ -1999,15 +2054,27 @@ export default function CommunityScreen({
 
     setCheeredFriends(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       cheeredFriends: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleAcceptFriend = async () => {
+  try {
+    _accountSession.assertCurrent();
+
     const alreadyExists = acceptedFriends.some(
       (friend) =>
-        friend.id === FRIEND_REQUEST_PERSON.id
+        {
+  
+
+return (friend.id === FRIEND_REQUEST_PERSON.id);
+}
     );
 
     const updatedFriends = alreadyExists
@@ -2017,31 +2084,56 @@ export default function CommunityScreen({
     setFriendRequestStatus("accepted");
     setAcceptedFriends(updatedFriends);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       friendRequestStatus: "accepted",
       acceptedFriends: updatedFriends,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleDeclineFriend = async () => {
+  try {
+    _accountSession.assertCurrent();
+
     setFriendRequestStatus("declined");
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       friendRequestStatus: "declined",
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleRemoveFriend = async (friendId) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updatedFriends = acceptedFriends.filter(
-      (friend) => friend.id !== friendId
+      (friend) => {
+  
+
+return (friend.id !== friendId);
+}
     );
 
     setAcceptedFriends(updatedFriends);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       acceptedFriends: updatedFriends,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // CHALLENGES / EVENTS
@@ -2050,6 +2142,9 @@ export default function CommunityScreen({
   const handleJoinChallenge = async (
     challengeId
   ) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...joinedChallenges,
       [challengeId]:
@@ -2058,12 +2153,20 @@ export default function CommunityScreen({
 
     setJoinedChallenges(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       joinedChallenges: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleJoinEvent = async (eventId) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...joinedEvents,
       [eventId]: !joinedEvents[eventId],
@@ -2071,16 +2174,24 @@ export default function CommunityScreen({
 
     setJoinedEvents(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       joinedEvents: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // FEED
   // ==========================================================
 
   const handleFeedReaction = async (postId) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...feedReactions,
       [postId]: true,
@@ -2088,12 +2199,19 @@ export default function CommunityScreen({
 
     setFeedReactions(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       feedReactions: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleOpenComments = (item) => {
+  
+
     const localizedActivity = t(item.activityKey);
 
     const post = {
@@ -2120,6 +2238,9 @@ export default function CommunityScreen({
   // ==========================================================
 
   const handleJoinCircle = async (circleId) => {
+  try {
+    _accountSession.assertCurrent();
+
     if (circleActionId) {
       return;
     }
@@ -2130,7 +2251,7 @@ export default function CommunityScreen({
       const {
         data: userData,
         error: userError,
-      } = await supabase.auth.getUser();
+      } = await _accountSession.run(async () => (supabase.auth.getUser()));
 
       if (userError) {
         throw userError;
@@ -2152,32 +2273,34 @@ export default function CommunityScreen({
       );
 
       if (alreadyJoined) {
-        const { error } = await supabase
+        const { error } = await _accountSession.run(async () => (supabase
           .from("walking_circle_members")
           .delete()
           .eq("circle_id", circleId)
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)));
 
         if (error) {
           throw error;
         }
       } else {
-        const { error } = await supabase
+        const { error } = await _accountSession.run(async () => (supabase
           .from("walking_circle_members")
           .insert({
             circle_id: circleId,
             user_id: user.id,
-          });
+          })));
 
         if (error && error.code !== "23505") {
           throw error;
         }
       }
 
-      await loadWalkingCircles({
+      await _accountSession.run(async () => (loadWalkingCircles({
         showLoader: false,
-      });
+      })));
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "WALKING CIRCLE ACTION ERROR:",
         error
@@ -2190,13 +2313,21 @@ export default function CommunityScreen({
     } finally {
       setCircleActionId(null);
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // FOLLOWING
   // ==========================================================
 
   const handleToggleFollow = async (id) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...following,
       [id]: !following[id],
@@ -2204,10 +2335,15 @@ export default function CommunityScreen({
 
     setFollowing(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       following: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // ACTIVITY
@@ -2216,6 +2352,9 @@ export default function CommunityScreen({
   const handleActivityRead = async (
     activityId
   ) => {
+  try {
+    _accountSession.assertCurrent();
+
     const updated = {
       ...readActivities,
       [activityId]: true,
@@ -2223,16 +2362,23 @@ export default function CommunityScreen({
 
     setReadActivities(updated);
 
-    await persistCommunityState({
+    await _accountSession.run(async () => (persistCommunityState({
       readActivities: updated,
-    });
-  };
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // AI COACH
   // ==========================================================
 
   const handleOpenAICoach = () => {
+  
+
     if (typeof goToAICoach === "function") {
       goToAICoach();
       return;
@@ -2254,41 +2400,66 @@ export default function CommunityScreen({
   // ==========================================================
 
   const allFriends = useMemo(
-    () => [
+    () => {
+  
+
+return ([
       ...FRIENDS_WALKING,
       ...acceptedFriends,
-    ],
+    ]);
+},
     [acceptedFriends]
   );
 
   const totalFriends = allFriends.length;
 
   const onlineFriends = allFriends.filter(
-    (friend) => friend.isOnline !== false
+    (friend) => {
+  
+
+return (friend.isOnline !== false);
+}
   ).length;
 
   const unreadActivityCount = ACTIVITIES.filter(
-    (item) => !readActivities[item.id]
+    (item) => {
+  
+
+return (!readActivities[item.id]);
+}
   ).length;
 
   const pendingFriendRequests =
     friendRequestStatus === "pending" ? 1 : 0;
 
   const topWalkingCircles = useMemo(() => {
+  
+
     return [...walkingCircles]
-      .sort((a, b) => b.members - a.members)
+      .sort((a, b) => {
+  
+
+return (b.members - a.members);
+})
       .slice(0, 3)
-      .map((circle, index) => ({
+      .map((circle, index) => {
+  
+
+return (({
         ...circle,
         rank: index + 1,
       }));
+});
   }, [walkingCircles]);
 
   // ==========================================================
   // FRIENDS TAB
   // ==========================================================
 
-  const renderFriendsTab = () => (
+  const renderFriendsTab = () => {
+  
+
+return ((
     <>
       <SectionTitle
         icon="👟"
@@ -2301,10 +2472,16 @@ export default function CommunityScreen({
       />
 
       {allFriends.map((friend) => {
+  
+
         const isAcceptedFriend =
           acceptedFriends.some(
             (accepted) =>
-              accepted.id === friend.id
+              {
+  
+
+return (accepted.id === friend.id);
+}
           );
 
         return (
@@ -2364,7 +2541,11 @@ export default function CommunityScreen({
                     styles.cheerButtonActive,
                 ]}
                 onPress={() =>
-                  handleCheer(friend.id)
+                  {
+  
+
+return (handleCheer(friend.id));
+}
                 }
                 disabled={Boolean(
                   cheeredFriends[friend.id]
@@ -2388,7 +2569,11 @@ export default function CommunityScreen({
                     styles.removeFriendButton
                   }
                   onPress={() =>
-                    handleRemoveFriend(friend.id)
+                    {
+  
+
+return (handleRemoveFriend(friend.id));
+}
                   }
                 >
                   <Text
@@ -2487,13 +2672,17 @@ export default function CommunityScreen({
         )}
       </View>
     </>
-  );
+  ));
+};
 
   // ==========================================================
   // FOLLOWING TAB
   // ==========================================================
 
-  const renderFollowingTab = () => (
+  const renderFollowingTab = () => {
+  
+
+return ((
     <>
       <SectionTitle
         icon="📡"
@@ -2502,7 +2691,10 @@ export default function CommunityScreen({
         rtl={isRTL}
       />
 
-      {FOLLOW_SUGGESTIONS.map((item) => (
+      {FOLLOW_SUGGESTIONS.map((item) => {
+  
+
+return ((
         <View
           key={item.id}
           style={styles.followCard}
@@ -2540,7 +2732,11 @@ export default function CommunityScreen({
                 styles.followButtonActive,
             ]}
             onPress={() =>
-              handleToggleFollow(item.id)
+              {
+  
+
+return (handleToggleFollow(item.id));
+}
             }
           >
             <Text
@@ -2557,15 +2753,20 @@ export default function CommunityScreen({
             </Text>
           </TouchableOpacity>
         </View>
-      ))}
+      ));
+})}
     </>
-  );
+  ));
+};
 
   // ==========================================================
   // GLOBAL TAB
   // ==========================================================
 
-  const renderGlobalTab = () => (
+  const renderGlobalTab = () => {
+  
+
+return ((
     <>
       <SectionTitle
         icon="🔔"
@@ -2580,7 +2781,10 @@ export default function CommunityScreen({
         rtl={isRTL}
       />
 
-      {ACTIVITIES.map((item) => (
+      {ACTIVITIES.map((item) => {
+  
+
+return ((
         <TouchableOpacity
           key={item.id}
           style={[
@@ -2589,7 +2793,11 @@ export default function CommunityScreen({
               styles.activityCardRead,
           ]}
           onPress={() =>
-            handleActivityRead(item.id)
+            {
+  
+
+return (handleActivityRead(item.id));
+}
           }
           disabled={Boolean(
             readActivities[item.id]
@@ -2634,7 +2842,8 @@ export default function CommunityScreen({
             </Text>
           </View>
         </TouchableOpacity>
-      ))}
+      ));
+})}
 
       <SectionTitle
         icon="🌎"
@@ -2643,7 +2852,10 @@ export default function CommunityScreen({
         rtl={isRTL}
       />
 
-      {COMMUNITY_FEED.map((item) => (
+      {COMMUNITY_FEED.map((item) => {
+  
+
+return ((
         <View
           key={item.id}
           style={styles.feedCard}
@@ -2704,7 +2916,11 @@ export default function CommunityScreen({
                   styles.feedActionButtonActive,
               ]}
               onPress={() =>
-                handleFeedReaction(item.id)
+                {
+  
+
+return (handleFeedReaction(item.id));
+}
               }
               disabled={Boolean(
                 feedReactions[item.id]
@@ -2727,7 +2943,11 @@ export default function CommunityScreen({
             <TouchableOpacity
               style={styles.commentButton}
               onPress={() =>
-                handleOpenComments(item)
+                {
+  
+
+return (handleOpenComments(item));
+}
               }
             >
               <Text
@@ -2741,7 +2961,8 @@ export default function CommunityScreen({
             </TouchableOpacity>
           </View>
         </View>
-      ))}
+      ));
+})}
 
       <SectionTitle
         icon="👣"
@@ -2780,7 +3001,11 @@ export default function CommunityScreen({
           <TouchableOpacity
             style={styles.retryButton}
             onPress={() =>
-              loadWalkingCircles()
+              {
+  
+
+return (loadWalkingCircles());
+}
             }
           >
             <Text
@@ -2807,6 +3032,8 @@ export default function CommunityScreen({
       ) : (
         <View style={styles.circleGrid}>
           {walkingCircles.map((circle) => {
+  
+
             const joined = Boolean(
               joinedCircles[circle.id]
             );
@@ -2823,7 +3050,11 @@ export default function CommunityScreen({
                     styles.circleCardJoined,
                 ]}
                 onPress={() =>
-                  handleJoinCircle(circle.id)
+                  {
+  
+
+return (handleJoinCircle(circle.id));
+}
                 }
                 disabled={Boolean(circleActionId)}
                 activeOpacity={0.85}
@@ -2878,6 +3109,8 @@ export default function CommunityScreen({
       />
 
       {topWalkingCircles.map((circle) => {
+  
+
         const joined = Boolean(
           joinedCircles[circle.id]
         );
@@ -2930,7 +3163,11 @@ export default function CommunityScreen({
                   styles.topCircleButtonJoined,
               ]}
               onPress={() =>
-                handleJoinCircle(circle.id)
+                {
+  
+
+return (handleJoinCircle(circle.id));
+}
               }
               disabled={Boolean(circleActionId)}
             >
@@ -2960,6 +3197,8 @@ export default function CommunityScreen({
       />
 
       {CHALLENGES.map((challenge) => {
+  
+
         const percentage =
           Math.min(
             safeInteger(challenge.progress) /
@@ -3049,7 +3288,11 @@ export default function CommunityScreen({
                   styles.joinedButton,
               ]}
               onPress={() =>
-                handleJoinChallenge(challenge.id)
+                {
+  
+
+return (handleJoinChallenge(challenge.id));
+}
               }
             >
               <Text
@@ -3073,7 +3316,10 @@ export default function CommunityScreen({
         rtl={isRTL}
       />
 
-      {EVENTS.map((event) => (
+      {EVENTS.map((event) => {
+  
+
+return ((
         <View
           key={event.id}
           style={styles.eventCard}
@@ -3119,7 +3365,11 @@ export default function CommunityScreen({
                   styles.joinedEventButton,
               ]}
               onPress={() =>
-                handleJoinEvent(event.id)
+                {
+  
+
+return (handleJoinEvent(event.id));
+}
               }
             >
               <Text
@@ -3137,7 +3387,8 @@ export default function CommunityScreen({
             </TouchableOpacity>
           </View>
         </View>
-      ))}
+      ));
+})}
 
       <SectionTitle
         icon="🧠"
@@ -3183,13 +3434,16 @@ export default function CommunityScreen({
         </TouchableOpacity>
       </View>
     </>
-  );
+  ));
+};
 
   // ==========================================================
   // TAB ROUTER
   // ==========================================================
 
   const renderTabContent = () => {
+  
+
     if (selectedTab === "friends") {
       return renderFriendsTab();
     }
@@ -3309,7 +3563,11 @@ export default function CommunityScreen({
               label={t("global")}
               selected={selectedTab === "global"}
               onPress={() =>
-                setSelectedTab("global")
+                {
+  
+
+return (setSelectedTab("global"));
+}
               }
               badge={
                 unreadActivityCount > 0
@@ -3323,7 +3581,11 @@ export default function CommunityScreen({
               label={t("friends")}
               selected={selectedTab === "friends"}
               onPress={() =>
-                setSelectedTab("friends")
+                {
+  
+
+return (setSelectedTab("friends"));
+}
               }
               badge={pendingFriendRequests || null}
               rtl={isRTL}
@@ -3335,7 +3597,11 @@ export default function CommunityScreen({
                 selectedTab === "following"
               }
               onPress={() =>
-                setSelectedTab("following")
+                {
+  
+
+return (setSelectedTab("following"));
+}
               }
               rtl={isRTL}
             />

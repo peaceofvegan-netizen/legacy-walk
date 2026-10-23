@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import {
   useCallback,
   useEffect,
@@ -18,10 +19,16 @@ import {
 } from "../utils/legathonRankSystem";
 
 export default function useLegathonPoints() {
+  const _accountSession = captureAccountSession();
+
   const [points, setPoints] = useState(0);
 
   const [rank, setRank] = useState(
-    () => getLegathonRank(0)
+    () => {
+  
+
+return (getLegathonRank(0));
+}
   );
 
   const [loading, setLoading] = useState(true);
@@ -31,13 +38,16 @@ export default function useLegathonPoints() {
   const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     const requestId = ++requestRef.current;
 
     setError("");
 
     try {
       const storedTotal = Number(
-        await getTotalPoints()
+        await _accountSession.run(async () => (getTotalPoints()))
       );
 
       const total = Number.isFinite(storedTotal)
@@ -56,6 +66,8 @@ export default function useLegathonPoints() {
 
       return total;
     } catch (refreshError) {
+    if (isAccountSessionEnded(refreshError)) throw refreshError;
+
       if (
         mountedRef.current &&
         requestId === requestRef.current
@@ -74,9 +86,16 @@ export default function useLegathonPoints() {
         setLoading(false);
       }
     }
-  }, []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, []);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     mountedRef.current = true;
 
     refresh();
@@ -85,6 +104,8 @@ export default function useLegathonPoints() {
       AppState.addEventListener(
         "change",
         (state) => {
+  if (!_accountSession.isCurrent()) return;
+
           if (state === "active") {
             refresh();
           }

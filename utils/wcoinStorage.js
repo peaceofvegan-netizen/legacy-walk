@@ -1,5 +1,5 @@
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 import {
   supabase,
@@ -63,6 +63,12 @@ export async function cacheWCoins(
   balance,
   userId = null
 ) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   const normalized =
     normalizeBalance(
       balance
@@ -89,12 +95,17 @@ export async function cacheWCoins(
   }
 
 
-  await Promise.all(
+  await _accountSession.run(async () => (Promise.all(
     writes
-  );
+  )));
 
 
   return normalized;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -105,6 +116,12 @@ export async function cacheWCoins(
 async function readUserCache(
   userId
 ) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   if (!userId) {
     return 0;
   }
@@ -113,11 +130,11 @@ async function readUserCache(
   try {
 
     const saved =
-      await AsyncStorage.getItem(
+      await _accountSession2.run(async () => (AsyncStorage.getItem(
         getUserCacheKey(
           userId
         )
-      );
+      )));
 
 
     if (
@@ -132,6 +149,8 @@ async function readUserCache(
     );
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "WCoin cache read error:",
@@ -139,6 +158,11 @@ async function readUserCache(
     );
 
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -148,6 +172,11 @@ async function readUserCache(
 // ============================================================
 
 async function getCurrentUser() {
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
 
   // getSession reads the locally stored Supabase session first.
   // This lets us identify the correct user's cache even if
@@ -157,7 +186,7 @@ async function getCurrentUser() {
     data: sessionData,
     error: sessionError,
   } =
-    await supabase.auth.getSession();
+    await _accountSession3.run(async () => (supabase.auth.getSession()));
 
 
   if (sessionError) {
@@ -186,7 +215,7 @@ async function getCurrentUser() {
       data,
       error,
     } =
-      await supabase.auth.getUser();
+      await _accountSession3.run(async () => (supabase.auth.getUser()));
 
 
     if (error) {
@@ -200,6 +229,8 @@ async function getCurrentUser() {
     );
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "WCoin user lookup error:",
@@ -207,6 +238,11 @@ async function getCurrentUser() {
     );
 
     return null;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -222,9 +258,15 @@ async function getCurrentUser() {
 // ============================================================
 
 export async function getWCoins() {
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
 
   const user =
-    await getCurrentUser();
+    await _accountSession4.run(async () => (getCurrentUser()));
 
 
   // Do NOT show a previous user's generic cached balance
@@ -232,10 +274,10 @@ export async function getWCoins() {
 
   if (!user?.id) {
 
-    await AsyncStorage.setItem(
+    await _accountSession4.run(async () => (AsyncStorage.setItem(
       WCOIN_KEY,
       "0"
-    );
+    )));
 
     return 0;
   }
@@ -247,7 +289,7 @@ export async function getWCoins() {
       data,
       error,
     } =
-      await supabase
+      await _accountSession4.run(async () => (supabase
         .from(
           "wcoin_wallets"
         )
@@ -258,7 +300,7 @@ export async function getWCoins() {
           "user_id",
           user.id
         )
-        .maybeSingle();
+        .maybeSingle()));
 
 
     if (error) {
@@ -276,15 +318,17 @@ export async function getWCoins() {
         : 0;
 
 
-    await cacheWCoins(
+    await _accountSession4.run(async () => (cacheWCoins(
       balance,
       user.id
-    );
+    )));
 
 
     return balance;
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "WCoin server refresh failed. Using user cache:",
@@ -296,18 +340,23 @@ export async function getWCoins() {
     // show the last server-confirmed balance for THIS user only.
 
     const cached =
-      await readUserCache(
+      await _accountSession4.run(async () => (readUserCache(
         user.id
-      );
+      )));
 
 
-    await AsyncStorage.setItem(
+    await _accountSession4.run(async () => (AsyncStorage.setItem(
       WCOIN_KEY,
       String(cached)
-    );
+    )));
 
 
     return cached;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -335,6 +384,11 @@ export async function refreshWCoins() {
 export async function syncServerWCoinBalance(
   balance
 ) {
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
   const normalized =
     normalizeBalance(
       balance
@@ -342,7 +396,7 @@ export async function syncServerWCoinBalance(
 
 
   const user =
-    await getCurrentUser();
+    await _accountSession5.run(async () => (getCurrentUser()));
 
 
   if (!user?.id) {
@@ -350,13 +404,18 @@ export async function syncServerWCoinBalance(
   }
 
 
-  await cacheWCoins(
+  await _accountSession5.run(async () => (cacheWCoins(
     normalized,
     user.id
-  );
+  )));
 
 
   return normalized;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -368,9 +427,14 @@ export async function syncServerWCoinBalance(
 // ============================================================
 
 export async function getCachedWCoins() {
+  const _accountSession6 = captureAccountSession();
+
+  try {
+    _accountSession6.assertCurrent();
+
 
   const user =
-    await getCurrentUser();
+    await _accountSession6.run(async () => (getCurrentUser()));
 
 
   if (!user?.id) {
@@ -381,6 +445,11 @@ export async function getCachedWCoins() {
   return readUserCache(
     user.id
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -446,11 +515,17 @@ export async function spendWCoins(
 // ============================================================
 
 export async function clearWCoinCache() {
+  const _accountSession7 = captureAccountSession();
+  const AsyncStorage = _accountSession7.storage;
+
+  try {
+    _accountSession7.assertCurrent();
+
 
   try {
 
     const user =
-      await getCurrentUser();
+      await _accountSession7.run(async () => (getCurrentUser()));
 
 
     const keys = [
@@ -467,14 +542,16 @@ export async function clearWCoinCache() {
     }
 
 
-    await AsyncStorage.multiRemove(
+    await _accountSession7.run(async () => (AsyncStorage.multiRemove(
       keys
-    );
+    )));
 
 
     return true;
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Clear WCoin cache error:",
@@ -482,5 +559,10 @@ export async function clearWCoinCache() {
     );
 
     return false;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }

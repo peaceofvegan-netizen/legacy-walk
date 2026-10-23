@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React from "react";
 import {
   ScrollView,
@@ -36,28 +37,46 @@ const SHARE_CARDS = [
 ];
 
 export default function SocialSharingScreen() {
+  const _accountSession = captureAccountSession();
+
   async function shareCard(card) {
-    await Share.share({
+  try {
+    _accountSession.assertCurrent();
+
+    await _accountSession.run(async () => (Share.share({
       message: `${card.icon} ${card.title}\n\n${card.message}\n\nWalk. Earn. Unlock. Wear Your Legacy.`,
-    });
+    })));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.small}>SOCIAL SHARING</Text>
       <Text style={styles.title}>Share Your Legacy</Text>
 
-      {SHARE_CARDS.map((card) => (
+      {SHARE_CARDS.map((card) => {
+  
+
+return ((
         <View key={card.id} style={styles.card}>
           <Text style={styles.icon}>{card.icon}</Text>
           <Text style={styles.cardTitle}>{card.title}</Text>
           <Text style={styles.cardText}>{card.message}</Text>
 
-          <TouchableOpacity style={styles.button} onPress={() => shareCard(card)}>
+          <TouchableOpacity style={styles.button} onPress={() => {
+  
+
+return (shareCard(card));
+}}>
             <Text style={styles.buttonText}>SHARE</Text>
           </TouchableOpacity>
         </View>
-      ))}
+      ));
+})}
 
       <View style={{ height: 140 }} />
     </ScrollView>

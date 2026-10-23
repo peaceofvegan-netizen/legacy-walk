@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const AVATAR_XP_KEY = "LEGACY_WALK_AVATAR_XP";
 
@@ -20,7 +21,13 @@ export function getNextLevelXP(xp = 0) {
 }
 
 export async function loadAvatarXP() {
-  const saved = await AsyncStorage.getItem(AVATAR_XP_KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(AVATAR_XP_KEY)));
 
   return saved
     ? JSON.parse(saved)
@@ -29,10 +36,21 @@ export async function loadAvatarXP() {
         level: 1,
         lastLevelUp: null,
       };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function addAvatarXP(eventType) {
-  const current = await loadAvatarXP();
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  const current = await _accountSession2.run(async () => (loadAvatarXP()));
 
   const gained = AVATAR_XP_VALUES[eventType] || 0;
   const oldLevel = current.level || 1;
@@ -47,7 +65,12 @@ export async function addAvatarXP(eventType) {
     xpGained: gained,
   };
 
-  await AsyncStorage.setItem(AVATAR_XP_KEY, JSON.stringify(updated));
+  await _accountSession2.run(async () => (AsyncStorage.setItem(AVATAR_XP_KEY, JSON.stringify(updated))));
 
   return updated;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

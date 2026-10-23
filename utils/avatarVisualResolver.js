@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 // utils/avatarVisualResolver.js
 
 import {
@@ -547,6 +548,11 @@ export function getTracksuitVisual({
 export async function getCurrentAvatarVisual(
   avatarId
 ) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
 
   const normalizedAvatarId =
     normalizeId(
@@ -591,10 +597,10 @@ export async function getCurrentAvatarVisual(
       currentSuit,
       currentSuitLevel,
     ] =
-      await Promise.all([
+      await _accountSession.run(async () => (Promise.all([
         getCurrentAvatarSuit(),
         getCurrentAvatarSuitLevel(),
-      ]);
+      ])));
 
 
     const suitId =
@@ -760,6 +766,8 @@ export async function getCurrentAvatarVisual(
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Get current avatar visual error:",
@@ -801,6 +809,11 @@ export async function getCurrentAvatarVisual(
 
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -894,11 +907,16 @@ export function getDefaultAvatarVisual(
 export async function getPublicAvatarVisual(
   avatarId
 ) {
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
 
   const visual =
-    await getCurrentAvatarVisual(
+    await _accountSession2.run(async () => (getCurrentAvatarVisual(
       avatarId
-    );
+    )));
 
 
   return {
@@ -926,6 +944,11 @@ export async function getPublicAvatarVisual(
       visual.identity ||
       null,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 

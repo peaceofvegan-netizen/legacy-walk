@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const JOURNEY_PROGRESS_KEY = "LEGACY_WALK_JOURNEY_PROGRESS";
 const ACTIVE_JOURNEY_KEY = "LEGACY_WALK_ACTIVE_JOURNEY";
@@ -52,10 +53,16 @@ const createDefaultProgress = journeyId => ({
 });
 
 const readProgressDatabase = async () => {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   try {
-    const stored = await AsyncStorage.getItem(
+    _accountSession.assertCurrent();
+
+  try {
+    const stored = await _accountSession.run(async () => (AsyncStorage.getItem(
       JOURNEY_PROGRESS_KEY
-    );
+    )));
 
     if (!stored) return {};
 
@@ -65,6 +72,8 @@ const readProgressDatabase = async () => {
       ? parsed
       : {};
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.error(
       "Unable to read journey progress:",
       error
@@ -72,13 +81,29 @@ const readProgressDatabase = async () => {
 
     return {};
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 const saveProgressDatabase = async database => {
-  await AsyncStorage.setItem(
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  await _accountSession2.run(async () => (AsyncStorage.setItem(
     JOURNEY_PROGRESS_KEY,
     JSON.stringify(database)
-  );
+  )));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 const calculateCheckpoint = progressPercent => {
@@ -195,18 +220,28 @@ export const calculateJourneyProgress = (
 };
 
 export const getJourneyProgress = async journeyId => {
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) {
     return createDefaultProgress("");
   }
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession3.run(async () => (readProgressDatabase()));
 
   return {
     ...createDefaultProgress(id),
     ...(database[id] || {}),
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const getAllJourneyProgress = async () => {
@@ -214,6 +249,12 @@ export const getAllJourneyProgress = async () => {
 };
 
 export const startJourneyProgress = async journey => {
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
   const journeyId = normalizeJourneyId(
     journey?.id ||
     journey?.journeyId ||
@@ -226,7 +267,7 @@ export const startJourneyProgress = async journey => {
     );
   }
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession4.run(async () => (readProgressDatabase()));
   const existing = database[journeyId];
 
   const stepsTotal = Math.max(
@@ -273,16 +314,21 @@ export const startJourneyProgress = async journey => {
 
   database[journeyId] = progress;
 
-  await Promise.all([
+  await _accountSession4.run(async () => (Promise.all([
     saveProgressDatabase(database),
 
     AsyncStorage.setItem(
       ACTIVE_JOURNEY_KEY,
       journeyId
     ),
-  ]);
+  ])));
 
   return progress;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const updateJourneySteps = async (
@@ -290,6 +336,11 @@ export const updateJourneySteps = async (
   completedSteps,
   additionalData = {}
 ) => {
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
   const journeyId = normalizeJourneyId(
     journey?.id ||
     journey?.journeyId ||
@@ -302,7 +353,7 @@ export const updateJourneySteps = async (
     );
   }
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession5.run(async () => (readProgressDatabase()));
 
   const existing = {
     ...createDefaultProgress(journeyId),
@@ -369,15 +420,25 @@ export const updateJourneySteps = async (
 
   database[journeyId] = progress;
 
-  await saveProgressDatabase(database);
+  await _accountSession5.run(async () => (saveProgressDatabase(database)));
 
   return progress;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const reachJourneyCheckpoint = async (
   journeyId,
   checkpointNumber
 ) => {
+  const _accountSession6 = captureAccountSession();
+
+  try {
+    _accountSession6.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) {
@@ -392,7 +453,7 @@ export const reachJourneyCheckpoint = async (
     TOTAL_CHECKPOINTS
   );
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession6.run(async () => (readProgressDatabase()));
 
   const existing = {
     ...createDefaultProgress(id),
@@ -468,12 +529,22 @@ export const reachJourneyCheckpoint = async (
 
   database[id] = progress;
 
-  await saveProgressDatabase(database);
+  await _accountSession6.run(async () => (saveProgressDatabase(database)));
 
   return progress;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const completeJourneyProgress = async journeyId => {
+  const _accountSession7 = captureAccountSession();
+
+  try {
+    _accountSession7.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) {
@@ -482,7 +553,7 @@ export const completeJourneyProgress = async journeyId => {
     );
   }
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession7.run(async () => (readProgressDatabase()));
 
   const existing = {
     ...createDefaultProgress(id),
@@ -534,17 +605,27 @@ export const completeJourneyProgress = async journeyId => {
 
   database[id] = progress;
 
-  await saveProgressDatabase(database);
+  await _accountSession7.run(async () => (saveProgressDatabase(database)));
 
   return progress;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const markJourneyRewardsClaimed = async journeyId => {
+  const _accountSession8 = captureAccountSession();
+
+  try {
+    _accountSession8.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) return null;
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession8.run(async () => (readProgressDatabase()));
 
   const existing = {
     ...createDefaultProgress(id),
@@ -559,70 +640,124 @@ export const markJourneyRewardsClaimed = async journeyId => {
 
   database[id] = progress;
 
-  await saveProgressDatabase(database);
+  await _accountSession8.run(async () => (saveProgressDatabase(database)));
 
   return progress;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const getActiveJourneyId = async () => {
+  const _accountSession9 = captureAccountSession();
+  const AsyncStorage = _accountSession9.storage;
+
+  try {
+    _accountSession9.assertCurrent();
+
   return AsyncStorage.getItem(
     ACTIVE_JOURNEY_KEY
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const getActiveJourneyProgress = async () => {
+  const _accountSession0 = captureAccountSession();
+
+  try {
+    _accountSession0.assertCurrent();
+
   const journeyId =
-    await getActiveJourneyId();
+    await _accountSession0.run(async () => (getActiveJourneyId()));
 
   if (!journeyId) return null;
 
   return getJourneyProgress(journeyId);
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const setActiveJourney = async journeyId => {
+  const _accountSession1 = captureAccountSession();
+  const AsyncStorage = _accountSession1.storage;
+
+  try {
+    _accountSession1.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) {
-    await AsyncStorage.removeItem(
+    await _accountSession1.run(async () => (AsyncStorage.removeItem(
       ACTIVE_JOURNEY_KEY
-    );
+    )));
 
     return null;
   }
 
-  await AsyncStorage.setItem(
+  await _accountSession1.run(async () => (AsyncStorage.setItem(
     ACTIVE_JOURNEY_KEY,
     id
-  );
+  )));
 
   return id;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const resetJourneyProgress = async journeyId => {
+  const _accountSession10 = captureAccountSession();
+  const AsyncStorage = _accountSession10.storage;
+
+  try {
+    _accountSession10.assertCurrent();
+
   const id = normalizeJourneyId(journeyId);
 
   if (!id) return false;
 
-  const database = await readProgressDatabase();
+  const database = await _accountSession10.run(async () => (readProgressDatabase()));
 
   delete database[id];
 
-  await saveProgressDatabase(database);
+  await _accountSession10.run(async () => (saveProgressDatabase(database)));
 
   const activeJourneyId =
-    await getActiveJourneyId();
+    await _accountSession10.run(async () => (getActiveJourneyId()));
 
   if (activeJourneyId === id) {
-    await AsyncStorage.removeItem(
+    await _accountSession10.run(async () => (AsyncStorage.removeItem(
       ACTIVE_JOURNEY_KEY
-    );
+    )));
   }
 
   return true;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const resetAllJourneyProgress = async () => {
-  await Promise.all([
+  const _accountSession11 = captureAccountSession();
+  const AsyncStorage = _accountSession11.storage;
+
+  try {
+    _accountSession11.assertCurrent();
+
+  await _accountSession11.run(async () => (Promise.all([
     AsyncStorage.removeItem(
       JOURNEY_PROGRESS_KEY
     ),
@@ -630,7 +765,12 @@ export const resetAllJourneyProgress = async () => {
     AsyncStorage.removeItem(
       ACTIVE_JOURNEY_KEY
     ),
-  ]);
+  ])));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export default {

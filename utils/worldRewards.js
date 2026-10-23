@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 import { addWCoins } from "./wcoinStorage";
 import { addPowerCount } from "./powerStorage";
 
@@ -13,7 +14,13 @@ const WORLD_REWARDS = {
 };
 
 export async function claimWorldReward(worldId) {
-  const saved = await AsyncStorage.getItem(CLAIMED_WORLD_REWARDS_KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(CLAIMED_WORLD_REWARDS_KEY)));
   const claimed = saved ? JSON.parse(saved) : {};
 
   if (claimed[worldId]) {
@@ -27,11 +34,11 @@ export async function claimWorldReward(worldId) {
   }
 
   if (reward.type === "coins") {
-    await addWCoins(reward.amount);
+    await _accountSession.run(async () => (addWCoins(reward.amount)));
   }
 
   if (reward.type === "power") {
-    await addPowerCount(reward.power, reward.amount);
+    await _accountSession.run(async () => (addPowerCount(reward.power, reward.amount)));
   }
 
   const nextClaimed = {
@@ -39,13 +46,18 @@ export async function claimWorldReward(worldId) {
     [worldId]: true,
   };
 
-  await AsyncStorage.setItem(
+  await _accountSession.run(async () => (AsyncStorage.setItem(
     CLAIMED_WORLD_REWARDS_KEY,
     JSON.stringify(nextClaimed)
-  );
+  )));
 
   return {
     claimed: true,
     message: reward.label,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

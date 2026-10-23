@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const STORY_PROGRESS_KEY = "LEGACY_WALK_STORY_PROGRESS";
 
@@ -60,33 +61,54 @@ export const JOURNEY_STORIES = {
 };
 
 export async function loadStoryProgress() {
-  const saved = await AsyncStorage.getItem(
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(
     STORY_PROGRESS_KEY
-  );
+  )));
 
   return saved
     ? JSON.parse(saved)
     : {
         unlockedStories: [],
       };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function checkStoryUnlocks(
   journeyId,
   completedMiles
 ) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   const story = JOURNEY_STORIES[journeyId];
 
   if (!story) return [];
 
-  const progress = await loadStoryProgress();
+  const progress = await _accountSession2.run(async () => (loadStoryProgress()));
 
   const newlyUnlocked = story.milestones.filter(
     (milestone) =>
-      completedMiles >= milestone.mile &&
+      {
+  
+
+return (completedMiles >= milestone.mile &&
       !progress.unlockedStories.includes(
         `${journeyId}-${milestone.mile}`
-      )
+      ));
+}
   );
 
   if (newlyUnlocked.length === 0) {
@@ -97,31 +119,54 @@ export async function checkStoryUnlocks(
     unlockedStories: [
       ...progress.unlockedStories,
       ...newlyUnlocked.map(
-        (item) => `${journeyId}-${item.mile}`
+        (item) => {
+  
+
+return (`${journeyId}-${item.mile}`);
+}
       ),
     ],
   };
 
-  await AsyncStorage.setItem(
+  await _accountSession2.run(async () => (AsyncStorage.setItem(
     STORY_PROGRESS_KEY,
     JSON.stringify(updated)
-  );
+  )));
 
   return newlyUnlocked;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function getUnlockedStories(
   journeyId
 ) {
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
   const story = JOURNEY_STORIES[journeyId];
 
   if (!story) return [];
 
-  const progress = await loadStoryProgress();
+  const progress = await _accountSession3.run(async () => (loadStoryProgress()));
 
   return story.milestones.filter((milestone) =>
-    progress.unlockedStories.includes(
+    {
+  
+
+return (progress.unlockedStories.includes(
       `${journeyId}-${milestone.mile}`
-    )
+    ));
+}
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

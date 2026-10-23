@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -9,7 +10,7 @@ import {
   Alert,
   Image,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import { loadWCoins, saveWCoins } from "../utils/wCoinStorage";
 import { addWCoinTransaction } from "../utils/wCoinTransactions";
@@ -60,22 +61,38 @@ const MARKET_ITEMS = [
 ];
 
 export default function WCoinMarketplaceScreen({ goBack }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [wCoins, setWCoins] = useState(0);
   const [ownedItems, setOwnedItems] = useState([]);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadMarketplace();
   }, []);
 
   async function loadMarketplace() {
-    const coins = await loadWCoins();
-    const savedOwned = await AsyncStorage.getItem("ownedMarketplaceItems");
+  try {
+    _accountSession.assertCurrent();
+
+    const coins = await _accountSession.run(async () => (loadWCoins()));
+    const savedOwned = await _accountSession.run(async () => (AsyncStorage.getItem("ownedMarketplaceItems")));
 
     setWCoins(coins);
     setOwnedItems(savedOwned ? JSON.parse(savedOwned) : []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   async function buyItem(item) {
+  try {
+    _accountSession.assertCurrent();
+
     const owned = ownedItems.includes(item.id);
 
     if (owned) return;
@@ -91,23 +108,28 @@ export default function WCoinMarketplaceScreen({ goBack }) {
     const updatedCoins = wCoins - item.price;
     const updatedOwned = [...ownedItems, item.id];
 
-    await saveWCoins(updatedCoins);
-    await AsyncStorage.setItem(
+    await _accountSession.run(async () => (saveWCoins(updatedCoins)));
+    await _accountSession.run(async () => (AsyncStorage.setItem(
       "ownedMarketplaceItems",
       JSON.stringify(updatedOwned)
-    );
+    )));
 
-    await addWCoinTransaction({
+    await _accountSession.run(async () => (addWCoinTransaction({
       type: "spent",
       amount: item.price,
       title: `Marketplace unlock: ${item.title}`,
-    });
+    })));
 
     setWCoins(updatedCoins);
     setOwnedItems(updatedOwned);
 
     Alert.alert("Unlocked", `${item.title} has been added to your account.`);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -143,6 +165,8 @@ export default function WCoinMarketplaceScreen({ goBack }) {
         </View>
 
         {MARKET_ITEMS.map((item) => {
+  
+
           const owned = ownedItems.includes(item.id);
           const affordable = wCoins >= item.price;
 
@@ -174,7 +198,11 @@ export default function WCoinMarketplaceScreen({ goBack }) {
                     owned && styles.ownedButton,
                     !affordable && !owned && styles.disabledButton,
                   ]}
-                  onPress={() => buyItem(item)}
+                  onPress={() => {
+  
+
+return (buyItem(item));
+}}
                   disabled={owned}
                 >
                   <Text style={styles.buyButtonText}>

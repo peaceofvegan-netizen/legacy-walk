@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import {
   useEffect,
   useRef,
@@ -8,8 +9,7 @@ import {
   AppState,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import JOURNEY_CATALOG from
   "../data/journeyCatalog";
@@ -429,14 +429,20 @@ export function resolveJourneyProgress(
 export async function loadJourneyDisplay(
   fallbackActive = null
 ) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
 
   const header =
     Object.fromEntries(
-      await AsyncStorage.multiGet([
+      await _accountSession.run(async () => (AsyncStorage.multiGet([
         "activeJourney",
         "resumeJourneyId",
         PROGRESS_KEY,
-      ])
+      ])))
     );
 
 
@@ -473,8 +479,12 @@ export async function loadJourneyDisplay(
   const catalogEntry =
     DISPLAY_JOURNEYS.find(
       (item) =>
-        item.id ===
-        activeId
+        {
+  
+
+return (item.id ===
+        activeId);
+}
     );
 
 
@@ -515,7 +525,11 @@ export async function loadJourneyDisplay(
       DISPLAY_JOURNEYS
         .map(
           (item) =>
-            item.id
+            {
+  
+
+return (item.id);
+}
         )
         .concat(
           activeId
@@ -529,14 +543,18 @@ export async function loadJourneyDisplay(
 
 
   const snapshotPairs =
-    await AsyncStorage.multiGet(
+    await _accountSession.run(async () => (AsyncStorage.multiGet(
       ids.flatMap(
-        (id) => [
+        (id) => {
+  
+
+return ([
           `journeyStats_${id}`,
           `journeyCompleted_${id}`,
-        ]
+        ]);
+}
       )
-    );
+    )));
 
 
   const snapshots =
@@ -668,6 +686,11 @@ export async function loadJourneyDisplay(
           ) * 100
         : 0,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -678,6 +701,8 @@ export async function loadJourneyDisplay(
 export default function useJourneyProgress(
   fallbackActive = null
 ) {
+  const _accountSession2 = captureAccountSession();
+
 
   const fallbackRef =
     useRef(
@@ -722,6 +747,8 @@ export default function useJourneyProgress(
 
   useEffect(
     () => {
+  if (!_accountSession2.isCurrent()) return;
+
 
       let alive =
         true;
@@ -739,6 +766,9 @@ export default function useJourneyProgress(
 
 
       async function refresh() {
+  try {
+    _accountSession2.assertCurrent();
+
 
         if (
           !alive ||
@@ -756,9 +786,9 @@ export default function useJourneyProgress(
         try {
 
           const result =
-            await loadJourneyDisplay(
+            await _accountSession2.run(async () => (loadJourneyDisplay(
               fallbackRef.current
-            );
+            )));
 
 
           if (
@@ -778,6 +808,8 @@ export default function useJourneyProgress(
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
           console.log(
             "Journey progress load error:",
@@ -792,7 +824,10 @@ export default function useJourneyProgress(
             setState(
               (
                 previous
-              ) => ({
+              ) => {
+  
+
+return (({
                 ...previous,
 
                 ready:
@@ -801,7 +836,8 @@ export default function useJourneyProgress(
                 error:
                   error.message ||
                   "Unable to load journey progress.",
-              })
+              }));
+}
             );
           }
 
@@ -810,7 +846,12 @@ export default function useJourneyProgress(
           busy =
             false;
         }
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
 
       void refresh();
@@ -829,6 +870,8 @@ export default function useJourneyProgress(
           (
             value
           ) => {
+  if (!_accountSession2.isCurrent()) return;
+
 
             foreground =
               value ===

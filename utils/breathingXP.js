@@ -1,38 +1,77 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const BREATHING_XP_KEY = "LEGACY_WALK_BREATHING_XP";
 
 export async function getBreathingXP() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   try {
-    const saved = await AsyncStorage.getItem(BREATHING_XP_KEY);
+    _accountSession.assertCurrent();
+
+  try {
+    const saved = await _accountSession.run(async () => (AsyncStorage.getItem(BREATHING_XP_KEY)));
     return saved ? Number(saved) : 0;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("getBreathingXP error:", error);
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
 export async function saveBreathingXP(xp) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
   try {
-    await AsyncStorage.setItem(BREATHING_XP_KEY, String(xp));
+    _accountSession2.assertCurrent();
+
+  try {
+    await _accountSession2.run(async () => (AsyncStorage.setItem(BREATHING_XP_KEY, String(xp))));
     return xp;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("saveBreathingXP error:", error);
     return xp;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
 export async function addBreathingXP(amount = 0) {
+  const _accountSession3 = captureAccountSession();
+
   try {
-    const currentXP = await getBreathingXP();
+    _accountSession3.assertCurrent();
+
+  try {
+    const currentXP = await _accountSession3.run(async () => (getBreathingXP()));
     const updatedXP = currentXP + Number(amount || 0);
 
-    await saveBreathingXP(updatedXP);
+    await _accountSession3.run(async () => (saveBreathingXP(updatedXP)));
 
     return updatedXP;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("addBreathingXP error:", error);
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -62,6 +101,16 @@ export function getBreathingLevel(xp = 0) {
 }
 
 export async function resetBreathingXP() {
-  await saveBreathingXP(0);
+  const _accountSession4 = captureAccountSession();
+
+  try {
+    _accountSession4.assertCurrent();
+
+  await _accountSession4.run(async () => (saveBreathingXP(0)));
   return 0;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

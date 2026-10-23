@@ -1,6 +1,7 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 // utils/avatarWardrobeStorage.js
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 
 // ============================================================
@@ -196,12 +197,18 @@ export function isValidAvatarSuit(suitId) {
 // ============================================================
 
 async function readFirstStorageValue(keys) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   for (const key of keys) {
     try {
       const value =
-        await AsyncStorage.getItem(
+        await _accountSession.run(async () => (AsyncStorage.getItem(
           key
-        );
+        )));
 
       if (
         value !== null &&
@@ -211,6 +218,8 @@ async function readFirstStorageValue(keys) {
         return value;
       }
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log(
         "Wardrobe legacy read error:",
         key,
@@ -220,6 +229,11 @@ async function readFirstStorageValue(keys) {
   }
 
   return null;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -231,6 +245,12 @@ async function saveWardrobeSnapshot(
   suitId,
   suitLevel
 ) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   try {
     const state = {
       suitId:
@@ -247,19 +267,26 @@ async function saveWardrobeSnapshot(
         Date.now(),
     };
 
-    await AsyncStorage.setItem(
+    await _accountSession2.run(async () => (AsyncStorage.setItem(
       AVATAR_WARDROBE_KEYS.WARDROBE_STATE,
       JSON.stringify(state)
-    );
+    )));
 
     return state;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Save wardrobe snapshot error:",
       error
     );
 
     return null;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -269,15 +296,21 @@ async function saveWardrobeSnapshot(
 // ============================================================
 
 export async function getCurrentAvatarSuit() {
+  const _accountSession3 = captureAccountSession();
+  const AsyncStorage = _accountSession3.storage;
+
+  try {
+    _accountSession3.assertCurrent();
+
   try {
     // --------------------------------------------------------
     // NEW STORAGE
     // --------------------------------------------------------
 
     const storedSuit =
-      await AsyncStorage.getItem(
+      await _accountSession3.run(async () => (AsyncStorage.getItem(
         AVATAR_WARDROBE_KEYS.CURRENT_SUIT
-      );
+      )));
 
     if (storedSuit) {
       return normalizeWardrobeSuitId(
@@ -291,9 +324,9 @@ export async function getCurrentAvatarSuit() {
     // --------------------------------------------------------
 
     const snapshot =
-      await AsyncStorage.getItem(
+      await _accountSession3.run(async () => (AsyncStorage.getItem(
         AVATAR_WARDROBE_KEYS.WARDROBE_STATE
-      );
+      )));
 
     if (snapshot) {
       try {
@@ -306,14 +339,16 @@ export async function getCurrentAvatarSuit() {
               parsed.suitId
             );
 
-          await AsyncStorage.setItem(
+          await _accountSession3.run(async () => (AsyncStorage.setItem(
             AVATAR_WARDROBE_KEYS.CURRENT_SUIT,
             normalized
-          );
+          )));
 
           return normalized;
         }
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Wardrobe snapshot parse error:",
           error
@@ -327,9 +362,9 @@ export async function getCurrentAvatarSuit() {
     // --------------------------------------------------------
 
     const legacySuit =
-      await readFirstStorageValue(
+      await _accountSession3.run(async () => (readFirstStorageValue(
         LEGACY_SUIT_KEYS
-      );
+      )));
 
     if (legacySuit) {
       const normalized =
@@ -337,10 +372,10 @@ export async function getCurrentAvatarSuit() {
           legacySuit
         );
 
-      await AsyncStorage.setItem(
+      await _accountSession3.run(async () => (AsyncStorage.setItem(
         AVATAR_WARDROBE_KEYS.CURRENT_SUIT,
         normalized
-      );
+      )));
 
       return normalized;
     }
@@ -349,12 +384,19 @@ export async function getCurrentAvatarSuit() {
     return "default";
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Get current avatar suit error:",
       error
     );
 
     return "default";
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -364,11 +406,17 @@ export async function getCurrentAvatarSuit() {
 // ============================================================
 
 export async function getCurrentAvatarSuitLevel() {
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
   try {
     const storedLevel =
-      await AsyncStorage.getItem(
+      await _accountSession4.run(async () => (AsyncStorage.getItem(
         AVATAR_WARDROBE_KEYS.CURRENT_SUIT_LEVEL
-      );
+      )));
 
     if (storedLevel !== null) {
       const parsed =
@@ -388,9 +436,9 @@ export async function getCurrentAvatarSuitLevel() {
     // --------------------------------------------------------
 
     const legacyLevel =
-      await readFirstStorageValue(
+      await _accountSession4.run(async () => (readFirstStorageValue(
         LEGACY_LEVEL_KEYS
-      );
+      )));
 
     if (legacyLevel !== null) {
       const parsed =
@@ -400,10 +448,10 @@ export async function getCurrentAvatarSuitLevel() {
         Number.isFinite(parsed) &&
         parsed >= 0
       ) {
-        await AsyncStorage.setItem(
+        await _accountSession4.run(async () => (AsyncStorage.setItem(
           AVATAR_WARDROBE_KEYS.CURRENT_SUIT_LEVEL,
           String(parsed)
-        );
+        )));
 
         return parsed;
       }
@@ -415,27 +463,34 @@ export async function getCurrentAvatarSuitLevel() {
     // --------------------------------------------------------
 
     const suit =
-      await getCurrentAvatarSuit();
+      await _accountSession4.run(async () => (getCurrentAvatarSuit()));
 
     const level =
       getSuitLevelForId(
         suit
       );
 
-    await AsyncStorage.setItem(
+    await _accountSession4.run(async () => (AsyncStorage.setItem(
       AVATAR_WARDROBE_KEYS.CURRENT_SUIT_LEVEL,
       String(level)
-    );
+    )));
 
     return level;
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Get current avatar suit level error:",
       error
     );
 
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -456,6 +511,12 @@ export async function setCurrentAvatarSuit(
   suitId,
   suitLevel = null
 ) {
+  const _accountSession5 = captureAccountSession();
+  const AsyncStorage = _accountSession5.storage;
+
+  try {
+    _accountSession5.assertCurrent();
+
   try {
     const normalizedSuit =
       normalizeWardrobeSuitId(
@@ -474,7 +535,7 @@ export async function setCurrentAvatarSuit(
           );
 
 
-    await AsyncStorage.multiSet([
+    await _accountSession5.run(async () => (AsyncStorage.multiSet([
       [
         AVATAR_WARDROBE_KEYS.CURRENT_SUIT,
         normalizedSuit,
@@ -508,13 +569,13 @@ export async function setCurrentAvatarSuit(
         "currentAvatarSuitLevel",
         String(resolvedLevel),
       ],
-    ]);
+    ])));
 
 
-    await saveWardrobeSnapshot(
+    await _accountSession5.run(async () => (saveWardrobeSnapshot(
       normalizedSuit,
       resolvedLevel
-    );
+    )));
 
 
     return {
@@ -528,6 +589,8 @@ export async function setCurrentAvatarSuit(
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Set current avatar suit error:",
       error
@@ -544,6 +607,11 @@ export async function setCurrentAvatarSuit(
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -554,6 +622,12 @@ export async function setCurrentAvatarSuit(
 export async function setCurrentAvatarSuitLevel(
   suitLevel
 ) {
+  const _accountSession6 = captureAccountSession();
+  const AsyncStorage = _accountSession6.storage;
+
+  try {
+    _accountSession6.assertCurrent();
+
   try {
     const level =
       Math.max(
@@ -562,7 +636,7 @@ export async function setCurrentAvatarSuitLevel(
       );
 
 
-    await AsyncStorage.multiSet([
+    await _accountSession6.run(async () => (AsyncStorage.multiSet([
       [
         AVATAR_WARDROBE_KEYS.CURRENT_SUIT_LEVEL,
         String(level),
@@ -572,28 +646,35 @@ export async function setCurrentAvatarSuitLevel(
         "currentAvatarSuitLevel",
         String(level),
       ],
-    ]);
+    ])));
 
 
     const currentSuit =
-      await getCurrentAvatarSuit();
+      await _accountSession6.run(async () => (getCurrentAvatarSuit()));
 
 
-    await saveWardrobeSnapshot(
+    await _accountSession6.run(async () => (saveWardrobeSnapshot(
       currentSuit,
       level
-    );
+    )));
 
 
     return level;
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Set current avatar suit level error:",
       error
     );
 
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -662,15 +743,20 @@ export async function resetAvatarSuit() {
 // ============================================================
 
 export async function getAvatarWardrobeState() {
+  const _accountSession7 = captureAccountSession();
+
+  try {
+    _accountSession7.assertCurrent();
+
   try {
     const [
       suitId,
       suitLevel,
     ] =
-      await Promise.all([
+      await _accountSession7.run(async () => (Promise.all([
         getCurrentAvatarSuit(),
         getCurrentAvatarSuitLevel(),
-      ]);
+      ])));
 
 
     return {
@@ -685,6 +771,8 @@ export async function getAvatarWardrobeState() {
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Get avatar wardrobe state error:",
       error
@@ -703,6 +791,11 @@ export async function getAvatarWardrobeState() {
         false,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -711,18 +804,23 @@ export async function getAvatarWardrobeState() {
 // ============================================================
 
 export async function migrateAvatarWardrobeStorage() {
+  const _accountSession8 = captureAccountSession();
+
+  try {
+    _accountSession8.assertCurrent();
+
   try {
     const suitId =
-      await getCurrentAvatarSuit();
+      await _accountSession8.run(async () => (getCurrentAvatarSuit()));
 
     const suitLevel =
-      await getCurrentAvatarSuitLevel();
+      await _accountSession8.run(async () => (getCurrentAvatarSuitLevel()));
 
 
-    await setCurrentAvatarSuit(
+    await _accountSession8.run(async () => (setCurrentAvatarSuit(
       suitId,
       suitLevel
-    );
+    )));
 
 
     return {
@@ -732,6 +830,8 @@ export async function migrateAvatarWardrobeStorage() {
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Avatar wardrobe migration error:",
       error
@@ -741,6 +841,11 @@ export async function migrateAvatarWardrobeStorage() {
       success: false,
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -756,21 +861,33 @@ export async function migrateAvatarWardrobeStorage() {
 // ============================================================
 
 export async function clearAvatarWardrobe() {
+  const _accountSession9 = captureAccountSession();
+
   try {
-    await setCurrentAvatarSuit(
+    _accountSession9.assertCurrent();
+
+  try {
+    await _accountSession9.run(async () => (setCurrentAvatarSuit(
       "default",
       0
-    );
+    )));
 
     return true;
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Clear avatar wardrobe error:",
       error
     );
 
     return false;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 // ============================================================
@@ -1025,6 +1142,12 @@ export function getTracksuitProgression(
 export async function syncAvatarSuitFromLifetimeSteps(
   lifetimeSteps
 ) {
+  const _accountSession0 = captureAccountSession();
+  const AsyncStorage = _accountSession0.storage;
+
+  try {
+    _accountSession0.assertCurrent();
+
   try {
     const progression =
       getTracksuitProgression(
@@ -1032,10 +1155,10 @@ export async function syncAvatarSuitFromLifetimeSteps(
       );
 
     const previousSuit =
-      await getCurrentAvatarSuit();
+      await _accountSession0.run(async () => (getCurrentAvatarSuit()));
 
     const previousLevel =
-      await getCurrentAvatarSuitLevel();
+      await _accountSession0.run(async () => (getCurrentAvatarSuitLevel()));
 
     const unlockedSuits =
       Array.isArray(
@@ -1062,10 +1185,10 @@ export async function syncAvatarSuitFromLifetimeSteps(
     // return the avatar to its default outfit.
     if (!stillUnlocked) {
       const resetResult =
-        await setCurrentAvatarSuit(
+        await _accountSession0.run(async () => (setCurrentAvatarSuit(
           "default",
           0
-        );
+        )));
 
       currentSuit =
         resetResult?.suitId ||
@@ -1081,15 +1204,19 @@ export async function syncAvatarSuitFromLifetimeSteps(
     const earnedTracksuits =
       unlockedSuits.filter(
         (suitId) =>
-          suitId !== "default"
+          {
+  
+
+return (suitId !== "default");
+}
       );
 
-    await AsyncStorage.setItem(
+    await _accountSession0.run(async () => (AsyncStorage.setItem(
       "unlockedTracksuits",
       JSON.stringify(
         earnedTracksuits
       )
-    );
+    )));
 
     return {
       saved: true,
@@ -1117,6 +1244,8 @@ export async function syncAvatarSuitFromLifetimeSteps(
       },
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Sync tracksuit progression error:",
       error
@@ -1136,6 +1265,11 @@ export async function syncAvatarSuitFromLifetimeSteps(
 
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 // ============================================================

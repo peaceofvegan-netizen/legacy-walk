@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
  // screens/MedalCollectionScreen.js
 
@@ -544,8 +545,14 @@ export default function MedalCollectionScreen({
   language = "en",
   goBack,
 }) {
+  const _accountSession = captureAccountSession();
+
   const t = useCallback(
-    key => getText(language, key),
+    key => {
+  
+
+return (getText(language, key));
+},
     [language]
   );
 
@@ -558,10 +565,13 @@ export default function MedalCollectionScreen({
   // ==========================================================
 
   const loadMedals = useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
       setLoading(true);
 
-      const result = await loadMarathonProgressMap();
+      const result = await _accountSession.run(async () => (loadMarathonProgressMap()));
 
       setProgressMap(
         result && typeof result === "object"
@@ -569,20 +579,33 @@ export default function MedalCollectionScreen({
           : {}
       );
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Medal Collection load error:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, []);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadMedals();
   }, [loadMedals]);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     const listener = AppState.addEventListener(
       "change",
       state => {
+  if (!_accountSession.isCurrent()) return;
+
         if (state === "active") {
           loadMedals();
         }
@@ -597,9 +620,13 @@ export default function MedalCollectionScreen({
   // ==========================================================
 
   const medals = useMemo(() => {
+  
+
     const catalog = getCatalogEntries();
 
     return MEDALS.map(item => {
+  
+
       const catalogEntry = findCatalogEntry(item, catalog);
 
       const record = findStoredRecord(
@@ -620,11 +647,19 @@ export default function MedalCollectionScreen({
   }, [progressMap]);
 
   const completedCount = medals.filter(
-    medal => medal.completed
+    medal => {
+  
+
+return (medal.completed);
+}
   ).length;
 
   const selectedMedal =
-    medals.find(medal => medal.key === selectedKey) || null;
+    medals.find(medal => {
+  
+
+return (medal.key === selectedKey);
+}) || null;
 
   // ==========================================================
   // RENDER
@@ -689,7 +724,10 @@ export default function MedalCollectionScreen({
             </Text>
           ) : (
             <View style={styles.medalGrid}>
-              {medals.map(medal => (
+              {medals.map(medal => {
+  
+
+return ((
                 <MedalCard
                   key={medal.key}
                   medal={medal}
@@ -697,7 +735,8 @@ export default function MedalCollectionScreen({
                   language={language}
                   onPress={setSelectedKey}
                 />
-              ))}
+              ));
+})}
             </View>
           )}
         </View>

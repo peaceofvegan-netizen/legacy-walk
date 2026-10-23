@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 const BREATHING_STATS_KEY = "LEGACY_WALK_BREATHING_STATS";
 
@@ -21,16 +22,43 @@ export const DEFAULT_BREATHING_STATS = {
 };
 
 export async function loadBreathingStats() {
-  const saved = await AsyncStorage.getItem(BREATHING_STATS_KEY);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(BREATHING_STATS_KEY)));
   return saved ? JSON.parse(saved) : DEFAULT_BREATHING_STATS;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function saveBreathingStats(stats) {
-  await AsyncStorage.setItem(BREATHING_STATS_KEY, JSON.stringify(stats));
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  await _accountSession2.run(async () => (AsyncStorage.setItem(BREATHING_STATS_KEY, JSON.stringify(stats))));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function completeBreathingSession(minutes = 3) {
-  const stats = await loadBreathingStats();
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const stats = await _accountSession3.run(async () => (loadBreathingStats()));
 
   const today = new Date().toDateString();
   const lastDate = stats.lastSessionDate;
@@ -85,7 +113,12 @@ export async function completeBreathingSession(minutes = 3) {
     lastPointsEarned: pointsEarned,
   };
 
-  await saveBreathingStats(updated);
+  await _accountSession3.run(async () => (saveBreathingStats(updated)));
 
   return updated;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

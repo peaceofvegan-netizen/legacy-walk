@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/BreathingScreen.js
 
 import React, {
@@ -488,6 +489,8 @@ export default function BreathingScreen({
   rewardBreathingSession,
   rewardBreathingBonus,
 }) {
+  const _accountSession = captureAccountSession();
+
   const currentLanguage =
     normalizeLanguage(language);
 
@@ -498,6 +501,8 @@ export default function BreathingScreen({
     key,
     values = {}
   ) => {
+  
+
     const value =
       TEXT[currentLanguage]?.[key] ??
       TEXT.en?.[key] ??
@@ -548,6 +553,8 @@ export default function BreathingScreen({
   const getSessionTitle = (
     session
   ) => {
+  
+
     if (session.id === "calm") {
       return t("calmTitle");
     }
@@ -573,6 +580,8 @@ export default function BreathingScreen({
 
   const patternText =
     useMemo(() => {
+  
+
       return t("pattern", {
         inhale: selected.inhale,
         hold: selected.hold,
@@ -589,6 +598,8 @@ export default function BreathingScreen({
 
   const phaseText = useMemo(
     () => {
+  
+
       if (phase === "inhale") {
         return t("inhale");
       }
@@ -641,6 +652,8 @@ export default function BreathingScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     if (!isBreathing) {
       return;
     }
@@ -653,8 +666,12 @@ export default function BreathingScreen({
       seconds,
       scaleTo
     ) => {
+  
+
       return new Promise(
         (resolve) => {
+  
+
           if (!mounted) {
             resolve();
             return;
@@ -683,6 +700,8 @@ export default function BreathingScreen({
 
           timer = setInterval(
             () => {
+  if (!_accountSession.isCurrent()) return;
+
               remaining -= 1;
 
               if (mounted) {
@@ -712,34 +731,42 @@ export default function BreathingScreen({
 
     const runCycle =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         while (mounted) {
-          await runPhase(
+          await _accountSession.run(async () => (runPhase(
             "inhale",
             selected.inhale,
             1.25
-          );
+          )));
 
           if (!mounted) {
             break;
           }
 
-          await runPhase(
+          await _accountSession.run(async () => (runPhase(
             "hold",
             selected.hold,
             1.25
-          );
+          )));
 
           if (!mounted) {
             break;
           }
 
-          await runPhase(
+          await _accountSession.run(async () => (runPhase(
             "exhale",
             selected.exhale,
             0.92
-          );
+          )));
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
     ringAnim.setValue(0);
 
@@ -808,6 +835,9 @@ export default function BreathingScreen({
   // ==========================================================
 
   async function completeSession() {
+  try {
+    _accountSession.assertCurrent();
+
     // Prevent accidentally earning
     // the same session multiple times
     // from repeated taps.
@@ -834,9 +864,9 @@ export default function BreathingScreen({
         minutes
       );
 
-    await addBreathingXP(
+    await _accountSession.run(async () => (addBreathingXP(
       xpReward
-    );
+    )));
 
     // Keep stable English/internal
     // values in analytics storage.
@@ -850,7 +880,7 @@ export default function BreathingScreen({
     const analyticsPattern =
       `Inhale ${selected.inhale} • Hold ${selected.hold} • Exhale ${selected.exhale}`;
 
-    await recordBreathingSession({
+    await _accountSession.run(async () => (recordBreathingSession({
       title:
         analyticsTitles[
           selected.id
@@ -864,22 +894,27 @@ export default function BreathingScreen({
 
       pattern:
         analyticsPattern,
-    });
+    })));
 
     if (
       rewardBreathingSession
     ) {
-      await rewardBreathingSession(
+      await _accountSession.run(async () => (rewardBreathingSession(
         selected.reward
-      );
+      )));
     }
 
     if (
       rewardBreathingBonus
     ) {
-      await rewardBreathingBonus();
+      await _accountSession.run(async () => (rewardBreathingBonus()));
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // STOP SESSION
@@ -1130,6 +1165,8 @@ export default function BreathingScreen({
 
         {SESSIONS.map(
           (session) => {
+  
+
             const active =
               selected.id ===
               session.id;
@@ -1156,9 +1193,13 @@ export default function BreathingScreen({
                     styles.sessionCardActive,
                 ]}
                 onPress={() =>
-                  selectSession(
+                  {
+  
+
+return (selectSession(
                     session
-                  )
+                  ));
+}
                 }
                 activeOpacity={0.86}
               >

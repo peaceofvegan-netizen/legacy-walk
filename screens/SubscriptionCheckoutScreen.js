@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/SubscriptionCheckoutScreen.js
 
 // screens/SubscriptionCheckoutScreen.js
@@ -1509,6 +1510,8 @@ export default function SubscriptionCheckoutScreen({
   onConfirm,
 
 }) {
+  const _accountSession = captureAccountSession();
+
 
   // ==========================================================
   // LANGUAGE
@@ -1529,10 +1532,14 @@ export default function SubscriptionCheckoutScreen({
     (
       key
     ) =>
-      getText(
+      {
+  
+
+return (getText(
         languageCode,
         key
-      );
+      ));
+};
 
 
   // ==========================================================
@@ -1550,6 +1557,8 @@ export default function SubscriptionCheckoutScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
 
     let mounted =
       true;
@@ -1557,10 +1566,13 @@ export default function SubscriptionCheckoutScreen({
 
     const setupRevenueCat =
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
         try {
 
-          await configureRevenueCat();
+          await _accountSession.run(async () => (configureRevenueCat()));
 
 
           if (
@@ -1573,13 +1585,20 @@ export default function SubscriptionCheckoutScreen({
           }
 
         } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
           console.log(
             "RevenueCat configuration error:",
             error
           );
         }
-      };
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
     setupRevenueCat();
@@ -1600,6 +1619,8 @@ export default function SubscriptionCheckoutScreen({
 
   const plan =
     useMemo(() => {
+  
+
 
       const normalized =
         String(
@@ -1672,7 +1693,11 @@ export default function SubscriptionCheckoutScreen({
       (
         key
       ) =>
-        t(key)
+        {
+  
+
+return (t(key));
+}
     );
 
 
@@ -1682,6 +1707,8 @@ export default function SubscriptionCheckoutScreen({
 
   const handleBack =
     () => {
+  
+
 
       if (
         isProcessing
@@ -1708,6 +1735,8 @@ export default function SubscriptionCheckoutScreen({
     (
       offering
     ) => {
+  
+
 
       const packages =
         offering
@@ -1719,6 +1748,8 @@ export default function SubscriptionCheckoutScreen({
         (
           pkg
         ) => {
+  
+
 
           const packageId =
             String(
@@ -1785,6 +1816,9 @@ export default function SubscriptionCheckoutScreen({
 
   const handleConfirm =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
 
       if (
         isProcessing
@@ -1836,7 +1870,7 @@ export default function SubscriptionCheckoutScreen({
         // ====================================================
 
         const offering =
-          await loadOfferings();
+          await _accountSession.run(async () => (loadOfferings()));
 
 
         if (
@@ -1894,9 +1928,9 @@ export default function SubscriptionCheckoutScreen({
         // ====================================================
 
         const purchasedPlan =
-          await buyPackage(
+          await _accountSession.run(async () => (buyPackage(
             packageToBuy
-          );
+          )));
 
 
         console.log(
@@ -1933,9 +1967,9 @@ export default function SubscriptionCheckoutScreen({
           "function"
         ) {
 
-          await onConfirm(
+          await _accountSession.run(async () => (onConfirm(
             purchasedPlan
-          );
+          )));
         }
 
 
@@ -1969,6 +2003,8 @@ export default function SubscriptionCheckoutScreen({
         );
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
         // ====================================================
         // USER CANCELLED
@@ -2010,7 +2046,12 @@ export default function SubscriptionCheckoutScreen({
           false
         );
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -2355,7 +2396,10 @@ export default function SubscriptionCheckoutScreen({
             (
               benefit,
               index
-            ) => (
+            ) => {
+  
+
+return ((
 
               <View
                 key={`${plan.id}-${index}`}
@@ -2407,7 +2451,8 @@ export default function SubscriptionCheckoutScreen({
                 </Text>
 
               </View>
-            )
+            ));
+}
           )}
 
         </View>

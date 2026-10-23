@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 import { STORE_ITEMS } from "./avatarStoreData";
 
 const DAILY_SHOP_KEY = "LEGACY_WALK_DAILY_SHOP";
@@ -21,8 +22,14 @@ function rotateItemsForToday() {
 }
 
 export async function loadDailyShop() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   const today = getTodayKey();
-  const saved = await AsyncStorage.getItem(DAILY_SHOP_KEY);
+  const saved = await _accountSession.run(async () => (AsyncStorage.getItem(DAILY_SHOP_KEY)));
 
   if (saved) {
     const parsed = JSON.parse(saved);
@@ -37,9 +44,14 @@ export async function loadDailyShop() {
     featuredItems: rotateItemsForToday(),
   };
 
-  await AsyncStorage.setItem(DAILY_SHOP_KEY, JSON.stringify(newShop));
+  await _accountSession.run(async () => (AsyncStorage.setItem(DAILY_SHOP_KEY, JSON.stringify(newShop))));
 
   return newShop;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export function getDailyShopCountdown() {

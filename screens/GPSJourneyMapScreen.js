@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React from "react";
 
 import {
@@ -12,16 +13,19 @@ import {
   AppState,
 } from "react-native";
 
-import { Pedometer } from "expo-sensors";
 
-import * as Location from "expo-location";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
+
+
 
 import {
-  addRegularJourneySteps,
+  getJourneyCreditedSteps,
+  getStepVerificationStatus,
+  requestStepVerificationPermissions,
+  syncTodaySteps,
   activateJourneyTracking,
+  pauseJourneyTracking,
 } from "../utils/stepTrackingEngine";
 
 import {
@@ -2873,319 +2877,7 @@ function translateWalkingStatus(
 
 // Do NOT translate these internal values.
 // "Walking verified" is used by the step-tracking logic.
-export function createWalkingGate(
-  clock = Date.now
-) {
-  let lastFix = 0;
-  let previous = null;
-  let generation = 0;
-  let driving = false;
-  let slowSamples = 0;
-  let mediumFastSamples = 0;
-  let unknownSamples = 0;
 
-  function resetVerification() {
-    generation += 1;
-    slowSamples = 0;
-    mediumFastSamples = 0;
-    unknownSamples = 0;
-  }
-
-  function status() {
-    const now =
-      clock();
-
-    if (
-      !lastFix ||
-      now - lastFix >
-        10000
-    ) {
-      return "Waiting for reliable GPS";
-    }
-
-    if (
-      driving
-    ) {
-      return "Vehicle-speed movement — steps paused";
-    }
-
-    if (
-      slowSamples <
-      2
-    ) {
-      return "Verifying walking speed";
-    }
-
-    return "Walking verified";
-  }
-
-  function update(
-    fix
-  ) {
-    const now =
-      clock();
-
-    const coords =
-      fix?.coords;
-
-    const time =
-      Number(
-        fix?.timestamp
-      );
-
-    if (
-      !coords ||
-      !Number.isFinite(
-        time
-      ) ||
-      now - time >
-        10000 ||
-      time >
-        now + 1000 ||
-      !Number.isFinite(
-        coords.accuracy
-      ) ||
-      coords.accuracy >
-        50 ||
-      coords.accuracy <
-        0 ||
-      !Number.isFinite(
-        coords.latitude
-      ) ||
-      !Number.isFinite(
-        coords.longitude
-      )
-    ) {
-      unknownSamples +=
-        1;
-
-      if (
-        unknownSamples >=
-        2
-      ) {
-        resetVerification();
-      }
-
-      return;
-    }
-
-    unknownSamples =
-      0;
-
-    if (
-      previous &&
-      time <=
-        previous.timestamp
-    ) {
-      return;
-    }
-
-    if (
-      lastFix &&
-      time - lastFix >
-        10000
-    ) {
-      resetVerification();
-    }
-
-    let derivedSpeed =
-      null;
-
-    if (
-      previous
-    ) {
-      const seconds =
-        (
-          time -
-          previous.timestamp
-        ) /
-        1000;
-
-      if (
-        seconds >= 1 &&
-        seconds <= 10
-      ) {
-        const radians =
-          Math.PI /
-          180;
-
-        const latitudeDifference =
-          (
-            coords.latitude -
-            previous.coords
-              .latitude
-          ) *
-          radians;
-
-        const longitudeDifference =
-          (
-            coords.longitude -
-            previous.coords
-              .longitude
-          ) *
-          radians;
-
-        const haversine =
-          Math.sin(
-            latitudeDifference /
-              2
-          ) **
-            2 +
-          Math.cos(
-            coords.latitude *
-              radians
-          ) *
-            Math.cos(
-              previous.coords
-                .latitude *
-                radians
-            ) *
-            Math.sin(
-              longitudeDifference /
-                2
-            ) **
-              2;
-
-        const distance =
-          6371000 *
-          2 *
-          Math.asin(
-            Math.sqrt(
-              Math.min(
-                1,
-                haversine
-              )
-            )
-          );
-
-        derivedSpeed =
-          Math.max(
-            0,
-            distance -
-              coords.accuracy -
-              previous.coords
-                .accuracy
-          ) /
-          seconds;
-      }
-    }
-
-    previous =
-      fix;
-
-    lastFix =
-      time;
-
-    const reportedSpeed =
-      Number.isFinite(
-        coords.speed
-      ) &&
-      coords.speed >=
-        0
-        ? coords.speed
-        : null;
-
-    const speed =
-      reportedSpeed ===
-      null
-        ? derivedSpeed
-        : Math.max(
-            reportedSpeed,
-            derivedSpeed ??
-              0
-          );
-
-    if (
-      speed ===
-      null
-    ) {
-      unknownSamples +=
-        1;
-
-      if (
-        unknownSamples >=
-        2
-      ) {
-        resetVerification();
-      }
-
-      return;
-    }
-
-    unknownSamples =
-      0;
-
-    if (
-      speed >= 4
-    ) {
-      driving = true;
-
-      resetVerification();
-
-      return;
-    }
-
-    if (
-      speed > 2.8
-    ) {
-      mediumFastSamples +=
-        1;
-
-      slowSamples =
-        0;
-
-      if (
-        mediumFastSamples >=
-        2
-      ) {
-        resetVerification();
-      }
-
-      return;
-    }
-
-    mediumFastSamples =
-      0;
-
-    slowSamples =
-      Math.min(
-        slowSamples +
-          1,
-        2
-      );
-
-    if (
-      slowSamples >=
-      2
-    ) {
-      driving = false;
-    }
-  }
-
-  function ticket() {
-    if (
-      clock() -
-        lastFix >
-      10000
-    ) {
-      resetVerification();
-
-      lastFix =
-        0;
-    }
-
-    return status() ===
-      "Walking verified"
-      ? generation
-      : null;
-  }
-
-  return {
-    update,
-    status,
-    ticket,
-  };
-}
 
 // ============================================================
 // SERIALIZE JOURNEY OPERATIONS
@@ -3516,6 +3208,9 @@ function JourneySession({
 
   navigation,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [
     currentJourney,
   ] =
@@ -3526,10 +3221,14 @@ function JourneySession({
   const localizedJourney =
     React.useMemo(
       () =>
-        getJourneyTranslation(
+        {
+  
+
+return (getJourneyTranslation(
           currentJourney,
           language
-        ),
+        ));
+},
 
       [
         currentJourney,
@@ -3575,9 +3274,13 @@ function JourneySession({
   ] =
     React.useState(
       () =>
-        String(
+        {
+  
+
+return (String(
           Date.now()
-        )
+        ));
+}
     );
 
   const [
@@ -3652,10 +3355,14 @@ function JourneySession({
   ] =
     React.useState(
       () =>
-        navigation
+        {
+  
+
+return (navigation
           ?.isFocused
           ?.() ??
-        true
+        true);
+}
     );
 
   const [
@@ -3782,6 +3489,9 @@ function JourneySession({
   // ==========================================================
 
   async function persistNow() {
+  try {
+    _accountSession.assertCurrent();
+
     if (
       !snapshot.current
     ) {
@@ -3840,7 +3550,7 @@ function JourneySession({
           .toISOString(),
     };
 
-    await AsyncStorage
+    await _accountSession.run(async () => (AsyncStorage
       .multiSet([
         [
           `journeyStats_${id}`,
@@ -3905,9 +3615,9 @@ function JourneySession({
             state.lastRewardedCheckpoint
           ),
         ],
-      ]);
+      ])));
 
-    await updateJourneySteps(
+    await _accountSession.run(async () => (updateJourneySteps(
       currentJourney,
 
       state.steps,
@@ -3923,13 +3633,13 @@ function JourneySession({
           state.secondsActive /
           60,
       }
-    );
+    )));
 
     const raw =
-      await AsyncStorage
+      await _accountSession.run(async () => (AsyncStorage
         .getItem(
           "journeyProgressData"
-        );
+        )));
 
     const existing =
       raw
@@ -3966,17 +3676,24 @@ function JourneySession({
     const found =
       existing.some(
         item =>
-          String(
+          {
+  
+
+return (String(
             item?.id
           ) ===
-          id
+          id);
+}
       );
 
     const updatedList =
       found
         ? existing.map(
             item =>
-              String(
+              {
+  
+
+return (String(
                 item?.id
               ) ===
               id
@@ -3984,21 +3701,22 @@ function JourneySession({
                     ...item,
                     ...entry,
                   }
-                : item
+                : item);
+}
           )
         : [
             ...existing,
             entry,
           ];
 
-    await AsyncStorage
+    await _accountSession.run(async () => (AsyncStorage
       .setItem(
         "journeyProgressData",
 
         JSON.stringify(
           updatedList
         )
-      );
+      )));
 
     errorRef.current =
       "";
@@ -4014,7 +3732,12 @@ function JourneySession({
         new Date()
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   function save() {
     return enqueueJourneyWork(
@@ -4028,6 +3751,8 @@ function JourneySession({
 
   React.useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       mounted.current =
         true;
 
@@ -4036,9 +3761,12 @@ function JourneySession({
 
       enqueueJourneyWork(
         async () => {
+  try {
+    _accountSession.assertCurrent();
+
           const values =
             Object.fromEntries(
-              await AsyncStorage
+              await _accountSession.run(async () => (AsyncStorage
                 .multiGet([
                   `journeyStats_${id}`,
 
@@ -4051,7 +3779,7 @@ function JourneySession({
                   storyKey,
 
                   PROGRESS_KEY,
-                ])
+                ])))
             );
 
           const rawStats =
@@ -4167,6 +3895,7 @@ function JourneySession({
           }
 
           snapshot.current = {
+            engineCreditCursor: Number(stats.engineCreditCursor || 0),
             steps:
               Math.min(
                 totalSteps,
@@ -4213,12 +3942,21 @@ function JourneySession({
                 )
                 .filter(
                   number =>
-                    number >=
+                    {
+  
+
+return (number >=
                       1 &&
                     number <=
-                      5
+                      5);
+}
                 ),
           };
+
+          const ledger = await _accountSession.run(() => getJourneyCreditedSteps(id));
+          const acceptedSinceSave = Math.max(0, ledger - snapshot.current.engineCreditCursor);
+          snapshot.current.steps = Math.min(totalSteps, snapshot.current.steps + acceptedSinceSave);
+          snapshot.current.engineCreditCursor = ledger;
 
           if (
             snapshot.current
@@ -4230,13 +3968,21 @@ function JourneySession({
           }
 
           publish();
+          if (acceptedSinceSave > 0) await _accountSession.run(() => persistNow());
 
           setLoadError(
             ""
           );
-        }
+        
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
       ).catch(
         error => {
+  
+
           console.error(
             "Journey restoration failed:",
             error
@@ -4268,10 +4014,14 @@ function JourneySession({
         ) {
           save().catch(
             error =>
-              console.error(
+              {
+  
+
+return (console.error(
                 "Final journey save failed:",
                 error
-              )
+              ));
+}
           );
         }
       };
@@ -4368,12 +4118,16 @@ function JourneySession({
   ]
     .map(
       number =>
-        String(
+        {
+  
+
+return (String(
           number
         ).padStart(
           2,
           "0"
-        )
+        ));
+}
     )
     .join(
       ":"
@@ -4481,6 +4235,8 @@ function JourneySession({
         fallback,
         index
       ) => {
+  
+
         const item =
           Array.isArray(
             names
@@ -4532,7 +4288,11 @@ function JourneySession({
   const completedCheckpoints =
     checkpoints.filter(
       point =>
-        point.complete
+        {
+  
+
+return (point.complete);
+}
     ).length;
 
   // ==========================================================
@@ -4540,6 +4300,9 @@ function JourneySession({
   // ==========================================================
 
   async function awardReachedCheckpoints() {
+  try {
+    _accountSession.assertCurrent();
+
     const highest =
       checkpointFor(
         snapshot.current
@@ -4562,23 +4325,23 @@ function JourneySession({
         `checkpointReward_${id}_${checkpoint}`;
 
       if (
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .getItem(
             key
-          ) !==
+          ))) !==
         "true"
       ) {
-        await awardPointsOnce(
+        await _accountSession.run(async () => (awardPointsOnce(
           `${id}_checkpoint_${checkpoint}`,
 
           50
-        );
+        )));
 
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .setItem(
             key,
             "true"
-          );
+          )));
       }
 
       snapshot.current.lastRewardedCheckpoint =
@@ -4589,512 +4352,70 @@ function JourneySession({
           checkpoint
         );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // START SENSOR
   // ==========================================================
 
-  React.useEffect(
-    () => {
-      if (
-        !ready ||
-        !view.isTracking ||
-        steps >=
-          totalSteps ||
-        busy ||
-        !focused ||
-        appState !==
-          "active"
-      ) {
-        return;
-      }
-
-      let cancelled =
-        false;
-
-      let lastReading =
-        null;
-
-      let locationSubscription =
-        null;
-
-      let verificationTimer =
-        null;
-
-      let pending = [];
-
-      let priorTicket =
-        null;
-
-      const gate =
-        createWalkingGate();
-
-      function cleanupLocation() {
-        locationSubscription
-          ?.remove();
-
-        locationSubscription =
-          null;
-
-        if (
-          verificationTimer
-        ) {
-          clearInterval(
-            verificationTimer
-          );
+  React.useEffect(() => {
+    if (!_accountSession.isCurrent() || !ready || !view.isTracking ||
+        steps >= totalSteps || busy || !focused || appState !== "active") return;
+    let cancelled = false;
+    let refreshing = false;
+    let timer = null;
+    const refresh = async () => {
+      if (cancelled || refreshing || !_accountSession.isCurrent()) return;
+      refreshing = true;
+      try {
+        await _accountSession.run(() => syncTodaySteps());
+        const cumulative = await _accountSession.run(() => getJourneyCreditedSteps(id));
+        if (cancelled) return;
+        setWalkingStatus(getStepVerificationStatus());
+        await enqueueJourneyWork(async () => {
+          _accountSession.assertCurrent();
+          if (cancelled || !snapshot.current) return;
+          const previous = Number(snapshot.current.engineCreditCursor || 0);
+          const delta = Math.max(0, cumulative - previous);
+          snapshot.current.engineCreditCursor = cumulative;
+          if (!delta) return;
+          snapshot.current.steps = Math.min(totalSteps, snapshot.current.steps + delta);
+          if (snapshot.current.steps >= totalSteps) {
+            snapshot.current.isTracking = false;
+            await _accountSession.run(() => pauseJourneyTracking(id));
+          }
+          publish();
+          await _accountSession.run(() => persistNow());
+          await _accountSession.run(() => awardReachedCheckpoints());
+        });
+      } catch (error) {
+        if (!cancelled && !isAccountSessionEnded(error)) reportSaveError(error);
+      } finally { refreshing = false; }
+    };
+    const start = async () => {
+      try {
+        if (!(await _accountSession.run(() => requestStepVerificationPermissions()))) {
+          throw new Error("Motion and precise location access are required to verify outdoor walking.");
         }
-
-        verificationTimer =
-          null;
-
-        pending = [];
+        if (cancelled) return;
+        const activated = await _accountSession.run(() => activateJourneyTracking(id));
+        if (!activated?.saved || cancelled) return;
+        trackingRef.current = true;
+        setSensorError(""); setSensorReady(true);
+        await refresh();
+        if (!cancelled) timer = setInterval(refresh, 2500);
+      } catch (error) {
+        if (!cancelled && !isAccountSessionEnded(error)) setSensorError(error.message);
       }
-
-      function commit(
-        delta
-      ) {
-        enqueueJourneyWork(
-          async () => {
-            const available =
-              Math.max(
-                0,
-
-                totalSteps -
-                  snapshot.current
-                    .steps
-              );
-
-            if (
-              !available
-            ) {
-              return;
-            }
-
-            const accepted =
-              Math.min(
-                delta,
-                available
-              );
-
-            const result =
-              await addRegularJourneySteps(
-                accepted
-              );
-
-            if (
-              result?.blocked
-            ) {
-              throw new Error(
-                t(
-                  "anotherActivity"
-                )
-              );
-            }
-
-            if (
-              !result?.saved
-            ) {
-              throw new Error(
-                t(
-                  "stepSaveFailed"
-                )
-              );
-            }
-
-            const credited =
-              Math.min(
-                accepted,
-
-                Math.max(
-                  0,
-
-                  Math.floor(
-                    Number(
-                      result.added
-                    ) ||
-                      0
-                  )
-                )
-              );
-
-            if (
-              !credited
-            ) {
-              return;
-            }
-
-            snapshot.current.steps +=
-              credited;
-
-            if (
-              snapshot.current
-                .steps >=
-              totalSteps
-            ) {
-              snapshot.current.isTracking =
-                false;
-
-              stopSensor();
-            }
-
-            publish();
-
-            await persistNow();
-
-            await awardReachedCheckpoints();
-          }
-        ).catch(
-          reportSaveError
-        );
-      }
-
-      async function start() {
-        try {
-          const permission =
-            await Pedometer
-              .requestPermissionsAsync();
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          if (
-            !permission.granted
-          ) {
-            throw new Error(
-              t(
-                "motionPermission"
-              )
-            );
-          }
-
-          const available =
-            await Pedometer
-              .isAvailableAsync();
-
-          if (
-            !available
-          ) {
-            throw new Error(
-              t(
-                "trackingUnavailable"
-              )
-            );
-          }
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          const activated =
-            await enqueueJourneyWork(
-              async () => {
-                if (
-                  cancelled
-                ) {
-                  return null;
-                }
-
-                return activateJourneyTracking();
-              }
-            );
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          if (
-            !activated
-              ?.saved
-          ) {
-            throw new Error(
-              t(
-                "trackingStartFailed"
-              )
-            );
-          }
-
-          const locationPermission =
-            await Location
-              .requestForegroundPermissionsAsync();
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          if (
-            !locationPermission
-              .granted
-          ) {
-            throw new Error(
-              t(
-                "preciseLocation"
-              )
-            );
-          }
-
-          locationSubscription =
-            await Location
-              .watchPositionAsync(
-                {
-                  accuracy:
-                    Location
-                      .Accuracy
-                      .High,
-
-                  timeInterval:
-                    1000,
-
-                  distanceInterval:
-                    0,
-                },
-
-                fix => {
-                  if (
-                    cancelled
-                  ) {
-                    return;
-                  }
-
-                  gate.update(
-                    fix
-                  );
-
-                  setWalkingStatus(
-                    gate.status()
-                  );
-                }
-              );
-
-          if (
-            cancelled
-          ) {
-            cleanupLocation();
-
-            return;
-          }
-
-          trackingRef.current =
-            true;
-
-          verificationTimer =
-            setInterval(
-              () => {
-                if (
-                  cancelled ||
-                  !trackingRef.current ||
-                  busyRef.current
-                ) {
-                  pending = [];
-
-                  return;
-                }
-
-                const ticket =
-                  gate.ticket();
-
-                setWalkingStatus(
-                  gate.status()
-                );
-
-                if (
-                  ticket ===
-                  null
-                ) {
-                  pending = [];
-
-                  return;
-                }
-
-                const readyItems =
-                  [];
-
-                pending =
-                  pending.filter(
-                    item => {
-                      if (
-                        item.ticket !==
-                        ticket
-                      ) {
-                        return false;
-                      }
-
-                      if (
-                        Date.now() -
-                          item.time <
-                        6000
-                      ) {
-                        return true;
-                      }
-
-                      readyItems.push(
-                        item
-                      );
-
-                      return false;
-                    }
-                  );
-
-                const delta =
-                  readyItems.reduce(
-                    (
-                      sum,
-                      item
-                    ) =>
-                      sum +
-                      item.delta,
-
-                    0
-                  );
-
-                if (
-                  delta
-                ) {
-                  commit(
-                    delta
-                  );
-                }
-              },
-
-              1000
-            );
-
-          subscriptionRef.current =
-            Pedometer
-              .watchStepCount(
-                result => {
-                  if (
-                    cancelled ||
-                    !trackingRef.current ||
-                    busyRef.current
-                  ) {
-                    return;
-                  }
-
-                  const reading =
-                    Number(
-                      result
-                        ?.steps
-                    );
-
-                  if (
-                    !Number.isFinite(
-                      reading
-                    ) ||
-                    reading <
-                      0
-                  ) {
-                    return;
-                  }
-
-                  const value =
-                    Math.floor(
-                      reading
-                    );
-
-                  const ticket =
-                    gate.ticket();
-
-                  const delta =
-                    lastReading ===
-                      null ||
-                    value <
-                      lastReading
-                      ? 0
-                      : value -
-                        lastReading;
-
-                  lastReading =
-                    value;
-
-                  if (
-                    delta >
-                      0 &&
-                    ticket !==
-                      null &&
-                    priorTicket ===
-                      ticket
-                  ) {
-                    pending.push({
-                      delta,
-
-                      ticket,
-
-                      time:
-                        Date.now(),
-                    });
-                  }
-
-                  priorTicket =
-                    ticket;
-                }
-              );
-
-          setSensorError(
-            ""
-          );
-
-          setSensorReady(
-            true
-          );
-        } catch (
-          error
-        ) {
-          cleanupLocation();
-
-          if (
-            !cancelled
-          ) {
-            stopSensor();
-
-            snapshot.current.isTracking =
-              false;
-
-            publish();
-
-            setSensorError(
-              error.message ||
-                t(
-                  "trackingStartFailed"
-                )
-            );
-          }
-        }
-      }
-
-      start();
-
-      return () => {
-        cancelled =
-          true;
-
-        cleanupLocation();
-
-        stopSensor();
-      };
-    },
-
-    [
-      ready,
-
-      view?.isTracking,
-
-      busy,
-
-      focused,
-
-      appState,
-    ]
-  );
+    };
+    void start();
+    return () => { cancelled = true; clearInterval(timer); stopSensor(); };
+  }, [ready, view?.isTracking, busy, focused, appState]);
 
   // ==========================================================
   // ACTIVE TIMER
@@ -5102,6 +4423,8 @@ function JourneySession({
 
   React.useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       if (
         !isTracking
       ) {
@@ -5111,6 +4434,8 @@ function JourneySession({
       const timer =
         setInterval(
           () => {
+  if (!_accountSession.isCurrent()) return;
+
             if (
               !trackingRef.current ||
               busyRef.current ||
@@ -5156,12 +4481,16 @@ function JourneySession({
 
   React.useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       const listener =
         AppState
           .addEventListener(
             "change",
 
             next => {
+  if (!_accountSession.isCurrent()) return;
+
               setAppState(
                 next
               );
@@ -5190,6 +4519,8 @@ function JourneySession({
             "blur",
 
             () => {
+  
+
               setFocused(
                 false
               );
@@ -5213,9 +4544,13 @@ function JourneySession({
             "focus",
 
             () =>
-              setFocused(
+              {
+  
+
+return (setFocused(
                 true
-              )
+              ));
+}
           );
 
       const offRemove =
@@ -5225,6 +4560,8 @@ function JourneySession({
             "beforeRemove",
 
             event => {
+  
+
               if (
                 allowNavigation.current ||
                 !snapshot.current
@@ -5242,7 +4579,10 @@ function JourneySession({
 
               runAction(
                 async () => {
-                  await persistNow();
+  try {
+    _accountSession.assertCurrent();
+
+                  await _accountSession.run(async () => (persistNow()));
 
                   allowNavigation.current =
                     true;
@@ -5251,7 +4591,12 @@ function JourneySession({
                     event.data
                       .action
                   );
-                }
+                
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
               );
             }
           );
@@ -5279,6 +4624,9 @@ function JourneySession({
   async function runAction(
     operation
   ) {
+  try {
+    _accountSession.assertCurrent();
+
     if (
       !snapshot.current ||
       busyRef.current
@@ -5296,12 +4644,14 @@ function JourneySession({
     stopSensor();
 
     try {
-      await enqueueJourneyWork(
+      await _accountSession.run(async () => (enqueueJourneyWork(
         operation
-      );
+      )));
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
       reportSaveError(
         error
       );
@@ -5334,7 +4684,12 @@ function JourneySession({
         );
       }
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // LEAVE
@@ -5370,10 +4725,18 @@ function JourneySession({
 
     return runAction(
       async () => {
-        await persistNow();
+  try {
+    _accountSession.assertCurrent();
+
+        await _accountSession.run(async () => (persistNow()));
 
         leave();
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -5384,6 +4747,12 @@ function JourneySession({
   function toggleTracking() {
     return runAction(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
+        if (snapshot.current.isTracking) {
+          await _accountSession.run(() => pauseJourneyTracking(id));
+        }
         snapshot.current.isTracking =
           snapshot.current
             .steps <
@@ -5391,8 +4760,13 @@ function JourneySession({
           !snapshot.current
             .isTracking;
 
-        await persistNow();
-      }
+        await _accountSession.run(async () => (persistNow()));
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -5437,6 +4811,9 @@ function JourneySession({
 
     return runAction(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         const previous =
           snapshot.current
             .shownStories;
@@ -5450,10 +4827,12 @@ function JourneySession({
           ];
 
         try {
-          await persistNow();
+          await _accountSession.run(async () => (persistNow()));
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
           snapshot.current.shownStories =
             previous;
 
@@ -5463,7 +4842,12 @@ function JourneySession({
         goToStory(
           number
         );
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -5473,6 +4857,8 @@ function JourneySession({
 
   React.useEffect(
     () => {
+  if (!_accountSession.isCurrent()) return;
+
       if (
         !ready ||
         busy ||
@@ -5528,11 +4914,16 @@ function JourneySession({
   function resetJourney() {
     return runAction(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
+        await _accountSession.run(() => pauseJourneyTracking(id));
         const prior =
           snapshot.current;
 
         snapshot.current = {
           ...prior,
+          engineCreditCursor: await _accountSession.run(() => getJourneyCreditedSteps(id)),
 
           steps:
             0,
@@ -5550,7 +4941,7 @@ function JourneySession({
             [],
         };
 
-        await AsyncStorage
+        await _accountSession.run(async () => (AsyncStorage
           .setItem(
             `journeyStats_${id}`,
 
@@ -5560,13 +4951,13 @@ function JourneySession({
               schemaVersion:
                 2,
             })
-          );
+          )));
 
-        await resetJourneyProgress(
+        await _accountSession.run(async () => (resetJourneyProgress(
           id
-        );
+        )));
 
-        await persistNow();
+        await _accountSession.run(async () => (persistNow()));
 
         Alert.alert(
           t(
@@ -5577,7 +4968,12 @@ function JourneySession({
             "resetCompleteMessage"
           )
         );
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -5592,6 +4988,9 @@ function JourneySession({
 
   return runAction(
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       // Jump to 100 steps before the finish.
       snapshot.current.steps =
         Math.max(
@@ -5603,18 +5002,23 @@ function JourneySession({
         false;
 
       // Save the new step position first.
-      await persistNow();
+      await _accountSession.run(async () => (persistNow()));
 
       // Award every checkpoint that has actually
       // been reached at this step position.
-      await awardReachedCheckpoints();
+      await _accountSession.run(async () => (awardReachedCheckpoints()));
 
       // Save again so the checkpoint state
       // and journey progress stay synchronized.
-      await persistNow();
+      await _accountSession.run(async () => (persistNow()));
 
       publish();
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
   );
 }
   // ==========================================================
@@ -5622,6 +5026,9 @@ function JourneySession({
   // ==========================================================
 
   async function awardPassportStamp() {
+  try {
+    _accountSession.assertCurrent();
+
     const aliases = {
       roman:
         "rome",
@@ -5658,10 +5065,10 @@ function JourneySession({
       id.toLowerCase();
 
     const raw =
-      await AsyncStorage
+      await _accountSession.run(async () => (AsyncStorage
         .getItem(
           "passportStamps"
-        );
+        )));
 
     const stamps =
       raw
@@ -5682,7 +5089,7 @@ function JourneySession({
       );
     }
 
-    await AsyncStorage
+    await _accountSession.run(async () => (AsyncStorage
       .multiSet([
         [
           "passportStamps",
@@ -5700,8 +5107,13 @@ function JourneySession({
 
           "true",
         ],
-      ]);
+      ])));
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // COMPLETE JOURNEY
@@ -5729,21 +5141,24 @@ function JourneySession({
 
     return runAction(
       async () => {
+  try {
+    _accountSession.assertCurrent();
+
         snapshot.current.isTracking =
           false;
 
-        await persistNow();
+        await _accountSession.run(async () => (persistNow()));
 
-        await awardReachedCheckpoints();
+        await _accountSession.run(async () => (awardReachedCheckpoints()));
 
         const flags =
           Object.fromEntries(
-            await AsyncStorage
+            await _accountSession.run(async () => (AsyncStorage
               .multiGet([
                 `journeyCompleted_${id}`,
 
                 `journeyRewarded_${id}`,
-              ])
+              ])))
           );
 
         let alreadyClaimed =
@@ -5768,9 +5183,9 @@ function JourneySession({
           !alreadyClaimed
         ) {
           const reward =
-            await completeJourneyReward(
+            await _accountSession.run(async () => (completeJourneyReward(
               id
-            );
+            )));
 
           if (
             reward
@@ -5809,7 +5224,7 @@ function JourneySession({
 
           // Keep internal points record in canonical title/language.
           const points =
-            await addPoints({
+            await _accountSession.run(async () => (addPoints({
               id:
                 `journey_${id}_complete`,
 
@@ -5834,7 +5249,7 @@ function JourneySession({
                 journeyId:
                   id,
               },
-            });
+            })));
 
           earnedPoints =
             nonnegative(
@@ -5842,7 +5257,7 @@ function JourneySession({
                 ?.pointsAwarded
             );
 
-          await AsyncStorage
+          await _accountSession.run(async () => (AsyncStorage
             .multiSet([
               [
                 `journeyCompleted_${id}`,
@@ -5855,14 +5270,14 @@ function JourneySession({
 
                 "true",
               ],
-            ]);
+            ])));
         }
 
-        await completeJourneyProgress(
+        await _accountSession.run(async () => (completeJourneyProgress(
           id
-        );
+        )));
 
-        await awardPassportStamp();
+        await _accountSession.run(async () => (awardPassportStamp()));
 
         snapshot.current.hasCompleted =
           true;
@@ -5870,7 +5285,7 @@ function JourneySession({
         snapshot.current.rewardsClaimed =
           true;
 
-        await persistNow();
+        await _accountSession.run(async () => (persistNow()));
 
         Alert.alert(
           t(
@@ -5895,7 +5310,12 @@ function JourneySession({
                 }
               )
         );
-      }
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
     );
   }
 
@@ -5904,8 +5324,11 @@ function JourneySession({
   // ==========================================================
 
   async function shareWalkProgress() {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      await Share.share({
+      await _accountSession.run(async () => (Share.share({
         message:
           t(
             "shareMessage",
@@ -5928,10 +5351,12 @@ function JourneySession({
                 completedCheckpoints,
             }
           ),
-      });
+      })));
     } catch (
       error
     ) {
+    if (isAccountSessionEnded(error)) throw error;
+
       Alert.alert(
         t(
           "unableShare"
@@ -5943,7 +5368,12 @@ function JourneySession({
           )
       );
     }
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
+}
 
   // ==========================================================
   // LOADING SCREEN
@@ -6572,7 +6002,10 @@ function JourneySession({
         </Text>
 
         {checkpoints.map(
-          point => (
+          point => {
+  
+
+return ((
             <TouchableOpacity
               key={
                 point.id
@@ -6585,6 +6018,8 @@ function JourneySession({
                 !point.active
               }
               onPress={() => {
+  
+
                 if (
                   point.complete ||
                   point.active
@@ -6630,7 +6065,8 @@ function JourneySession({
                 </Text>
               )}
             </TouchableOpacity>
-          )
+          ));
+}
         )}
       </View>
 
@@ -6788,6 +6224,8 @@ function JourneySession({
           styles.resetButton
         }
         onPress={() => {
+  
+
           Alert.alert(
             t(
               "resetQuestion"

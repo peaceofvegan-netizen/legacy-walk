@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import {
   useEffect,
   useRef,
@@ -9,8 +10,7 @@ import {
   AppState,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 
 // ============================================================
@@ -123,6 +123,9 @@ let writes = Promise.resolve();
 
 
 function writeStore(value) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
 
   const json =
     JSON.stringify(value);
@@ -130,17 +133,23 @@ function writeStore(value) {
 
   const next =
     writes.then(() =>
-      AsyncStorage.setItem(
+      {
+  if (!_accountSession.isCurrent()) return;
+
+return (AsyncStorage.setItem(
         STORAGE_KEY,
         json
-      )
+      ));
+}
     );
 
 
   // Keep queue alive even if one write fails.
 
   writes =
-    next.catch(() => {});
+    next.catch(() => {
+  
+});
 
 
   return next;
@@ -155,6 +164,9 @@ export function useWalkingSession(
   liveSteps,
   pedometerAvailable
 ) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
 
   const [, forceRender] =
     useState(0);
@@ -225,12 +237,18 @@ export function useWalkingSession(
   // ==========================================================
 
   const refresh = () => {
+  
+
 
     if (mounted.current) {
 
       forceRender(
         (value) =>
-          value + 1
+          {
+  
+
+return (value + 1);
+}
       );
     }
   };
@@ -240,7 +258,10 @@ export function useWalkingSession(
   // STORAGE PAYLOAD
   // ==========================================================
 
-  const pack = () => ({
+  const pack = () => {
+  
+
+return (({
 
     version: 1,
 
@@ -250,7 +271,8 @@ export function useWalkingSession(
 
     history:
       state.current.history,
-  });
+  }));
+};
 
 
   // ==========================================================
@@ -258,6 +280,8 @@ export function useWalkingSession(
   // ==========================================================
 
   const persist = () => {
+  
+
 
     const s =
       state.current;
@@ -277,12 +301,16 @@ export function useWalkingSession(
       pack()
     )
       .then(() => {
+  if (!_accountSession2.isCurrent()) return;
+
 
         s.error = "";
 
         refresh();
       })
       .catch((error) => {
+  
+
 
         console.log(
           "Walking session autosave error:",
@@ -307,6 +335,8 @@ export function useWalkingSession(
   // ==========================================================
 
   const sample = () => {
+  
+
 
     const s =
       state.current;
@@ -382,6 +412,8 @@ export function useWalkingSession(
   // ==========================================================
 
   const pause = () => {
+  
+
 
     const s =
       state.current;
@@ -406,7 +438,9 @@ export function useWalkingSession(
       "paused";
 
 
-    persist().catch(() => {});
+    persist().catch(() => {
+  
+});
 
 
     refresh();
@@ -418,6 +452,8 @@ export function useWalkingSession(
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession2.isCurrent()) return;
+
 
     mounted.current = true;
 
@@ -426,18 +462,21 @@ export function useWalkingSession(
 
 
     async function load() {
+  try {
+    _accountSession2.assertCurrent();
+
 
       try {
 
         // Wait for old queued writes before reading.
 
-        await writes;
+        await _accountSession2.run(async () => (writes));
 
 
         const raw =
-          await AsyncStorage.getItem(
+          await _accountSession2.run(async () => (AsyncStorage.getItem(
             STORAGE_KEY
-          );
+          )));
 
 
         let saved;
@@ -473,9 +512,9 @@ export function useWalkingSession(
           // ====================================================
 
           const old =
-            await AsyncStorage.getItem(
+            await _accountSession2.run(async () => (AsyncStorage.getItem(
               OLD_HISTORY_KEY
-            );
+            )));
 
 
           const history =
@@ -585,6 +624,8 @@ export function useWalkingSession(
         refresh();
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
         console.log(
           "Walking session load error:",
@@ -601,7 +642,12 @@ export function useWalkingSession(
           refresh();
         }
       }
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
 
     load();
@@ -613,6 +659,8 @@ export function useWalkingSession(
 
     const timer =
       setInterval(() => {
+  if (!_accountSession2.isCurrent()) return;
+
 
         const s =
           state.current;
@@ -653,7 +701,9 @@ export function useWalkingSession(
         ) {
 
           persist()
-            .catch(() => {});
+            .catch(() => {
+  
+});
 
           refresh();
 
@@ -672,7 +722,9 @@ export function useWalkingSession(
         ) {
 
           persist()
-            .catch(() => {});
+            .catch(() => {
+  
+});
         }
 
 
@@ -689,6 +741,8 @@ export function useWalkingSession(
       AppState.addEventListener(
         "change",
         (nextState) => {
+  if (!_accountSession2.isCurrent()) return;
+
 
           if (
             nextState !== "active"
@@ -743,7 +797,9 @@ export function useWalkingSession(
         writeStore(
           pack()
         ).catch(
-          () => {}
+          () => {
+  
+}
         );
       }
 
@@ -766,6 +822,8 @@ export function useWalkingSession(
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession2.isCurrent()) return;
+
 
     const s =
       state.current;
@@ -803,7 +861,9 @@ export function useWalkingSession(
     ) {
 
       persist()
-        .catch(() => {});
+        .catch(() => {
+  
+});
     }
 
 
@@ -822,6 +882,8 @@ export function useWalkingSession(
   const begin = (
     expectedStatus
   ) => {
+  
+
 
     const s =
       state.current;
@@ -901,7 +963,9 @@ export function useWalkingSession(
 
 
     persist()
-      .catch(() => {});
+      .catch(() => {
+  
+});
 
 
     refresh();
@@ -914,6 +978,9 @@ export function useWalkingSession(
 
   const finish =
     async () => {
+  try {
+    _accountSession2.assertCurrent();
+
 
       const s =
         state.current;
@@ -962,7 +1029,9 @@ export function useWalkingSession(
       ) {
 
         persist()
-          .catch(() => {});
+          .catch(() => {
+  
+});
 
 
         Alert.alert(
@@ -1050,8 +1119,12 @@ export function useWalkingSession(
 
         ...s.history.filter(
           (item) =>
-            item.id !==
-            record.id
+            {
+  
+
+return (item.id !==
+            record.id);
+}
         ),
 
       ].slice(
@@ -1079,16 +1152,16 @@ export function useWalkingSession(
         //
         // ======================================================
 
-        await writeStore(
+        await _accountSession2.run(async () => (writeStore(
           pack()
-        );
+        )));
 
 
         // ======================================================
         // ATOMIC LOGICAL COMMIT
         // ======================================================
 
-        await writeStore({
+        await _accountSession2.run(async () => (writeStore({
 
           version: 1,
 
@@ -1096,7 +1169,7 @@ export function useWalkingSession(
 
           draft:
             emptyDraft(),
-        });
+        })));
 
 
         // Only change in-memory state AFTER successful storage.
@@ -1132,6 +1205,8 @@ export function useWalkingSession(
         }
 
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
         console.log(
           "Walking assessment save error:",
@@ -1161,7 +1236,12 @@ export function useWalkingSession(
 
         refresh();
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 
   // ==========================================================
@@ -1242,9 +1322,13 @@ export function useWalkingSession(
 
     startWalkingSession:
       () =>
-        begin(
+        {
+  
+
+return (begin(
           "idle"
-        ),
+        ));
+},
 
 
     pauseWalkingSession:
@@ -1253,9 +1337,13 @@ export function useWalkingSession(
 
     resumeWalkingSession:
       () =>
-        begin(
+        {
+  
+
+return (begin(
           "paused"
-        ),
+        ));
+},
 
 
     finishWalkingSession:

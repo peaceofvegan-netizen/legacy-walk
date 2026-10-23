@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useCallback,
   useEffect,
@@ -18,8 +19,7 @@ import {
   Platform,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 // ============================================================
 // LEGATHON WALK
@@ -521,6 +521,9 @@ export default function CommunityCommentsScreen({
 
   language = "en",
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   // ==========================================================
   // LANGUAGE
   // ==========================================================
@@ -533,6 +536,8 @@ export default function CommunityCommentsScreen({
 
   const t = useCallback(
     (key, values = {}) => {
+  
+
       const value =
         TEXT[languageCode]?.[key] ??
         TEXT.en?.[key] ??
@@ -581,7 +586,11 @@ export default function CommunityCommentsScreen({
   const COMMENTS_KEY =
     useMemo(
       () =>
-        `legathon_comments_${postId}`,
+        {
+  
+
+return (`legathon_comments_${postId}`);
+},
       [postId]
     );
 
@@ -607,6 +616,8 @@ export default function CommunityCommentsScreen({
 
   const handleBack =
     useCallback(() => {
+  
+
       if (
         typeof goBack ===
         "function"
@@ -632,13 +643,16 @@ export default function CommunityCommentsScreen({
 
   const loadComments =
     useCallback(async () => {
+  try {
+    _accountSession.assertCurrent();
+
       try {
         setLoading(true);
 
         const saved =
-          await AsyncStorage.getItem(
+          await _accountSession.run(async () => (AsyncStorage.getItem(
             COMMENTS_KEY
-          );
+          )));
 
         if (!saved) {
           setComments([]);
@@ -661,6 +675,8 @@ export default function CommunityCommentsScreen({
           parsed
         );
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Load comments error:",
           error
@@ -670,7 +686,12 @@ export default function CommunityCommentsScreen({
       } finally {
         setLoading(false);
       }
-    }, [
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}, [
       COMMENTS_KEY,
       t,
     ]);
@@ -680,6 +701,8 @@ export default function CommunityCommentsScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadComments();
   }, [
     loadComments,
@@ -693,14 +716,22 @@ export default function CommunityCommentsScreen({
     async (
       updatedComments
     ) => {
-      await AsyncStorage.setItem(
+  try {
+    _accountSession.assertCurrent();
+
+      await _accountSession.run(async () => (AsyncStorage.setItem(
         COMMENTS_KEY,
 
         JSON.stringify(
           updatedComments
         )
-      );
-    };
+      )));
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // SUBMIT COMMENT
@@ -708,6 +739,9 @@ export default function CommunityCommentsScreen({
 
   const submitComment =
     async () => {
+  try {
+    _accountSession.assertCurrent();
+
       const cleanComment =
         comment.trim();
 
@@ -750,9 +784,9 @@ export default function CommunityCommentsScreen({
       ];
 
       try {
-        await saveComments(
+        await _accountSession.run(async () => (saveComments(
           updatedComments
-        );
+        )));
 
         setComments(
           updatedComments
@@ -760,6 +794,8 @@ export default function CommunityCommentsScreen({
 
         setComment("");
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log(
           "Save comment error:",
           error
@@ -772,7 +808,12 @@ export default function CommunityCommentsScreen({
       } finally {
         setPosting(false);
       }
-    };
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   // ==========================================================
   // DELETE COMMENT
@@ -780,6 +821,8 @@ export default function CommunityCommentsScreen({
 
   const deleteComment =
     (id) => {
+  
+
       Alert.alert(
         t("deleteCommentTitle"),
         t("deleteCommentMessage"),
@@ -801,21 +844,30 @@ export default function CommunityCommentsScreen({
 
             onPress:
               async () => {
+  try {
+    _accountSession.assertCurrent();
+
                 try {
                   const updatedComments =
                     comments.filter(
                       (item) =>
-                        item.id !== id
+                        {
+  
+
+return (item.id !== id);
+}
                     );
 
-                  await saveComments(
+                  await _accountSession.run(async () => (saveComments(
                     updatedComments
-                  );
+                  )));
 
                   setComments(
                     updatedComments
                   );
                 } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
                   console.log(
                     "Delete comment error:",
                     error
@@ -826,7 +878,12 @@ export default function CommunityCommentsScreen({
                     t("tryAgain")
                   );
                 }
-              },
+              
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
           },
         ]
       );
@@ -838,6 +895,8 @@ export default function CommunityCommentsScreen({
 
   const getCommentTime =
     (createdAt) => {
+  
+
       if (!createdAt) {
         return "";
       }
@@ -938,6 +997,8 @@ export default function CommunityCommentsScreen({
 
   const renderComment =
     ({ item }) => {
+  
+
       return (
         <View
           style={
@@ -988,9 +1049,13 @@ export default function CommunityCommentsScreen({
                 t("delete")
               }
               onPress={() =>
-                deleteComment(
+                {
+  
+
+return (deleteComment(
                   item.id
-                )
+                ));
+}
               }
             >
               <Text
@@ -1287,9 +1352,13 @@ export default function CommunityCommentsScreen({
           }
           keyExtractor={
             (item) =>
-              String(
+              {
+  
+
+return (String(
                 item.id
-              )
+              ));
+}
           }
           renderItem={
             renderComment

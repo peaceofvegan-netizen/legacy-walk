@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // screens/LeaderboardScreen.js
 //
 // LEGATHON WALK
@@ -26,8 +27,7 @@ import {
   StyleSheet,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import {
   getEquippedAvatar,
@@ -608,6 +608,12 @@ function formatNumber(
 // ============================================================
 
 async function loadMemberRecord() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   const [
     avatar,
     displayName,
@@ -617,7 +623,7 @@ async function loadMemberRecord() {
     stamps,
     streak,
   ] =
-    await Promise.all([
+    await _accountSession.run(async () => (Promise.all([
       getEquippedAvatar(),
 
       AsyncStorage.getItem(
@@ -641,7 +647,7 @@ async function loadMemberRecord() {
       AsyncStorage.getItem(
         "walkingStreak"
       ),
-    ]);
+    ])));
 
 
   let profile = {};
@@ -653,7 +659,9 @@ async function loadMemberRecord() {
             avatarProfileRaw
           )
         : {};
-  } catch {
+  } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
     profile = {};
   }
 
@@ -679,6 +687,11 @@ async function loadMemberRecord() {
     streak:
       safeNumber(streak),
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 
@@ -732,6 +745,8 @@ export default function LeaderboardScreen({
   goBack,
   language = "en",
 }) {
+  const _accountSession2 = captureAccountSession();
+
 
   const languageCode =
     normalizeLanguage(
@@ -745,6 +760,8 @@ export default function LeaderboardScreen({
         key,
         values
       ) => {
+  
+
 
         const translated =
           TEXT[
@@ -813,6 +830,9 @@ export default function LeaderboardScreen({
   const refreshAll =
     useCallback(
       async () => {
+  try {
+    _accountSession2.assertCurrent();
+
 
         setRefreshing(
           true
@@ -825,11 +845,11 @@ export default function LeaderboardScreen({
             ,
             nextMember,
           ] =
-            await Promise.all([
+            await _accountSession2.run(async () => (Promise.all([
               refresh(),
 
               loadMemberRecord(),
-            ]);
+            ])));
 
 
           setMember(
@@ -839,6 +859,8 @@ export default function LeaderboardScreen({
         } catch (
           refreshError
         ) {
+    if (isAccountSessionEnded(refreshError)) throw refreshError;
+
 
           console.log(
             "Leaderboard refresh error:",
@@ -852,7 +874,12 @@ export default function LeaderboardScreen({
           );
         }
 
-      },
+      
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
       [
         refresh,
       ]
@@ -865,6 +892,8 @@ export default function LeaderboardScreen({
 
   useEffect(
     () => {
+  if (!_accountSession2.isCurrent()) return;
+
 
       loadMemberRecord()
         .then(
@@ -872,6 +901,8 @@ export default function LeaderboardScreen({
         )
         .catch(
           loadError => {
+  
+
 
             console.log(
               "Leaderboard member load error:",
@@ -923,6 +954,8 @@ export default function LeaderboardScreen({
   const currentRankDisplay =
     useMemo(
       () => {
+  
+
 
         const source =
           rank?.currentRank ||
@@ -1448,6 +1481,8 @@ export default function LeaderboardScreen({
 
           {LEGATHON_RANKS.map(
             level => {
+  
+
 
               const isCurrent =
                 level.title ===

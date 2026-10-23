@@ -1,6 +1,12 @@
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
 import { supabase } from "../lib/supabase";
 
 export async function updateLeaderboard(userId, profile) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
   if (!userId) return;
 
   const row = {
@@ -15,18 +21,33 @@ export async function updateLeaderboard(userId, profile) {
     updated_at: new Date().toISOString(),
   };
 
-  await supabase
+  await _accountSession.run(async () => (supabase
     .from("leaderboard")
-    .upsert(row, { onConflict: "id" });
+    .upsert(row, { onConflict: "id" })));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function loadLeaderboard() {
-  const { data } = await supabase
+  const _accountSession2 = captureAccountSession();
+
+  try {
+    _accountSession2.assertCurrent();
+
+  const { data } = await _accountSession2.run(async () => (supabase
     .from("leaderboard")
     .select("*")
-    .order("points", { ascending: false });
+    .order("points", { ascending: false })));
 
   return data || [];
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 await updateLeaderboard(user.id, {
   username: currentAvatar?.name || "Legathon Walker",

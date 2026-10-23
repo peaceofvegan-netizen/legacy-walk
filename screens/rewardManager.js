@@ -1,39 +1,50 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
+
 
 export async function processRewards(rewards = []) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
   for (const reward of rewards) {
     switch (reward.type) {
       case "wcoins":
-        await awardWCoins(reward.amount);
+        await _accountSession.run(async () => (awardWCoins(reward.amount)));
         break;
 
       case "points":
-        await awardPoints(reward.amount);
+        await _accountSession.run(async () => (awardPoints(reward.amount)));
         break;
 
       case "tracksuit":
-        await unlockTracksuit(reward.id);
+        await _accountSession.run(async () => (unlockTracksuit(reward.id)));
         break;
 
       case "badge":
-        await unlockBadge(reward.id);
+        await _accountSession.run(async () => (unlockBadge(reward.id)));
         break;
 
       case "rank":
-        await unlockRank(reward.id);
+        await _accountSession.run(async () => (unlockRank(reward.id)));
         break;
 
       case "certificate":
-        await unlockCertificate(reward.id);
+        await _accountSession.run(async () => (unlockCertificate(reward.id)));
         break;
 
       case "passport":
-        await unlockPassportStamp(reward.id);
+        await _accountSession.run(async () => (unlockPassportStamp(reward.id)));
         break;
 
       default:
         console.log("Unknown reward:", reward.type);
     }
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 async function awardWCoins(amount) {

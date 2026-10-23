@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 import React, {
   useEffect,
   useState,
@@ -14,8 +15,7 @@ import {
   StyleSheet,
 } from "react-native";
 
-import AsyncStorage from
-  "@react-native-async-storage/async-storage";
+
 
 import Svg, {
   Circle,
@@ -23,6 +23,7 @@ import Svg, {
 
 import {
   STEP_STATS_KEY,
+  getStepVerificationStatus,
 } from "../utils/stepTrackingEngine";
 
 import useJourneyProgress
@@ -1460,6 +1461,11 @@ export default function WalkingDashboardScreen({
 
   goToLegathons,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  const [verificationStatus, setVerificationStatus] = useState("Verifying walking");
+
   const [
     todaySteps,
     setTodaySteps,
@@ -1567,6 +1573,8 @@ export default function WalkingDashboardScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     let mounted =
       true;
 
@@ -1580,6 +1588,9 @@ export default function WalkingDashboardScreen({
         "inactive";
 
     async function refresh() {
+  try {
+    _accountSession.assertCurrent();
+
       if (
         !mounted ||
         !foreground ||
@@ -1590,17 +1601,18 @@ export default function WalkingDashboardScreen({
 
       loading =
         true;
+      setVerificationStatus(getStepVerificationStatus());
 
       try {
         const values =
           Object.fromEntries(
-            await AsyncStorage
+            await _accountSession.run(async () => (AsyncStorage
               .multiGet([
                 STEP_STATS_KEY,
 
                 STORAGE_KEYS
                   .avatarProfile,
-              ])
+              ])))
           );
 
         if (
@@ -1657,6 +1669,8 @@ export default function WalkingDashboardScreen({
 
           const readCount =
             value => {
+  
+
               const number =
                 Number(
                   value ??
@@ -1749,6 +1763,8 @@ export default function WalkingDashboardScreen({
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
           setStepError(
             error.message ||
               (
@@ -1790,18 +1806,22 @@ export default function WalkingDashboardScreen({
             const avatar =
               avatarOptions.find(
                 item =>
-                  item.id ===
+                  {
+  
+
+return (item.id ===
                   profile
-                    ?.avatarId
+                    ?.avatarId);
+}
               );
 
             if (
               avatar
             ) {
               const visual =
-                await getCurrentAvatarVisual(
+                await _accountSession.run(async () => (getCurrentAvatarVisual(
                   avatar.id
-                );
+                )));
 
               if (
                 mounted
@@ -1817,6 +1837,8 @@ export default function WalkingDashboardScreen({
         } catch (
           error
         ) {
+    if (isAccountSessionEnded(error)) throw error;
+
           console.log(
             "Dashboard profile refresh error:",
             error
@@ -1825,6 +1847,8 @@ export default function WalkingDashboardScreen({
       } catch (
         error
       ) {
+    if (isAccountSessionEnded(error)) throw error;
+
         if (
           mounted
         ) {
@@ -1842,13 +1866,20 @@ export default function WalkingDashboardScreen({
         loading =
           false;
       }
-    }
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+}
 
     void refresh();
 
     const timer =
       setInterval(
         () => {
+  if (!_accountSession.isCurrent()) return;
+
           void refresh();
         },
         1500
@@ -1860,6 +1891,8 @@ export default function WalkingDashboardScreen({
           "change",
 
           state => {
+  if (!_accountSession.isCurrent()) return;
+
             foreground =
               state ===
               "active";
@@ -2390,9 +2423,7 @@ export default function WalkingDashboardScreen({
                 styles.liveText
               }
             >
-              {t(
-                "live"
-              )}
+              {verificationStatus === "Walking verified" ? t("live") : "VERIFYING"}
             </Text>
           </View>
         </View>
@@ -2422,13 +2453,20 @@ export default function WalkingDashboardScreen({
             METRICS
         ==================================================== */}
 
+        <Text style={{ color: "#AAB7CA", fontSize: 12, marginBottom: 12 }}>
+          {verificationStatus}
+        </Text>
+
         <View
           style={
             styles.metricsGrid
           }
         >
           {metrics.map(
-            metric => (
+            metric => {
+  
+
+return ((
               <View
                 key={
                   metric.key
@@ -2528,7 +2566,8 @@ export default function WalkingDashboardScreen({
                   }
                 </Text>
               </View>
-            )
+            ));
+}
           )}
         </View>
 

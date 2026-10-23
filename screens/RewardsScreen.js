@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
 // screens/RewardsScreen.js
 
@@ -21,7 +22,7 @@ import {
   View,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 import { getWCoins } from "../utils/wcoinStorage";
 import { getJourneyLifetimeSteps } from "../utils/stepTrackingEngine";
@@ -811,15 +812,21 @@ function clamp(value, min = 0, max = 100) {
 // ============================================================
 
 async function loadRewardLifetimeSteps() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
   try {
     const centralSteps = safeNumber(
-      await getJourneyLifetimeSteps()
+      await _accountSession.run(async () => (getJourneyLifetimeSteps()))
     );
 
-    const [lowerRaw, upperRaw] = await Promise.all([
+    const [lowerRaw, upperRaw] = await _accountSession.run(async () => (Promise.all([
       AsyncStorage.getItem("lifetimeSteps"),
       AsyncStorage.getItem("LifetimeSteps"),
-    ]);
+    ])));
 
     const lifetimeSteps = Math.max(
       centralSteps,
@@ -827,7 +834,7 @@ async function loadRewardLifetimeSteps() {
       safeNumber(upperRaw)
     );
 
-    await Promise.all([
+    await _accountSession.run(async () => (Promise.all([
       AsyncStorage.setItem(
         "lifetimeSteps",
         String(lifetimeSteps)
@@ -836,12 +843,19 @@ async function loadRewardLifetimeSteps() {
         "LifetimeSteps",
         String(lifetimeSteps)
       ),
-    ]);
+    ])));
 
     return lifetimeSteps;
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("Rewards lifetime steps error:", error);
     return 0;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
@@ -1044,11 +1058,15 @@ export default function RewardsScreen({
   goToWCoins,
   goToLegathonPoints,
 }) {
+  const _accountSession2 = captureAccountSession();
+
   const languageCode = getLanguage(language);
   const isRTL = languageCode === "ar";
 
   const t = useCallback(
     (key, variables = {}) => {
+  
+
       const value =
         TEXT[languageCode]?.[key] ??
         TEXT.en[key] ??
@@ -1060,7 +1078,11 @@ export default function RewardsScreen({
   );
 
   const number = useCallback(
-    (value) => formatNumber(value, languageCode),
+    (value) => {
+  
+
+return (formatNumber(value, languageCode));
+},
     [languageCode]
   );
 
@@ -1091,6 +1113,9 @@ export default function RewardsScreen({
 
   const loadRewards = useCallback(
     async (initial = false) => {
+  try {
+    _accountSession2.assertCurrent();
+
       const requestId = ++requestRef.current;
 
       if (mountedRef.current) {
@@ -1102,10 +1127,10 @@ export default function RewardsScreen({
       }
 
       try {
-        const [steps, coins] = await Promise.all([
+        const [steps, coins] = await _accountSession2.run(async () => (Promise.all([
           loadRewardLifetimeSteps(),
           getWCoins(),
-        ]);
+        ])));
 
         if (
           !mountedRef.current ||
@@ -1117,6 +1142,8 @@ export default function RewardsScreen({
         setLifetimeSteps(safeNumber(steps));
         setWcoinBalance(safeNumber(coins));
       } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
         console.log("Rewards load error:", error);
       } finally {
         if (
@@ -1127,7 +1154,12 @@ export default function RewardsScreen({
           setRefreshing(false);
         }
       }
-    },
+    
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+},
     []
   );
 
@@ -1136,6 +1168,8 @@ export default function RewardsScreen({
   // ==========================================================
 
   useEffect(() => {
+  if (!_accountSession2.isCurrent()) return;
+
     mountedRef.current = true;
 
     void loadRewards(true);
@@ -1143,6 +1177,8 @@ export default function RewardsScreen({
     const subscription = AppState.addEventListener(
       "change",
       (nextState) => {
+  if (!_accountSession2.isCurrent()) return;
+
         if (nextState === "active") {
           void loadRewards(false);
         }
@@ -1161,12 +1197,18 @@ export default function RewardsScreen({
   // ==========================================================
 
   const progression = useMemo(
-    () => calculateTracksuitProgress(lifetimeSteps),
+    () => {
+  
+
+return (calculateTracksuitProgress(lifetimeSteps));
+},
     [lifetimeSteps]
   );
 
   const tracksuitName = useCallback(
     (suit) => {
+  
+
       if (!suit) return t("standard");
 
       const key =
@@ -1191,6 +1233,8 @@ export default function RewardsScreen({
 
   const translateRank = useCallback(
     (rank) => {
+  
+
       const key =
         RANK_KEYS[String(rank || "")
           .trim()
@@ -1603,7 +1647,11 @@ export default function RewardsScreen({
                 refreshing && styles.disabledButton,
               ]}
               disabled={refreshing || loading}
-              onPress={() => loadRewards(false)}
+              onPress={() => {
+  
+
+return (loadRewards(false));
+}}
               activeOpacity={0.85}
             >
               {refreshing ? (
@@ -1650,6 +1698,8 @@ export default function RewardsScreen({
 
           <View style={styles.tracksuitList}>
             {TRACKSUITS.map((suit) => {
+  
+
               const unlocked =
                 lifetimeSteps >= suit.unlockAt;
 

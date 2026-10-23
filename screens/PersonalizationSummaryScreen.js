@@ -1,3 +1,4 @@
+import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 // PersonalizationSummaryScreen.js
 
 import React, { useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 const PREF_KEY = "journeyPreferences";
 
@@ -57,30 +58,53 @@ export default function PersonalizationSummaryScreen({
   startLegacy,
   editPreferences,
 }) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   const [preferences, setPreferences] = useState(null);
 
   useEffect(() => {
+  if (!_accountSession.isCurrent()) return;
+
     loadPreferences();
   }, []);
 
   const loadPreferences = async () => {
+  try {
+    _accountSession.assertCurrent();
+
     try {
-      const saved = await AsyncStorage.getItem(PREF_KEY);
+      const saved = await _accountSession.run(async () => (AsyncStorage.getItem(PREF_KEY)));
       if (saved) {
         setPreferences(JSON.parse(saved));
       }
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
       console.log("Summary load error:", error);
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const handleStartLegacy = async () => {
-    await AsyncStorage.setItem("hasCompletedOnboarding", "true");
+  try {
+    _accountSession.assertCurrent();
+
+    await _accountSession.run(async () => (AsyncStorage.setItem("hasCompletedOnboarding", "true")));
 
     if (startLegacy) {
       startLegacy();
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
   const interests = preferences?.interests || [];
   const goals = preferences?.goals || [];
@@ -118,11 +142,15 @@ export default function PersonalizationSummaryScreen({
         {interests.length === 0 ? (
           <Text style={styles.emptyText}>No interests selected.</Text>
         ) : (
-          interests.map((item) => (
+          interests.map((item) => {
+  
+
+return ((
             <Text key={item} style={styles.itemText}>
               {CATEGORY_LABELS[item] || item}
             </Text>
-          ))
+          ));
+})
         )}
       </View>
 
@@ -132,11 +160,15 @@ export default function PersonalizationSummaryScreen({
         {goals.length === 0 ? (
           <Text style={styles.emptyText}>No goals selected.</Text>
         ) : (
-          goals.map((item) => (
+          goals.map((item) => {
+  
+
+return ((
             <Text key={item} style={styles.itemText}>
               {GOAL_LABELS[item] || item}
             </Text>
-          ))
+          ));
+})
         )}
       </View>
 
@@ -146,11 +178,15 @@ export default function PersonalizationSummaryScreen({
         {hiddenCategories.length === 0 ? (
           <Text style={styles.emptyText}>No hidden categories.</Text>
         ) : (
-          hiddenCategories.map((item) => (
+          hiddenCategories.map((item) => {
+  
+
+return ((
             <Text key={item} style={styles.itemText}>
               {CATEGORY_LABELS[item] || item}
             </Text>
-          ))
+          ));
+})
         )}
       </View>
 

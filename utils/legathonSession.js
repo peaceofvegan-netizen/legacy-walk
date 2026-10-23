@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 
 import {
   getActiveMarathon,
@@ -39,10 +40,16 @@ const createEmptySession = () => ({
 });
 
 export async function loadLegathonSession() {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   try {
-    const saved = await AsyncStorage.getItem(
+    _accountSession.assertCurrent();
+
+  try {
+    const saved = await _accountSession.run(async () => (AsyncStorage.getItem(
       LEGATHON_SESSION_KEY
-    );
+    )));
 
     if (!saved) {
       return createEmptySession();
@@ -62,6 +69,8 @@ export async function loadLegathonSession() {
       ),
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Load Legathon session error:",
       error
@@ -69,25 +78,46 @@ export async function loadLegathonSession() {
 
     return createEmptySession();
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function saveLegathonSession(session) {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   const normalized = {
     ...createEmptySession(),
     ...session,
     lastUpdated: nowISO(),
   };
 
-  await AsyncStorage.setItem(
+  await _accountSession2.run(async () => (AsyncStorage.setItem(
     LEGATHON_SESSION_KEY,
     JSON.stringify(normalized)
-  );
+  )));
 
   return normalized;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function isLegathonActive() {
-  const session = await loadLegathonSession();
+  const _accountSession3 = captureAccountSession();
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const session = await _accountSession3.run(async () => (loadLegathonSession()));
 
   return (
     session.active === true &&
@@ -95,9 +125,19 @@ export async function isLegathonActive() {
     session.ownsStepRouting === true &&
     Boolean(session.marathonId)
   );
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function startLegathon(marathonId) {
+  const _accountSession4 = captureAccountSession();
+
+  try {
+    _accountSession4.assertCurrent();
+
   try {
     if (!marathonId) {
       return {
@@ -108,17 +148,19 @@ export async function startLegathon(marathonId) {
 
     // Account for steps before Marathon mode begins.
     try {
-      await syncTodaySteps();
+      await _accountSession4.run(async () => (syncTodaySteps()));
     } catch (syncError) {
+    if (isAccountSessionEnded(syncError)) throw syncError;
+
       console.log(
         "Pre-Legathon step sync error:",
         syncError
       );
     }
 
-    const result = await setActiveMarathon(
+    const result = await _accountSession4.run(async () => (setActiveMarathon(
       marathonId
-    );
+    )));
 
     if (!result?.saved) {
       return {
@@ -130,12 +172,12 @@ export async function startLegathon(marathonId) {
     }
 
     // The next physical reading establishes a fresh baseline.
-    await resetStepRouterBaseline();
-    await activateMarathonTracking();
+    await _accountSession4.run(async () => (resetStepRouterBaseline()));
+    await _accountSession4.run(async () => (activateMarathonTracking()));
 
     const now = nowISO();
 
-    const session = await saveLegathonSession({
+    const session = await _accountSession4.run(async () => (saveLegathonSession({
       active: true,
       marathonId,
       status: "active",
@@ -148,7 +190,7 @@ export async function startLegathon(marathonId) {
         result?.progress?.steps
       ),
       ownsStepRouting: true,
-    });
+    })));
 
     return {
       started: true,
@@ -157,6 +199,8 @@ export async function startLegathon(marathonId) {
       session,
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("Start Legathon error:", error);
 
     return {
@@ -165,12 +209,22 @@ export async function startLegathon(marathonId) {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function resumeLegathon() {
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
   try {
     const activeMarathon =
-      await getActiveMarathon();
+      await _accountSession5.run(async () => (getActiveMarathon()));
 
     const marathonId =
       activeMarathon?.marathonId ??
@@ -184,21 +238,23 @@ export async function resumeLegathon() {
       };
     }
 
-    const previous = await loadLegathonSession();
+    const previous = await _accountSession5.run(async () => (loadLegathonSession()));
 
     try {
-      await syncTodaySteps();
+      await _accountSession5.run(async () => (syncTodaySteps()));
     } catch (syncError) {
+    if (isAccountSessionEnded(syncError)) throw syncError;
+
       console.log(
         "Pre-resume step sync error:",
         syncError
       );
     }
 
-    await resetStepRouterBaseline();
-    await activateMarathonTracking();
+    await _accountSession5.run(async () => (resetStepRouterBaseline()));
+    await _accountSession5.run(async () => (activateMarathonTracking()));
 
-    const session = await saveLegathonSession({
+    const session = await _accountSession5.run(async () => (saveLegathonSession({
       ...previous,
       active: true,
       marathonId,
@@ -206,13 +262,15 @@ export async function resumeLegathon() {
       resumedAt: nowISO(),
       pausedAt: null,
       ownsStepRouting: true,
-    });
+    })));
 
     return {
       resumed: true,
       session,
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("Resume Legathon error:", error);
 
     return {
@@ -221,11 +279,21 @@ export async function resumeLegathon() {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function pauseLegathon() {
+  const _accountSession6 = captureAccountSession();
+
   try {
-    const current = await loadLegathonSession();
+    _accountSession6.assertCurrent();
+
+  try {
+    const current = await _accountSession6.run(async () => (loadLegathonSession()));
 
     if (!current.active) {
       return {
@@ -235,30 +303,34 @@ export async function pauseLegathon() {
     }
 
     try {
-      await syncTodaySteps();
+      await _accountSession6.run(async () => (syncTodaySteps()));
     } catch (syncError) {
+    if (isAccountSessionEnded(syncError)) throw syncError;
+
       console.log(
         "Pre-pause step sync error:",
         syncError
       );
     }
 
-    const session = await saveLegathonSession({
+    const session = await _accountSession6.run(async () => (saveLegathonSession({
       ...current,
       active: false,
       status: "paused",
       pausedAt: nowISO(),
       ownsStepRouting: false,
-    });
+    })));
 
-    await resetStepRouterBaseline();
-    await activateJourneyTracking();
+    await _accountSession6.run(async () => (resetStepRouterBaseline()));
+    await _accountSession6.run(async () => (activateJourneyTracking()));
 
     return {
       paused: true,
       session,
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("Pause Legathon error:", error);
 
     return {
@@ -267,13 +339,23 @@ export async function pauseLegathon() {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function completeLegathonSession(
   marathonId
 ) {
+  const _accountSession7 = captureAccountSession();
+
   try {
-    const current = await loadLegathonSession();
+    _accountSession7.assertCurrent();
+
+  try {
+    const current = await _accountSession7.run(async () => (loadLegathonSession()));
 
     if (
       marathonId &&
@@ -286,22 +368,24 @@ export async function completeLegathonSession(
       };
     }
 
-    const session = await saveLegathonSession({
+    const session = await _accountSession7.run(async () => (saveLegathonSession({
       ...current,
       active: false,
       status: "completed",
       completedAt: nowISO(),
       ownsStepRouting: false,
-    });
+    })));
 
-    await resetStepRouterBaseline();
-    await activateJourneyTracking();
+    await _accountSession7.run(async () => (resetStepRouterBaseline()));
+    await _accountSession7.run(async () => (activateJourneyTracking()));
 
     return {
       completed: true,
       session,
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Complete Legathon session error:",
       error
@@ -313,19 +397,31 @@ export async function completeLegathonSession(
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function exitLegathon() {
+  const _accountSession8 = captureAccountSession();
+
   try {
-    const current = await loadLegathonSession();
+    _accountSession8.assertCurrent();
+
+  try {
+    const current = await _accountSession8.run(async () => (loadLegathonSession()));
 
     if (
       current.active === true &&
       current.status === "active"
     ) {
       try {
-        await syncTodaySteps();
+        await _accountSession8.run(async () => (syncTodaySteps()));
       } catch (syncError) {
+    if (isAccountSessionEnded(syncError)) throw syncError;
+
         console.log(
           "Pre-exit step sync error:",
           syncError
@@ -333,22 +429,24 @@ export async function exitLegathon() {
       }
     }
 
-    const session = await saveLegathonSession({
+    const session = await _accountSession8.run(async () => (saveLegathonSession({
       ...current,
       active: false,
       status: "idle",
       pausedAt: null,
       ownsStepRouting: false,
-    });
+    })));
 
-    await resetStepRouterBaseline();
-    await activateJourneyTracking();
+    await _accountSession8.run(async () => (resetStepRouterBaseline()));
+    await _accountSession8.run(async () => (activateJourneyTracking()));
 
     return {
       exited: true,
       session,
     };
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log("Exit Legathon error:", error);
 
     return {
@@ -357,19 +455,32 @@ export async function exitLegathon() {
       error,
     };
   }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function clearLegathonSession() {
-  try {
-    await AsyncStorage.removeItem(
-      LEGATHON_SESSION_KEY
-    );
+  const _accountSession9 = captureAccountSession();
+  const AsyncStorage = _accountSession9.storage;
 
-    await resetStepRouterBaseline();
-    await activateJourneyTracking();
+  try {
+    _accountSession9.assertCurrent();
+
+  try {
+    await _accountSession9.run(async () => (AsyncStorage.removeItem(
+      LEGATHON_SESSION_KEY
+    )));
+
+    await _accountSession9.run(async () => (resetStepRouterBaseline()));
+    await _accountSession9.run(async () => (activateJourneyTracking()));
 
     return createEmptySession();
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
     console.log(
       "Clear Legathon session error:",
       error
@@ -379,5 +490,10 @@ export async function clearLegathonSession() {
       ...createEmptySession(),
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }

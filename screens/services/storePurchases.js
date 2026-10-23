@@ -1,10 +1,11 @@
+import { captureAccountSession, isAccountSessionEnded } from "../../utils/accountStorage";
 import {
   supabase,
-} from "../lib/supabase";
+} from "../../lib/supabase";
 
 import {
   syncServerWCoinBalance,
-} from "../utils/wcoinStorage";
+} from "../../utils/wcoinStorage";
 
 
 // ============================================================
@@ -15,6 +16,11 @@ import {
 export async function purchaseStoreItem(
   itemId
 ) {
+  const _accountSession = captureAccountSession();
+
+  try {
+    _accountSession.assertCurrent();
+
 
   if (!itemId) {
     return {
@@ -31,7 +37,7 @@ export async function purchaseStoreItem(
       data: userData,
       error: userError,
     } =
-      await supabase.auth.getUser();
+      await _accountSession.run(async () => (supabase.auth.getUser()));
 
 
     if (userError) {
@@ -52,13 +58,13 @@ export async function purchaseStoreItem(
       data,
       error,
     } =
-      await supabase.rpc(
+      await _accountSession.run(async () => (supabase.rpc(
         "purchase_store_item",
         {
           p_item_id:
             itemId,
         }
-      );
+      )));
 
 
     if (error) {
@@ -97,9 +103,9 @@ export async function purchaseStoreItem(
         newBalance
       )
     ) {
-      await syncServerWCoinBalance(
+      await _accountSession.run(async () => (syncServerWCoinBalance(
         newBalance
-      );
+      )));
     }
 
 
@@ -129,6 +135,8 @@ export async function purchaseStoreItem(
     };
 
   } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
+
 
     console.log(
       "Secure store purchase error:",
@@ -142,5 +150,10 @@ export async function purchaseStoreItem(
         "purchase-error",
       error,
     };
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }

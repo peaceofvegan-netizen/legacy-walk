@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 import { getLegathonRank } from "./legathonRankSystem";
 
 const STORAGE = {
@@ -9,33 +10,94 @@ const STORAGE = {
 };
 
 async function getJSON(key, fallback) {
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
   try {
-    const value = await AsyncStorage.getItem(key);
+    _accountSession.assertCurrent();
+
+  try {
+    const value = await _accountSession.run(async () => (AsyncStorage.getItem(key)));
     return value ? JSON.parse(value) : fallback;
-  } catch {
+  } catch (_cancelledError) {
+    if (isAccountSessionEnded(_cancelledError)) throw _cancelledError;
+
     return fallback;
+  }
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
   }
 }
 
 async function setJSON(key, value) {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
+  await _accountSession2.run(async () => (AsyncStorage.setItem(key, JSON.stringify(value))));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function getTotalPoints() {
-  const total = await AsyncStorage.getItem(STORAGE.TOTAL);
+  const _accountSession3 = captureAccountSession();
+  const AsyncStorage = _accountSession3.storage;
+
+  try {
+    _accountSession3.assertCurrent();
+
+  const total = await _accountSession3.run(async () => (AsyncStorage.getItem(STORAGE.TOTAL)));
   return Number(total || 0);
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function getPointHistory() {
-  return await getJSON(STORAGE.HISTORY, []);
+  const _accountSession4 = captureAccountSession();
+
+  try {
+    _accountSession4.assertCurrent();
+
+  return await _accountSession4.run(async () => (getJSON(STORAGE.HISTORY, [])));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function hasAward(id) {
-  const awards = await getJSON(STORAGE.AWARDS, {});
+  const _accountSession5 = captureAccountSession();
+
+  try {
+    _accountSession5.assertCurrent();
+
+  const awards = await _accountSession5.run(async () => (getJSON(STORAGE.AWARDS, {})));
   return awards[id] === true;
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }
 
 export async function addPoints(transaction) {
+  const _accountSession6 = captureAccountSession();
+  const AsyncStorage = _accountSession6.storage;
+
+  try {
+    _accountSession6.assertCurrent();
+
   const {
     id,
     title,
@@ -50,10 +112,10 @@ export async function addPoints(transaction) {
   if (!category) throw new Error("Category required.");
   if (Number(points) <= 0) throw new Error("Points must be greater than zero.");
 
-  const awards = await getJSON(STORAGE.AWARDS, {});
+  const awards = await _accountSession6.run(async () => (getJSON(STORAGE.AWARDS, {})));
 
   if (awards[id]) {
-    const total = await getTotalPoints();
+    const total = await _accountSession6.run(async () => (getTotalPoints()));
 
     return {
       success: false,
@@ -62,7 +124,7 @@ export async function addPoints(transaction) {
     };
   }
 
-  const history = await getJSON(STORAGE.HISTORY, []);
+  const history = await _accountSession6.run(async () => (getJSON(STORAGE.HISTORY, [])));
 
   const record = {
     id,
@@ -78,16 +140,16 @@ export async function addPoints(transaction) {
 
   awards[id] = true;
 
-  const previousTotal = await getTotalPoints();
+  const previousTotal = await _accountSession6.run(async () => (getTotalPoints()));
   const totalPoints = previousTotal + Number(points);
 
-  await AsyncStorage.multiSet([
+  await _accountSession6.run(async () => (AsyncStorage.multiSet([
     [STORAGE.TOTAL, String(totalPoints)],
     [STORAGE.LAST_UPDATED, new Date().toISOString()],
-  ]);
+  ])));
 
-  await setJSON(STORAGE.HISTORY, history);
-  await setJSON(STORAGE.AWARDS, awards);
+  await _accountSession6.run(async () => (setJSON(STORAGE.HISTORY, history)));
+  await _accountSession6.run(async () => (setJSON(STORAGE.AWARDS, awards)));
 
   const rank = getLegathonRank(totalPoints);
 
@@ -99,4 +161,9 @@ export async function addPoints(transaction) {
     rank,
     transaction: record,
   };
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 }

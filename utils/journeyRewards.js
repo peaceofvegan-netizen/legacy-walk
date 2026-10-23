@@ -1,4 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { captureAccountSession, isAccountSessionEnded } from "./accountStorage";
+
 import { supabase } from "../lib/supabase";
 import { processRewards } from "./rewardManager";
 
@@ -1158,25 +1159,53 @@ const rewardClaimKey = journeyId =>
   `${JOURNEY_REWARDS_KEY}_${journeyId}`;
 
 const readNumber = async key => {
-  const value = await AsyncStorage.getItem(key);
+  const _accountSession = captureAccountSession();
+  const AsyncStorage = _accountSession.storage;
+
+  try {
+    _accountSession.assertCurrent();
+
+  const value = await _accountSession.run(async () => (AsyncStorage.getItem(key)));
   return Number(value || 0);
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 
 export const hasClaimedJourneyReward = async journeyId => {
+  const _accountSession2 = captureAccountSession();
+  const AsyncStorage = _accountSession2.storage;
+
+  try {
+    _accountSession2.assertCurrent();
+
   const id = resolveJourneyRewardId(journeyId);
 
   if (!id) return false;
 
-  const claimed = await AsyncStorage.getItem(
+  const claimed = await _accountSession2.run(async () => (AsyncStorage.getItem(
     rewardClaimKey(id)
-  );
+  )));
 
   return claimed === "true";
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const completeJourneyReward =
   async journeyId => {
+  const _accountSession3 = captureAccountSession();
+  const AsyncStorage = _accountSession3.storage;
+
+  try {
+    _accountSession3.assertCurrent();
+
 
     const resolvedId =
       resolveJourneyRewardId(
@@ -1206,9 +1235,9 @@ export const completeJourneyReward =
     // ========================================================
 
     const localClaim =
-      await AsyncStorage.getItem(
+      await _accountSession3.run(async () => (AsyncStorage.getItem(
         claimKey
-      );
+      )));
 
 
     if (
@@ -1232,7 +1261,7 @@ export const completeJourneyReward =
       data: userData,
       error: userError,
     } =
-      await supabase.auth.getUser();
+      await _accountSession3.run(async () => (supabase.auth.getUser()));
 
 
     if (userError) {
@@ -1258,10 +1287,10 @@ export const completeJourneyReward =
 
     // Mark pending locally while
     // Supabase processes the claim.
-    await AsyncStorage.setItem(
+    await _accountSession3.run(async () => (AsyncStorage.setItem(
       claimKey,
       "pending"
-    );
+    )));
 
 
     try {
@@ -1274,13 +1303,13 @@ export const completeJourneyReward =
         data,
         error,
       } =
-        await supabase.rpc(
+        await _accountSession3.run(async () => (supabase.rpc(
           "claim_my_journey_reward",
           {
             p_journey_id:
               resolvedId,
           }
-        );
+        )));
 
 
       if (error) {
@@ -1326,10 +1355,10 @@ export const completeJourneyReward =
         "already-claimed"
       ) {
 
-        await AsyncStorage.setItem(
+        await _accountSession3.run(async () => (AsyncStorage.setItem(
           claimKey,
           "true"
-        );
+        )));
 
 
         if (
@@ -1337,12 +1366,12 @@ export const completeJourneyReward =
             newBalance
           )
         ) {
-          await AsyncStorage.setItem(
+          await _accountSession3.run(async () => (AsyncStorage.setItem(
             WCOIN_CACHE_KEY,
             String(
               newBalance
             )
-          );
+          )));
         }
 
 
@@ -1373,9 +1402,9 @@ export const completeJourneyReward =
         result.claimed !== true
       ) {
 
-        await AsyncStorage.removeItem(
+        await _accountSession3.run(async () => (AsyncStorage.removeItem(
           claimKey
-        );
+        )));
 
 
         throw new Error(
@@ -1427,7 +1456,7 @@ export const completeJourneyReward =
         legacyPoints,
         avatarXP,
       ] =
-        await Promise.all([
+        await _accountSession3.run(async () => (Promise.all([
           readNumber(
             LEGACY_POINTS_KEY
           ),
@@ -1435,7 +1464,7 @@ export const completeJourneyReward =
           readNumber(
             AVATAR_XP_KEY
           ),
-        ]);
+        ])));
 
 
       const updates = [
@@ -1485,9 +1514,9 @@ export const completeJourneyReward =
       }
 
 
-      await AsyncStorage.multiSet(
+      await _accountSession3.run(async () => (AsyncStorage.multiSet(
         updates
-      );
+      )));
 
 
       // ======================================================
@@ -1534,10 +1563,12 @@ export const completeJourneyReward =
       };
 
     } catch (error) {
+    if (isAccountSessionEnded(error)) throw error;
 
-      await AsyncStorage.removeItem(
+
+      await _accountSession3.run(async () => (AsyncStorage.removeItem(
         claimKey
-      );
+      )));
 
       console.log(
         "Secure Journey reward error:",
@@ -1546,16 +1577,32 @@ export const completeJourneyReward =
 
       throw error;
     }
-  };
+  
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
+};
 
 export const resetJourneyReward = async journeyId => {
+  const _accountSession4 = captureAccountSession();
+  const AsyncStorage = _accountSession4.storage;
+
+  try {
+    _accountSession4.assertCurrent();
+
   const id = resolveJourneyRewardId(journeyId);
 
   if (!id) return;
 
-  await AsyncStorage.removeItem(
+  await _accountSession4.run(async () => (AsyncStorage.removeItem(
     rewardClaimKey(id)
-  );
+  )));
+
+  } catch (accountError) {
+    if (isAccountSessionEnded(accountError)) return;
+    throw accountError;
+  }
 };
 
 export const getJourneyReward = journeyId => {
