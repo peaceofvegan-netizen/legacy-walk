@@ -1608,7 +1608,7 @@ export default function WalkingDashboardScreen({
           Object.fromEntries(
             await _accountSession.run(async () => (AsyncStorage
               .multiGet([
-                STEP_STATS_KEY,
+                STEP_STATS_KEY,           
 
                 STORAGE_KEYS
                   .avatarProfile,
