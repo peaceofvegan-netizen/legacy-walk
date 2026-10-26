@@ -21,6 +21,47 @@ import {
 
 
 
+// Central screen access policy. All navigation paths pass through this check.
+const PAID_SCREEN_NAMES = Object.freeze({
+  aiCoach: "AI Wellness Coach",
+  aiConversation: "AI Coach conversations",
+  mealPlanner: "Meal Planner",
+  recovery: "Recovery Coach",
+  hydration: "Hydration Coach",
+  sleep: "Sleep Coach",
+  walkingFunction: "Walking Pace and Mobility Trends",
+  legathons: "World Legathons",
+  worldMarathonDetail: "Legathon challenges",
+});
+
+function getMembershipGate(tab, plan, selectedJourney, lastJourney) {
+  const current = String(plan || "free").trim().toLowerCase();
+  const paid = current === "premium" || current === "elite";
+  if (Object.prototype.hasOwnProperty.call(PAID_SCREEN_NAMES, tab)) {
+    return paid ? null : {
+      title: PAID_SCREEN_NAMES[tab], required: "Premium", missingJourney: false,
+    };
+  }
+  if (tab !== "journeyMap" && tab !== "journeyStory") return null;
+  const journey = selectedJourney && typeof selectedJourney === "object"
+    ? selectedJourney
+    : lastJourney && typeof lastJourney === "object" ? lastJourney : null;
+  // An ID alone cannot establish access. Re-select from the journey list.
+  if (!journey || (!journey.accessLevel && typeof journey.premium !== "boolean")) {
+    return { title: "Choose a journey", missingJourney: true };
+  }
+  const required = String(journey.accessLevel || (journey.premium ? "premium" : "free"))
+    .trim().toLowerCase();
+  const allowed = required === "free" || (required === "premium" && paid)
+    || (required === "elite" && current === "elite");
+  if (allowed) return null;
+  if (required !== "premium" && required !== "elite") {
+    return { title: "Choose a journey", missingJourney: true };
+  }
+  return { title: journey.title || journey.name || "This journey",
+    required: required === "elite" ? "Elite" : "Premium", missingJourney: false };
+}
+
 import { StripeProvider } from "@stripe/stripe-react-native";
 
 // ============================================================
@@ -1075,7 +1116,38 @@ return (setActiveTab("legathons"));
 
   // HOME
 
-  if (activeTab === "home") {
+  const membershipGate = getMembershipGate(
+    activeTab, subscriptionPlan, selectedJourney, lastJourney
+  );
+
+  // Do not mount paid screens (or start their effects) for a Free account.
+  if (membershipGate) {
+    screen = (
+      <View style={styles.membershipGate}>
+        <Text accessibilityRole="header" style={styles.membershipGateTitle}>
+          {membershipGate.title}
+        </Text>
+        <Text style={styles.membershipGateText}>
+          {membershipGate.missingJourney
+            ? "Select a journey from Journeys to check its availability."
+            : `${membershipGate.required} membership required. Your current plan is ${subscriptionPlan}.`}
+        </Text>
+        <TouchableOpacity
+          accessibilityRole="button"
+          style={styles.membershipGateButton}
+          onPress={() => setActiveTab(membershipGate.missingJourney ? "journeys" : "subscription")}
+        >
+          <Text style={styles.membershipGateButtonText}>
+            {membershipGate.missingJourney ? "Choose a Journey" : "View Memberships"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" onPress={goMore}>
+          <Text style={styles.membershipGateBack}>Back to More</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  else if (activeTab === "home") {
     screen = (
       <WalkingDashboardScreen
         {...dashboardProps}
@@ -1756,6 +1828,8 @@ return (setActiveTab("rewards"));
   else if (activeTab === "aiCoach") {
     screen = (
       <AIWellnessMasterScreen
+        userPlan={subscriptionPlan}
+        goToSubscription={() => setActiveTab("subscription")}
         language={language}
         goToGPSJourneyMap={params => {
   
@@ -2566,6 +2640,13 @@ return (setActiveTab("rewards"));
 // ============================================================
 
 const styles = StyleSheet.create({
+  membershipGate: { flex: 1, justifyContent: "center", padding: 28, backgroundColor: "#050B16" },
+  membershipGateTitle: { color: "#F7BE22", fontSize: 28, fontWeight: "800", textAlign: "center", marginBottom: 16 },
+  membershipGateText: { color: "#DFE8F5", fontSize: 18, lineHeight: 27, textAlign: "center", marginBottom: 24 },
+  membershipGateButton: { backgroundColor: "#F7BE22", padding: 18, borderRadius: 18, alignItems: "center" },
+  membershipGateButtonText: { color: "#071223", fontSize: 18, fontWeight: "800" },
+  membershipGateBack: { color: "#71E5CD", fontSize: 17, textAlign: "center", padding: 20 },
+
   authLoading: {
     flex: 1,
     backgroundColor: "#020611",
