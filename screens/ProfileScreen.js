@@ -1,3 +1,4 @@
+import { loadStepStats } from "../utils/stepTrackingEngine";
 import { captureAccountSession, isAccountSessionEnded } from "../utils/accountStorage";
 
  // screens/ProfileScreen.js
@@ -873,8 +874,12 @@ return (getText(language, key, variables));
 
       // Walking data
 
+      // Match Home's all-time total while retaining account isolation.
+      const stepStats = await _accountSession.run(() => loadStepStats());
       setLifetimeSteps(
-        safeNumber(savedSteps?.[1])
+        safeNumber(stepStats.journeyLifetimeSteps) +
+        safeNumber(stepStats.marathonLifetimeSteps) +
+        safeNumber(stepStats.generalLifetimeSteps)
       );
 
       setWalkingStreak(
